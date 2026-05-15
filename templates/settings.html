@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+{% block body_class %}page-settings{% endblock %}
+{% block page_id %}settings{% endblock %}
+{% block content %}
+<section class="settings-hero">
+  <h1 class="title title-settings">Refine the ritual.</h1>
+  <p class="lede lede-narrow">Every preference persists quietly on this device — sound, motion, defaults, and your saved rhythms.</p>
+</section>
+
+<div class="settings-grid">
+  <section class="card">
+    <h2 class="card-title">Session flow</h2>
+    <label class="toggle">
+      <input type="checkbox" id="setAutoWork" />
+      <span class="toggle-ui"></span>
+      <span class="toggle-copy">
+        <span class="toggle-name">Auto-start work</span>
+        <span class="toggle-desc">Begin the next focus block when a break ends.</span>
+      </span>
+    </label>
+    <label class="toggle">
+      <input type="checkbox" id="setAutoBreak" />
+      <span class="toggle-ui"></span>
+      <span class="toggle-copy">
+        <span class="toggle-name">Auto-start breaks</span>
+        <span class="toggle-desc">Roll into rest without an extra tap.</span>
+      </span>
+    </label>
+  </section>
+
+  <section class="card">
+    <h2 class="card-title">Sound</h2>
+    <label class="toggle">
+      <input type="checkbox" id="setSound" />
+      <span class="toggle-ui"></span>
+      <span class="toggle-copy">
+        <span class="toggle-name">Sound on</span>
+        <span class="toggle-desc">Master switch for audio cues.</span>
+      </span>
+    </label>
+    <label class="toggle">
+      <input type="checkbox" id="setTick" />
+      <span class="toggle-ui"></span>
+      <span class="toggle-copy">
+        <span class="toggle-name">Subtle minute pulse</span>
+        <span class="toggle-desc">A soft marker at each minute boundary.</span>
+      </span>
+    </label>
+    <label class="toggle">
+      <input type="checkbox" id="setChimeWork" />
+      <span class="toggle-ui"></span>
+      <span class="toggle-copy">
+        <span class="toggle-name">Chime · work complete</span>
+      </span>
+    </label>
+    <label class="toggle">
+      <input type="checkbox" id="setChimeBreak" />
+      <span class="toggle-ui"></span>
+      <span class="toggle-copy">
+        <span class="toggle-name">Chime · break complete</span>
+      </span>
+    </label>
+  </section>
+
+  <section class="card">
+    <h2 class="card-title">Attention</h2>
+    <label class="toggle">
+      <input type="checkbox" id="setNotify" />
+      <span class="toggle-ui"></span>
+      <span class="toggle-copy">
+        <span class="toggle-name">Desktop notifications</span>
+        <span class="toggle-desc">Gentle alerts when this tab is not in view.</span>
+      </span>
+    </label>
+    <div class="field">
+      <label class="field-label" for="setDefaultPreset">Default level</label>
+      <select id="setDefaultPreset" class="select"></select>
+    </div>
+  </section>
+
+  <section class="card card-wide">
+    <h2 class="card-title">Your combinations</h2>
+    <p class="card-lede">Name a rhythm. Durations are in minutes; one full cycle is always four work blocks, three short rests, and one long rest.</p>
+    <form class="preset-form" id="customForm">
+      <input type="text" name="name" class="input" placeholder="Name" maxlength="80" required />
+      <input type="number" name="work_min" class="input input-num" placeholder="Work" min="1" max="180" required />
+      <input type="number" name="short_rest_min" class="input input-num" placeholder="Short" min="1" max="60" required />
+      <input type="number" name="long_rest_min" class="input input-num" placeholder="Long" min="1" max="120" required />
+      <button type="submit" class="btn btn-primary">Save combination</button>
+    </form>
+    <ul class="custom-list" id="customList"></ul>
+  </section>
+</div>
+<p class="settings-toast" id="settingsToast" role="status" aria-live="polite"></p>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/settings.js') }}" defer></script>
+{% endblock %}

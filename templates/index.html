@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Timer{% endblock %}
+{% block body_class %}page-home{% endblock %}
+{% block page_id %}home{% endblock %}
+{% block content %}
+<section class="hero">
+  <div class="timer-panel">
+    <div class="timer-ring-wrap">
+      <svg class="timer-ring" viewBox="0 0 220 220" aria-hidden="true">
+        <defs>
+          <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#d4bc7c" />
+            <stop offset="45%" stop-color="#f0e6d2" />
+            <stop offset="100%" stop-color="#9a7b4f" />
+          </linearGradient>
+        </defs>
+        <circle class="ring-track" cx="110" cy="110" r="96" />
+        <circle id="ringProgress" class="ring-progress" cx="110" cy="110" r="96" />
+      </svg>
+      <div class="timer-core">
+        <p class="phase-label" id="phaseLabel">Deep work</p>
+        <p class="time-display" id="timeDisplay">00:00</p>
+        <p class="cycle-hint" id="cycleHint">Block 1 of 4 · Navin</p>
+      </div>
+    </div>
+    <div class="controls">
+      <button type="button" class="btn btn-primary" id="btnPrimary">Start</button>
+      <button type="button" class="btn btn-quiet" id="btnPause" disabled>Pause</button>
+      <button type="button" class="btn btn-quiet" id="btnSkip">Skip</button>
+      <button type="button" class="btn btn-ghost" id="btnReset">Reset</button>
+    </div>
+  </div>
+</section>
+
+<section class="presets-section">
+  <div class="section-head">
+    <h2 class="section-title">Levels & rhythms</h2>
+    <p class="section-sub">Eight built-ins from the table, plus combinations you design.</p>
+  </div>
+  <div class="preset-scroll" id="presetList"></div>
+</section>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
+{% endblock %}

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% block title %}Focus{% endblock %} · Muhurat</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}" />
+</head>
+<body class="{% block body_class %}{% endblock %}">
+  <div class="ambient" aria-hidden="true"></div>
+  <header class="topbar">
+    <a class="brand" href="{{ url_for('index') }}">
+      <span class="brand-mark">◇</span>
+      <span class="brand-text">Muhurat<span class="brand-dot">·</span>Focus</span>
+    </a>
+    <nav class="topnav">
+      <a href="{{ url_for('index') }}" class="nav-link{% if request.endpoint == 'index' %} is-active{% endif %}">Timer</a>
+      <a href="{{ url_for('settings_page') }}" class="nav-link{% if request.endpoint == 'settings_page' %} is-active{% endif %}">Settings</a>
+    </nav>
+  </header>
+  <main class="main">{% block content %}{% endblock %}</main>
+  <footer class="foot">
+    <span>4 work · 3 short · 1 long · 76.2% focus ratio</span>
+    <span class="foot-sep">·</span>
+    <span>1 Muhurat = 48 min · 1 Ghadi = 24 min</span>
+  </footer>
+  <script>window.__PAGE__ = "{% block page_id %}home{% endblock %}";</script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

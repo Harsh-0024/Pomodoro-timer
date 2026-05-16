@@ -131,6 +131,27 @@ def api_put_settings():
         patch["chime_work_end"] = bool(body["chime_work_end"])
     if "chime_break_end" in body:
         patch["chime_break_end"] = bool(body["chime_break_end"])
+    if "chime_session_start" in body:
+        patch["chime_session_start"] = bool(body["chime_session_start"])
+    if "chime_pool_add" in body:
+        patch["chime_pool_add"] = bool(body["chime_pool_add"])
+    if "chime_choice" in body:
+        patch["chime_choice"] = bool(body["chime_choice"])
+    if "chime_skip" in body:
+        patch["chime_skip"] = bool(body["chime_skip"])
+    if "sound_volume" in body:
+        try:
+            vol = int(body["sound_volume"])
+        except (TypeError, ValueError):
+            return jsonify({"error": "Invalid volume"}), 400
+        if not (0 <= vol <= 100):
+            return jsonify({"error": "Volume must be 0–100"}), 400
+        patch["sound_volume"] = vol
+    if "sound_profile" in body:
+        profile = str(body["sound_profile"])
+        if profile not in ("subtle", "balanced", "bold"):
+            return jsonify({"error": "Invalid sound profile"}), 400
+        patch["sound_profile"] = profile
     if "notifications_enabled" in body:
         patch["notifications_enabled"] = bool(body["notifications_enabled"])
     if "default_preset_id" in body:

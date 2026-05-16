@@ -27,7 +27,16 @@
     <span class="foot-sep">·</span>
     <span>1 Muhurat = 48 min · 1 Ghadi = 24 min</span>
   </footer>
+  <div id="shortcutsModal" class="modal hidden" role="dialog" aria-labelledby="shortcutsTitle" aria-hidden="true">
+    <div class="modal-backdrop" tabindex="-1" aria-hidden="true"></div>
+    <div class="modal-sheet">
+      <button type="button" class="modal-close" aria-label="Close">×</button>
+      <h2 id="shortcutsTitle" class="modal-title">Keyboard shortcuts</h2>
+      <ul class="shortcut-list" id="shortcutsList"></ul>
+    </div>
+  </div>
   <script>window.__PAGE__ = "{% block page_id %}home{% endblock %}";</script>
+  <script src="{{ url_for('static', filename='js/shortcuts.js') }}" defer></script>
   {% block scripts %}{% endblock %}
 </body>
 </html>

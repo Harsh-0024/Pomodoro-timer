@@ -4,7 +4,24 @@
 {% block page_id %}home{% endblock %}
 {% block content %}
 <section class="hero">
+  <div class="session-live" aria-live="polite">
+    <div class="live-stat">
+      <span class="live-val" id="poolDisplay">0:00</span>
+      <span class="live-key">rest pool <span class="live-key-sub">skipped · deferred · accrued</span></span>
+    </div>
+    <span class="live-divider" aria-hidden="true"></span>
+    <div class="live-stat">
+      <span class="live-val" id="productivityDisplay">—</span>
+      <span class="live-key">session</span>
+    </div>
+  </div>
+
   <div class="timer-panel">
+    <div class="choice-panel hidden" id="choicePanel" role="group" aria-labelledby="choicePrompt">
+      <p class="choice-prompt" id="choicePrompt"></p>
+      <div class="choice-actions" id="choiceActions"></div>
+    </div>
+
     <div class="timer-ring-wrap">
       <svg class="timer-ring" viewBox="0 0 220 220" aria-hidden="true">
         <defs>
@@ -21,14 +38,18 @@
         <p class="phase-label" id="phaseLabel">Deep work</p>
         <p class="time-display" id="timeDisplay">00:00</p>
         <p class="cycle-hint" id="cycleHint">Block 1 of 4 · Navin</p>
+        <p class="extend-note hidden" id="extendNote"></p>
       </div>
     </div>
-    <div class="controls">
+    <div class="controls" id="mainControls">
       <button type="button" class="btn btn-primary" id="btnPrimary">Start</button>
       <button type="button" class="btn btn-quiet" id="btnPause" disabled>Pause</button>
-      <button type="button" class="btn btn-quiet" id="btnSkip">Skip</button>
-      <button type="button" class="btn btn-ghost" id="btnReset">Reset</button>
+      <button type="button" class="btn btn-quiet hidden" id="btnSkipRemaining">Skip remaining</button>
+      <button type="button" class="btn btn-quiet hidden" id="btnBeginRest">Begin rest</button>
+      <button type="button" class="btn btn-quiet hidden" id="btnSkipRestExtend">Skip rest</button>
+      <button type="button" class="btn btn-ghost" id="btnReset">Reset session</button>
     </div>
+    <p class="shortcuts-hint"><kbd>Space</kbd> + <kbd>/</kbd> shortcuts</p>
   </div>
 </section>
 
@@ -41,5 +62,6 @@
 </section>
 {% endblock %}
 {% block scripts %}
+<script src="{{ url_for('static', filename='js/sounds.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
 {% endblock %}

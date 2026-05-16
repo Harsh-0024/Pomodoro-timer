@@ -134,8 +134,262 @@ body {
 
 .hero {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
   margin-bottom: 3.5rem;
+}
+
+.session-live {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  width: min(520px, 100%);
+  padding: 0.65rem 1.1rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(8px);
+}
+
+.live-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  min-width: 5.5rem;
+}
+
+.live-val {
+  font-family: var(--font-serif);
+  font-size: 1.35rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: var(--gold2);
+  font-variant-numeric: tabular-nums;
+}
+
+.live-key {
+  font-size: 0.62rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+}
+
+.live-key-sub {
+  font-size: 0.55rem;
+  letter-spacing: 0.12em;
+  opacity: 0.65;
+  text-transform: lowercase;
+}
+
+.shortcuts-hint {
+  margin: 1rem 0 0;
+  text-align: center;
+  font-size: 0.72rem;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  font-weight: 300;
+}
+
+.shortcuts-hint kbd {
+  font-family: var(--font-sans);
+  font-size: 0.68rem;
+  padding: 0.12rem 0.35rem;
+  border-radius: 4px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--gold2);
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.modal.hidden {
+  display: none;
+}
+
+.modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(6px);
+}
+
+.modal-sheet {
+  position: relative;
+  width: min(400px, 100%);
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--bg1);
+  padding: 1.5rem 1.35rem 1.25rem;
+  box-shadow: var(--shadow);
+}
+
+.modal-close {
+  position: absolute;
+  top: 0.65rem;
+  right: 0.85rem;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.modal-title {
+  font-family: var(--font-serif);
+  font-size: 1.5rem;
+  font-weight: 500;
+  margin: 0 0 1rem;
+}
+
+.shortcut-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.shortcut-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  padding: 0.55rem 0;
+  border-top: 1px solid var(--line);
+  font-size: 0.88rem;
+}
+
+.shortcut-row:first-child {
+  border-top: 0;
+}
+
+.shortcut-keys {
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  color: var(--gold2);
+  white-space: nowrap;
+}
+
+.shortcut-action {
+  color: var(--muted);
+  text-align: right;
+  font-weight: 300;
+}
+
+body.modal-open {
+  overflow: hidden;
+}
+
+.choice-actions .btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.range {
+  width: 100%;
+  accent-color: var(--gold);
+}
+
+.range-val {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.85rem;
+  color: var(--gold2);
+}
+
+.live-divider {
+  width: 1px;
+  height: 1.75rem;
+  background: var(--line);
+  flex-shrink: 0;
+}
+
+.choice-panel {
+  margin-bottom: 1.25rem;
+  padding: 1.1rem 1rem 1rem;
+  border-radius: var(--radius);
+  border: 1px solid rgba(201, 169, 98, 0.22);
+  background: rgba(201, 169, 98, 0.06);
+  text-align: center;
+}
+
+.choice-panel.hidden {
+  display: none;
+}
+
+.choice-prompt {
+  margin: 0 0 0.85rem;
+  font-size: 0.92rem;
+  color: var(--muted);
+  font-weight: 300;
+  line-height: 1.5;
+}
+
+.choice-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.choice-actions .btn {
+  min-width: 8.5rem;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.extend-note {
+  margin: 0.35rem 0 0;
+  font-size: 0.78rem;
+  color: var(--gold);
+  font-weight: 300;
+  letter-spacing: 0.06em;
+}
+
+.extend-note.hidden {
+  display: none;
+}
+
+.time-display.time-extend {
+  color: var(--gold2);
+}
+
+.timer-ring-wrap.ring-extend .ring-progress {
+  animation: ring-breathe 3s ease-in-out infinite;
+}
+
+@keyframes ring-breathe {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+body.mode-choice .timer-panel {
+  border-color: rgba(201, 169, 98, 0.18);
+}
+
+body.mode-cumulative .phase-label {
+  color: var(--gold2);
 }
 
 .eyebrow {
@@ -241,7 +495,10 @@ body {
   flex-wrap: wrap;
   gap: 0.6rem;
   justify-content: center;
-  margin-bottom: 1.5rem;
+}
+
+.controls.hidden {
+  display: none;
 }
 
 .btn {

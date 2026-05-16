@@ -108,8 +108,15 @@
     const setTick = document.getElementById("setTick");
     const setChimeWork = document.getElementById("setChimeWork");
     const setChimeBreak = document.getElementById("setChimeBreak");
+    const setChimeStart = document.getElementById("setChimeStart");
+    const setChimePool = document.getElementById("setChimePool");
+    const setChimeChoice = document.getElementById("setChimeChoice");
+    const setChimeSkip = document.getElementById("setChimeSkip");
     const setNotify = document.getElementById("setNotify");
     const setDefaultPreset = document.getElementById("setDefaultPreset");
+    const setVolume = document.getElementById("setVolume");
+    const setVolumeVal = document.getElementById("setVolumeVal");
+    const setProfile = document.getElementById("setProfile");
     const form = document.getElementById("customForm");
 
     if (setAutoWork) setAutoWork.checked = !!s.auto_start_work;
@@ -118,7 +125,16 @@
     if (setTick) setTick.checked = !!s.tick_sound_enabled;
     if (setChimeWork) setChimeWork.checked = !!s.chime_work_end;
     if (setChimeBreak) setChimeBreak.checked = !!s.chime_break_end;
+    if (setChimeStart) setChimeStart.checked = s.chime_session_start !== false;
+    if (setChimePool) setChimePool.checked = s.chime_pool_add !== false;
+    if (setChimeChoice) setChimeChoice.checked = s.chime_choice !== false;
+    if (setChimeSkip) setChimeSkip.checked = s.chime_skip !== false;
     if (setNotify) setNotify.checked = !!s.notifications_enabled;
+    if (setVolume) {
+      setVolume.value = String(s.sound_volume ?? 70);
+      if (setVolumeVal) setVolumeVal.textContent = `${setVolume.value}%`;
+    }
+    if (setProfile) setProfile.value = s.sound_profile || "balanced";
 
     async function onDelete(p) {
       const id = p.id.replace("custom-", "");
@@ -147,11 +163,28 @@
     bindToggle(setTick, "tick_sound_enabled");
     bindToggle(setChimeWork, "chime_work_end");
     bindToggle(setChimeBreak, "chime_break_end");
+    bindToggle(setChimeStart, "chime_session_start");
+    bindToggle(setChimePool, "chime_pool_add");
+    bindToggle(setChimeChoice, "chime_choice");
+    bindToggle(setChimeSkip, "chime_skip");
     bindToggle(setNotify, "notifications_enabled");
 
     if (setDefaultPreset) {
       setDefaultPreset.addEventListener("change", () => {
         scheduleSave({ default_preset_id: setDefaultPreset.value });
+      });
+    }
+
+    if (setVolume) {
+      setVolume.addEventListener("input", () => {
+        if (setVolumeVal) setVolumeVal.textContent = `${setVolume.value}%`;
+        scheduleSave({ sound_volume: parseInt(setVolume.value, 10) });
+      });
+    }
+
+    if (setProfile) {
+      setProfile.addEventListener("change", () => {
+        scheduleSave({ sound_profile: setProfile.value });
       });
     }
 

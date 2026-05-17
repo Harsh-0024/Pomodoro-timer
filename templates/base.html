@@ -18,6 +18,7 @@
     </a>
     <nav class="topnav">
       <a href="{{ url_for('index') }}" class="nav-link{% if request.endpoint == 'index' %} is-active{% endif %}">Timer</a>
+      {% block nav_level %}{% endblock %}
       <a href="{{ url_for('settings_page') }}" class="nav-link{% if request.endpoint == 'settings_page' %} is-active{% endif %}">Settings</a>
     </nav>
   </header>

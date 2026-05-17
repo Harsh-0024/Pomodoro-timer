@@ -139,9 +139,7 @@
         phaseEndsAt = null;
       }
 
-      document.querySelectorAll(".preset-card").forEach((c) => {
-        c.classList.toggle("is-active", c.getAttribute("data-id") === state.presetId);
-      });
+      syncLevelSelect();
 
       if (state.session.segStartedAt && state.session.segKind) {
         const pausedMs = Date.now() - data.savedAt;
@@ -623,17 +621,18 @@
     if (!silent) playChoiceChime();
     const actions = [
       { label: "Start next focus (1)", primary: true, onClick: () => chooseStartNextFocus() },
-      {
-        label: pool >= 1 ? `Take cumulative rest (2) · ${poolLabel}` : "Take cumulative rest (2) · empty",
-        primary: false,
-        disabled: pool < 1,
-        onClick: () => chooseCumulativeRest(),
-      },
     ];
+    if (pool >= 1) {
+      actions.push({
+        label: `Take cumulative rest (2) · ${poolLabel}`,
+        primary: false,
+        onClick: () => chooseCumulativeRest(),
+      });
+    }
     const msg =
       pool >= 1
         ? `Rest complete · ${poolLabel} waiting in your pool`
-        : "Rest complete · pool is empty (skip or extend to bank rest)";
+        : "Rest complete";
     setChoicePanel(true, msg, actions);
     applyBodyPhaseClass();
     updateLabels();
@@ -946,14 +945,13 @@
 
     if (primary && pauseBtn) {
       if (state.running) {
-        primary.disabled = true;
-        primary.textContent = "In motion";
+        primary.classList.add("hidden");
         pauseBtn.disabled = false;
       } else {
+        primary.classList.remove("hidden");
         primary.disabled = false;
         pauseBtn.disabled = true;
         if (state.mode === "idle") primary.textContent = "Start";
-        else if (state.mode === "extend") primary.textContent = "Resume";
         else primary.textContent = "Resume";
       }
     }
@@ -1002,43 +1000,50 @@
     renderLiveStats();
   }
 
-  function selectPreset(id) {
+  function syncLevelSelect() {
+    const sel = document.getElementById("levelSelect");
+    if (!sel || !state.presetId) return;
+    if (sel.value !== state.presetId) sel.value = state.presetId;
+  }
+
+  function selectPreset(id, fromUser) {
     if (!presetById(id)) return;
     if (state.presetId === id) return;
     if (
+      fromUser &&
       state.session.active &&
       !confirm("Switch level and reset this session? Pool and progress will clear.")
     ) {
+      syncLevelSelect();
       return;
     }
     state.presetId = id;
-    document.querySelectorAll(".preset-card").forEach((c) => {
-      c.classList.toggle("is-active", c.getAttribute("data-id") === id);
-    });
+    syncLevelSelect();
     resetSession();
   }
 
-  function renderPresetCards() {
-    const host = document.getElementById("presetList");
-    if (!host) return;
-    host.innerHTML = "";
+  function renderLevelSelect() {
+    const sel = document.getElementById("levelSelect");
+    if (!sel) return;
+    const prev = sel.value;
+    sel.innerHTML = "";
     state.presets.forEach((p) => {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "preset-card";
-      btn.setAttribute("data-id", p.id);
-      const kind = p.kind === "builtin" ? "Built-in" : "Yours";
-      const ratio = p.focus_ratio_pct != null ? `${p.focus_ratio_pct}% focus` : "";
-      btn.innerHTML = `
-        <div class="preset-kind">${kind}</div>
-        <div class="preset-name">${escapeHtml(p.name)}</div>
-        <div class="preset-sub">${escapeHtml(p.subtitle || "")}</div>
-        <div class="preset-meta">${p.work_min} · ${p.short_rest_min} · ${p.long_rest_min} min<br/>${p.cycle_min != null ? `${p.cycle_min} min cycle` : ""}${ratio ? ` · ${ratio}` : ""}${p.muhurat_note ? `<span class="preset-vedic">${escapeHtml(p.muhurat_note)}</span>` : ""}</div>
-      `;
-      btn.addEventListener("click", () => selectPreset(p.id));
-      host.appendChild(btn);
+      const opt = document.createElement("option");
+      opt.value = p.id;
+      if (p.kind === "builtin") {
+        opt.textContent = `${p.name} · ${p.subtitle || ""}`.trim();
+      } else {
+        opt.textContent = `${p.name} · custom`;
+      }
+      sel.appendChild(opt);
     });
+    sel.value = presetById(prev) ? prev : state.presetId || state.presets[0]?.id;
+    if (!sel.dataset.wired) {
+      sel.dataset.wired = "1";
+      sel.addEventListener("change", () => selectPreset(sel.value, true));
+    }
   }
+
 
   function escapeHtml(s) {
     return String(s)
@@ -1155,15 +1160,15 @@
       ]);
       state.settings = settings;
       state.presets = [...presetRes.builtins, ...presetRes.custom];
-      renderPresetCards();
+      renderLevelSelect();
       const def = settings.default_preset_id;
       const defaultId = presetById(def) ? def : state.presets[0]?.id;
       if (!restoreSession()) {
         state.presetId = defaultId;
-        document.querySelectorAll(".preset-card").forEach((c) => {
-          c.classList.toggle("is-active", c.getAttribute("data-id") === defaultId);
-        });
+        syncLevelSelect();
         setupIdleTimer();
+      } else {
+        syncLevelSelect();
       }
       renderLiveStats();
     } catch (e) {

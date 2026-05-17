@@ -86,7 +86,51 @@ body {
 
 .topnav {
   display: flex;
-  gap: 0.25rem;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.nav-level {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0.15rem;
+}
+
+.nav-level-label {
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.nav-level-select {
+  font-family: var(--font-sans);
+  font-size: 0.88rem;
+  color: var(--ink);
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.4rem 0.85rem 0.4rem 0.65rem;
+  min-width: 9.5rem;
+  max-width: min(14rem, 42vw);
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%23c9a962' d='M1 1l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.65rem center;
+  padding-right: 1.75rem;
+}
+
+.nav-level-select:hover,
+.nav-level-select:focus {
+  border-color: rgba(201, 169, 98, 0.45);
+  outline: none;
+}
+
+.page-home .topnav .nav-link.is-active {
+  margin-right: 0;
 }
 
 .nav-link {

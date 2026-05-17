@@ -3,14 +3,22 @@
 
   const SHORTCUTS = [
     { keys: "S", action: "Start or resume" },
-    { keys: "Space", action: "Pause or resume" },
+    { keys: "Space", action: "Pause or resume (release)" },
     { keys: "R", action: "Reset session" },
     { keys: "K", action: "Skip remaining rest (during rest)" },
     { keys: "B", action: "Begin rest (during extend)" },
     { keys: "3", action: "Skip rest (during extend)" },
     { keys: "1 · 2 · 3", action: "Choose options when a dialog is open" },
-    { keys: "Space + /", action: "Open this guide" },
+    { keys: "Space then /", action: "Open this guide" },
   ];
+
+  let spaceAt = 0;
+
+  function isInput(el) {
+    if (!el) return false;
+    const tag = el.tagName;
+    return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || el.isContentEditable;
+  }
 
   function renderList(container) {
     if (!container) return;
@@ -37,26 +45,27 @@
     document.body.classList.remove("modal-open");
   }
 
-  let spaceDown = false;
-
   function wireChord() {
-    document.addEventListener("keydown", (e) => {
-      if (e.code === "Space" || e.key === " ") {
-        const t = e.target;
-        if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT"))
+    document.addEventListener(
+      "keydown",
+      (e) => {
+        if (isInput(e.target) && e.target?.id !== "levelSelect") return;
+        if (e.code === "Space" || e.key === " ") {
+          spaceAt = Date.now();
           return;
-        spaceDown = true;
-      }
-      if ((e.key === "/" || e.code === "Slash") && spaceDown) {
-        e.preventDefault();
-        window.__slashChordUsed = true;
-        openModal();
-        spaceDown = false;
-      }
-    });
-    document.addEventListener("keyup", (e) => {
-      if (e.code === "Space" || e.key === " ") spaceDown = false;
-    });
+        }
+        const isSlash =
+          e.key === "/" || e.code === "Slash" || e.key === "?" || e.code === "Slash";
+        if (isSlash && spaceAt && Date.now() - spaceAt < 600) {
+          e.preventDefault();
+          e.stopPropagation();
+          window.__slashChordUsed = true;
+          spaceAt = 0;
+          openModal();
+        }
+      },
+      true
+    );
   }
 
   function wireModal() {

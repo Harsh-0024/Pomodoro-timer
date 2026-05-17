@@ -2,6 +2,12 @@
 {% block title %}Timer{% endblock %}
 {% block body_class %}page-home{% endblock %}
 {% block page_id %}home{% endblock %}
+{% block nav_level %}
+<label class="nav-level">
+  <span class="nav-level-label">Level</span>
+  <select id="levelSelect" class="nav-level-select" aria-label="Focus level"></select>
+</label>
+{% endblock %}
 {% block content %}
 <section class="hero">
   <div class="session-live" aria-live="polite">
@@ -49,16 +55,7 @@
       <button type="button" class="btn btn-quiet hidden" id="btnSkipRestExtend">Skip rest</button>
       <button type="button" class="btn btn-ghost" id="btnReset">Reset session</button>
     </div>
-    <p class="shortcuts-hint"><kbd>Space</kbd> + <kbd>/</kbd> shortcuts</p>
   </div>
-</section>
-
-<section class="presets-section">
-  <div class="section-head">
-    <h2 class="section-title">Levels & rhythms</h2>
-    <p class="section-sub">Eight built-ins from the table, plus combinations you design.</p>
-  </div>
-  <div class="preset-scroll" id="presetList"></div>
 </section>
 {% endblock %}
 {% block scripts %}

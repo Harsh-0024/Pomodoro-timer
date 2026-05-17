@@ -19,10 +19,12 @@ def _ensure_db():
 
 
 def _builtin_public(b: dict) -> dict:
+    total = b.get("cycle_min") or (b.get("total_work_min", 0) + b.get("total_rest_min", 0))
+    focus = round(100 * b.get("total_work_min", 0) / total, 1) if total else 0
     return {
         **b,
         "kind": "builtin",
-        "focus_ratio_pct": 76.2,
+        "focus_ratio_pct": focus,
     }
 
 

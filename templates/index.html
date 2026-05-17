@@ -3,17 +3,18 @@
 {% block body_class %}page-home{% endblock %}
 {% block page_id %}home{% endblock %}
 {% block nav_level %}
-<label class="nav-level">
-  <span class="nav-level-label">Level</span>
-  <select id="levelSelect" class="nav-level-select" aria-label="Focus level"></select>
-</label>
+<div class="nav-level" id="levelPicker">
+  <button type="button" class="nav-level-button" id="levelButton" aria-haspopup="listbox" aria-expanded="false">
+    <span id="levelButtonText">Level</span>
+  </button>
+</div>
 {% endblock %}
 {% block content %}
 <section class="hero">
   <div class="session-live" aria-live="polite">
     <div class="live-stat">
       <span class="live-val" id="poolDisplay">0:00</span>
-      <span class="live-key">rest pool <span class="live-key-sub">skipped · deferred · accrued</span></span>
+      <span class="live-key">rest pool</span>
     </div>
     <span class="live-divider" aria-hidden="true"></span>
     <div class="live-stat">
@@ -22,39 +23,41 @@
     </div>
   </div>
 
-  <div class="timer-panel">
-    <div class="choice-panel hidden" id="choicePanel" role="group" aria-labelledby="choicePrompt">
-      <p class="choice-prompt" id="choicePrompt"></p>
-      <div class="choice-actions" id="choiceActions"></div>
-    </div>
+  <div class="timer-layout">
+    <div class="timer-panel">
+      <div class="choice-panel hidden" id="choicePanel" role="group" aria-labelledby="choicePrompt">
+        <p class="choice-prompt" id="choicePrompt"></p>
+        <div class="choice-actions" id="choiceActions"></div>
+      </div>
 
-    <div class="timer-ring-wrap">
-      <svg class="timer-ring" viewBox="0 0 220 220" aria-hidden="true">
-        <defs>
-          <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#d4bc7c" />
-            <stop offset="45%" stop-color="#f0e6d2" />
-            <stop offset="100%" stop-color="#9a7b4f" />
-          </linearGradient>
-        </defs>
-        <circle class="ring-track" cx="110" cy="110" r="96" />
-        <circle id="ringProgress" class="ring-progress" cx="110" cy="110" r="96" />
-      </svg>
-      <div class="timer-core">
-        <p class="phase-label" id="phaseLabel">Deep work</p>
-        <p class="time-display" id="timeDisplay">00:00</p>
-        <p class="cycle-hint" id="cycleHint">Block 1 of 4 · Navin</p>
-        <p class="extend-note hidden" id="extendNote"></p>
+      <div class="timer-ring-wrap">
+        <svg class="timer-ring" viewBox="0 0 220 220" aria-hidden="true">
+          <defs>
+            <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#d4bc7c" />
+              <stop offset="45%" stop-color="#f0e6d2" />
+              <stop offset="100%" stop-color="#9a7b4f" />
+            </linearGradient>
+          </defs>
+          <circle class="ring-track" cx="110" cy="110" r="96" />
+          <circle id="ringProgress" class="ring-progress" cx="110" cy="110" r="96" />
+        </svg>
+        <div class="timer-core">
+          <p class="phase-label" id="phaseLabel">Deep work</p>
+          <p class="time-display" id="timeDisplay">00:00</p>
+          <p class="cycle-hint" id="cycleHint">Block 1 · Agaman</p>
+        </div>
+      </div>
+      <div class="controls" id="mainControls">
+        <button type="button" class="btn btn-primary" id="btnPrimary">Start</button>
+        <button type="button" class="btn btn-quiet hidden" id="btnTakePoolRest">Take rest</button>
+        <button type="button" class="btn btn-quiet hidden" id="btnSkipRemaining">Skip remaining</button>
+        <button type="button" class="btn btn-quiet hidden" id="btnBeginRest">Begin rest</button>
+        <button type="button" class="btn btn-quiet hidden" id="btnSkipRestExtend">Skip rest</button>
+        <button type="button" class="btn btn-ghost" id="btnReset">Reset</button>
       </div>
     </div>
-    <div class="controls" id="mainControls">
-      <button type="button" class="btn btn-primary" id="btnPrimary">Start</button>
-      <button type="button" class="btn btn-quiet" id="btnPause" disabled>Pause</button>
-      <button type="button" class="btn btn-quiet hidden" id="btnSkipRemaining">Skip remaining</button>
-      <button type="button" class="btn btn-quiet hidden" id="btnBeginRest">Begin rest</button>
-      <button type="button" class="btn btn-quiet hidden" id="btnSkipRestExtend">Skip rest</button>
-      <button type="button" class="btn btn-ghost" id="btnReset">Reset session</button>
-    </div>
+    <div class="nav-level-menu hidden" id="levelMenu" role="listbox" aria-label="Focus level"></div>
   </div>
 </section>
 {% endblock %}

@@ -4,15 +4,14 @@
   const SHORTCUTS = [
     { keys: "S", action: "Start or resume" },
     { keys: "Space", action: "Pause or resume (release)" },
-    { keys: "R", action: "Reset session" },
+    { keys: "Shift + /", action: "Open this guide" },
+    { keys: "R", action: "Reset" },
+    { keys: "T", action: "Take rest from pool" },
     { keys: "K", action: "Skip remaining rest (during rest)" },
     { keys: "B", action: "Begin rest (during extend)" },
     { keys: "3", action: "Skip rest (during extend)" },
     { keys: "1 · 2 · 3", action: "Choose options when a dialog is open" },
-    { keys: "Space then /", action: "Open this guide" },
   ];
-
-  let spaceAt = 0;
 
   function isInput(el) {
     if (!el) return false;
@@ -49,18 +48,11 @@
     document.addEventListener(
       "keydown",
       (e) => {
-        if (isInput(e.target) && e.target?.id !== "levelSelect") return;
-        if (e.code === "Space" || e.key === " ") {
-          spaceAt = Date.now();
-          return;
-        }
-        const isSlash =
-          e.key === "/" || e.code === "Slash" || e.key === "?" || e.code === "Slash";
-        if (isSlash && spaceAt && Date.now() - spaceAt < 600) {
+        if (isInput(e.target)) return;
+        const isGuideShortcut = e.shiftKey && (e.key === "?" || e.key === "/" || e.code === "Slash");
+        if (isGuideShortcut) {
           e.preventDefault();
           e.stopPropagation();
-          window.__slashChordUsed = true;
-          spaceAt = 0;
           openModal();
         }
       },

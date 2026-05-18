@@ -530,8 +530,8 @@
       return;
     }
     if (state.mode === "work_choice") {
-      phase.textContent = "Block complete";
-      hint.textContent = `Block ${workBlockNumber(state.phaseIndex) || ""} of ${workCycleCount(p)}`;
+      phase.textContent = "Session complete";
+      hint.textContent = `Session ${workBlockNumber(state.phaseIndex) || ""} of ${workCycleCount(p)}`;
       return;
     }
     if (state.mode === "rest_choice") {
@@ -550,7 +550,7 @@
     if (k === "work" || state.mode === "work") {
       const n = workBlockNumber(state.phaseIndex);
       phase.textContent = "Deep work";
-      hint.textContent = `Block ${n} of ${workCycleCount(p)} · ${p.name}`;
+      hint.textContent = `Session ${n} of ${workCycleCount(p)} · ${p.name}`;
     } else if (k === "short") {
       phase.textContent = "Short rest";
       hint.textContent = `${p.name} · breathe`;
@@ -638,7 +638,7 @@
     const label = pr ? restLabel(pr.kind) : "rest";
     const dur = pr ? formatClock(pr.sec) : "";
     if (!silent) playChoiceChime();
-    setChoicePanel(true, `Focus block complete · ${dur} ${label} is due`, [
+    setChoicePanel(true, `Focus session complete · ${dur} ${label} is due`, [
       { label: "Start rest (1)", primary: true, onClick: () => chooseStartRest() },
       { label: "Extend focus (2)", primary: false, onClick: () => chooseExtendFocus() },
       { label: "Skip rest (3)", primary: false, onClick: () => chooseSkipRest() },
@@ -723,7 +723,7 @@
     ensureSession();
     commitSegment();
     playWorkCompleteChime();
-    notify("Focus block complete", `${p.name} · choose your next step.`);
+    notify("Focus session complete", `${p.name} · choose your next step.`);
     logWorkBlock(p.work_min);
 
     state.pendingRest = buildPendingRest(state.phaseIndex);

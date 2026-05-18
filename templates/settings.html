@@ -27,6 +27,13 @@
         <span class="toggle-desc">Roll into rest without an extra tap.</span>
       </span>
     </label>
+    <div class="field settings-level-picker" id="setDefaultPresetPicker">
+      <span class="field-label" id="setDefaultPresetLabel">Default level</span>
+      <button type="button" class="select-button" id="setDefaultPresetButton" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="setDefaultPresetLabel setDefaultPresetText">
+        <span id="setDefaultPresetText">Choose level</span>
+      </button>
+      <div class="settings-level-menu hidden" id="setDefaultPresetMenu" role="listbox" aria-labelledby="setDefaultPresetLabel"></div>
+    </div>
   </section>
 
   <section class="card">
@@ -47,60 +54,18 @@
         <span class="toggle-desc">A soft marker at each minute boundary.</span>
       </span>
     </label>
-    <label class="toggle">
-      <input type="checkbox" id="setChimeWork" />
-      <span class="toggle-ui"></span>
-      <span class="toggle-copy">
-        <span class="toggle-name">Chime · work complete</span>
-      </span>
-    </label>
-    <label class="toggle">
-      <input type="checkbox" id="setChimeBreak" />
-      <span class="toggle-ui"></span>
-      <span class="toggle-copy">
-        <span class="toggle-name">Chime · break complete</span>
-      </span>
-    </label>
-    <label class="toggle">
-      <input type="checkbox" id="setChimeStart" />
-      <span class="toggle-ui"></span>
-      <span class="toggle-copy">
-        <span class="toggle-name">Chime · session start</span>
-      </span>
-    </label>
-    <label class="toggle">
-      <input type="checkbox" id="setChimePool" />
-      <span class="toggle-ui"></span>
-      <span class="toggle-copy">
-        <span class="toggle-name">Chime · rest added to pool</span>
-      </span>
-    </label>
-    <label class="toggle">
-      <input type="checkbox" id="setChimeChoice" />
-      <span class="toggle-ui"></span>
-      <span class="toggle-copy">
-        <span class="toggle-name">Chime · choice moment</span>
-      </span>
-    </label>
-    <label class="toggle">
-      <input type="checkbox" id="setChimeSkip" />
-      <span class="toggle-ui"></span>
-      <span class="toggle-copy">
-        <span class="toggle-name">Chime · skip action</span>
-      </span>
-    </label>
     <div class="field">
       <label class="field-label" for="setVolume">Volume</label>
       <input type="range" id="setVolume" class="range" min="0" max="100" step="5" />
       <span class="range-val" id="setVolumeVal">70%</span>
     </div>
     <div class="field">
-      <label class="field-label" for="setProfile">Character</label>
-      <select id="setProfile" class="select">
-        <option value="subtle">Subtle</option>
-        <option value="balanced">Balanced</option>
-        <option value="bold">Bold</option>
-      </select>
+      <span class="field-label" id="setProfileLabel">Character</span>
+      <div class="segmented" id="setProfile" role="radiogroup" aria-labelledby="setProfileLabel">
+        <button type="button" class="segment" data-value="subtle" role="radio" aria-checked="false">Subtle</button>
+        <button type="button" class="segment" data-value="balanced" role="radio" aria-checked="false">Balanced</button>
+        <button type="button" class="segment" data-value="bold" role="radio" aria-checked="false">Bold</button>
+      </div>
     </div>
   </section>
 
@@ -111,7 +76,7 @@
   </section>
 
   <section class="card">
-    <h2 class="card-title">Attention</h2>
+    <h2 class="card-title">Notifications</h2>
     <label class="toggle">
       <input type="checkbox" id="setNotify" />
       <span class="toggle-ui"></span>
@@ -120,10 +85,6 @@
         <span class="toggle-desc">Gentle alerts when this tab is not in view.</span>
       </span>
     </label>
-    <div class="field">
-      <label class="field-label" for="setDefaultPreset">Default level</label>
-      <select id="setDefaultPreset" class="select"></select>
-    </div>
   </section>
 
   <section class="card card-wide">

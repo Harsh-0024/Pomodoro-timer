@@ -7,6 +7,7 @@
   <button type="button" class="nav-level-button" id="levelButton" aria-haspopup="listbox" aria-expanded="false">
     <span id="levelButtonText">Level</span>
   </button>
+  <div class="nav-level-menu hidden" id="levelMenu" role="listbox" aria-label="Focus level"></div>
 </div>
 {% endblock %}
 {% block content %}
@@ -19,7 +20,7 @@
     <span class="live-divider" aria-hidden="true"></span>
     <div class="live-stat">
       <span class="live-val" id="productivityDisplay">—</span>
-      <span class="live-key">session</span>
+      <span class="live-key">productivity</span>
     </div>
   </div>
 
@@ -45,7 +46,7 @@
         <div class="timer-core">
           <p class="phase-label" id="phaseLabel">Deep work</p>
           <p class="time-display" id="timeDisplay">00:00</p>
-          <p class="cycle-hint" id="cycleHint">Block 1 · Agaman</p>
+          <p class="cycle-hint" id="cycleHint">Session 1 · Agaman</p>
         </div>
       </div>
       <div class="controls" id="mainControls">
@@ -57,7 +58,6 @@
         <button type="button" class="btn btn-ghost" id="btnReset">Reset</button>
       </div>
     </div>
-    <div class="nav-level-menu hidden" id="levelMenu" role="listbox" aria-label="Focus level"></div>
   </div>
 </section>
 {% endblock %}

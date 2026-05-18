@@ -5,6 +5,7 @@ venv/
 
 ### Python ###
 changes.txt
+project_code_extractor/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

@@ -201,4 +201,4 @@ def api_focus_log():
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5050)
+    app.run(port=8080, debug=True)

@@ -14,6 +14,11 @@
     }, 2200);
   }
 
+  function askConfirm(options) {
+    if (window.MuhurataDialog?.confirm) return window.MuhurataDialog.confirm(options);
+    return Promise.resolve(window.confirm(options?.message || options?.title || "Continue?"));
+  }
+
   async function api(path, opts) {
     const r = await fetch(path, {
       headers: { "Content-Type": "application/json", Accept: "application/json" },
@@ -195,7 +200,13 @@
 
     async function onDelete(p) {
       const id = p.id.replace("custom-", "");
-      if (!confirm(`Remove “${p.name}”?`)) return;
+      if (
+        !(await askConfirm({
+          title: "Remove combination?",
+          message: `${p.name} will be removed from your saved combinations.`,
+          accept: "Remove",
+        }))
+      ) return;
       try {
         await api(`/api/presets/${id}`, { method: "DELETE" });
         toast("Removed");

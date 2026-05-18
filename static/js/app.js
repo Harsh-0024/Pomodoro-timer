@@ -2,7 +2,7 @@
   "use strict";
 
   const RING_LEN = 2 * Math.PI * 96;
-  const baseTitle = document.title;
+  const baseTitle = "Muhurata timer";
   const SESSION_STORAGE_KEY = "muhurat_timer_session_v1";
 
   /** @type {ReturnType<typeof setInterval> | null} */
@@ -429,8 +429,10 @@
   function renderLiveStats() {
     if (state.mode === "extend") syncExtendPoolAccrual();
     const poolEl = document.getElementById("poolDisplay");
+    const workEl = document.getElementById("workDisplay");
     const prodEl = document.getElementById("productivityDisplay");
     if (poolEl) poolEl.textContent = formatPool(state.session.poolSec);
+    if (workEl) workEl.textContent = formatPool(liveWorkSec());
     if (prodEl) {
       const p = productivityPct();
       prodEl.textContent = p === null ? "—" : `${p.toFixed(1)}%`;
@@ -577,21 +579,30 @@
       document.title = baseTitle;
       return;
     }
+    if (!state.running && state.mode !== "idle" && state.mode !== "complete") {
+      document.title = `${formatClock(state.remainingSec)} paused`;
+      return;
+    }
     if (state.mode === "extend") {
-      document.title = `+${formatClock(liveSegmentElapsed())} extend · Muhurat`;
+      document.title = `${formatClock(liveSegmentElapsed())} focus`;
       return;
     }
     if (state.mode === "work_choice" || state.mode === "rest_choice") {
-      document.title = `Choose · Muhurat`;
+      document.title = "paused";
       return;
     }
     if (state.mode === "complete") {
-      document.title = `Complete · Muhurat`;
+      document.title = "done";
       return;
     }
     const suffix =
       state.mode === "work" || state.mode === "idle" ? "focus" : "rest";
-    document.title = `${formatClock(state.remainingSec)} ${suffix} · Muhurat`;
+    document.title = `${formatClock(state.remainingSec)} ${suffix}`;
+  }
+
+  function askConfirm(options) {
+    if (window.MuhurataDialog?.confirm) return window.MuhurataDialog.confirm(options);
+    return Promise.resolve(window.confirm(options?.message || options?.title || "Continue?"));
   }
 
   function setChoicePanel(visible, prompt, actions) {
@@ -1179,7 +1190,7 @@
     button.setAttribute("aria-expanded", open ? "false" : "true");
   }
 
-  function selectPreset(id, fromUser) {
+  async function selectPreset(id, fromUser) {
     if (!presetById(id)) return;
     if (state.presetId === id) return;
     if (state.restartAfterLevelChange) {
@@ -1194,7 +1205,11 @@
     if (
       fromUser &&
       state.session.active &&
-      !confirm("Switch level and reset this session? Pool and progress will clear.")
+      !(await askConfirm({
+        title: "Switch level?",
+        message: "This will reset the current session, including progress and rest pool.",
+        accept: "Switch",
+      }))
     ) {
       syncLevelSelect();
       closeLevelMenu();
@@ -1258,7 +1273,7 @@
     return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || el.isContentEditable;
   }
 
-  function handleShortcut(e) {
+  async function handleShortcut(e) {
     if (isTypingTarget(e.target)) return;
     const k = e.key.toLowerCase();
 
@@ -1303,7 +1318,14 @@
     }
     if (k === "r") {
       e.preventDefault();
-      if (state.session.active && !confirm("Reset this session? Progress and pool will clear.")) return;
+      if (
+        state.session.active &&
+        !(await askConfirm({
+          title: "Reset session?",
+          message: "Progress and rest pool will clear.",
+          accept: "Reset",
+        }))
+      ) return;
       resetSession();
       return;
     }
@@ -1337,12 +1359,21 @@
     document.getElementById("btnSkipRemaining")?.addEventListener("click", () => skipRemainingRest());
     document.getElementById("btnBeginRest")?.addEventListener("click", () => beginRestFromExtend());
     document.getElementById("btnSkipRestExtend")?.addEventListener("click", () => skipRestFromExtend());
-    document.getElementById("btnReset")?.addEventListener("click", () => {
-      if (state.session.active && !confirm("Reset this session? Progress and pool will clear.")) return;
+    document.getElementById("btnReset")?.addEventListener("click", async () => {
+      if (
+        state.session.active &&
+        !(await askConfirm({
+          title: "Reset session?",
+          message: "Progress and rest pool will clear.",
+          accept: "Reset",
+        }))
+      ) return;
       resetSession();
     });
 
-    document.addEventListener("keydown", handleShortcut);
+    document.addEventListener("keydown", (e) => {
+      handleShortcut(e);
+    });
     document.addEventListener("keyup", (e) => {
       if (e.code !== "Space" && e.key !== " ") return;
       if (isTypingTarget(e.target)) return;

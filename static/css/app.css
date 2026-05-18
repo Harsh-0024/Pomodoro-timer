@@ -59,16 +59,34 @@ body {
 
 .brand {
   display: inline-flex;
-  align-items: baseline;
-  gap: 0.5rem;
+  align-items: center;
+  gap: 0.6rem;
   text-decoration: none;
   color: var(--ink);
 }
 
 .brand-mark {
+  display: inline-flex;
+  width: 1.35rem;
+  height: 1.35rem;
   color: var(--gold);
-  font-size: 1rem;
-  transform: translateY(1px);
+}
+
+.chakra-mark {
+  width: 100%;
+  height: 100%;
+}
+
+.chakra-outer,
+.chakra-inner,
+.chakra-spokes {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+}
+
+.chakra-spokes {
+  stroke-linecap: round;
 }
 
 .brand-text {
@@ -279,8 +297,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 1.5rem;
-  width: min(520px, 100%);
+  gap: 1.25rem;
+  width: min(650px, 100%);
   padding: 0.65rem 1.1rem;
   border-radius: 999px;
   border: 1px solid var(--line);
@@ -383,6 +401,33 @@ body {
   font-size: 1.5rem;
   font-weight: 500;
   margin: 0 0 1rem;
+}
+
+.modal-kicker {
+  margin: 0 0 0.45rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.modal-copy {
+  margin: -0.35rem 0 1.35rem;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.confirm-sheet {
+  width: min(430px, 100%);
+  background:
+    linear-gradient(135deg, rgba(216, 189, 121, 0.08), transparent 46%),
+    var(--bg1);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
 }
 
 .shortcut-list {

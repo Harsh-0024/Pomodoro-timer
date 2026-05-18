@@ -281,6 +281,8 @@ body {
 .timer-layout {
   position: relative;
   display: flex;
+  flex-direction: column;
+  align-items: center;
   justify-content: center;
   width: min(1180px, 100%);
 }
@@ -678,6 +680,55 @@ body.mode-cumulative .phase-label {
 
 .controls.hidden {
   display: none;
+}
+
+.focus-quote {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+  width: min(720px, 100%);
+  margin: clamp(2.25rem, 4.5vh, 3.6rem) auto 0;
+  padding: 0 1rem;
+  text-align: center;
+}
+
+.focus-quote blockquote {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: clamp(1.02rem, 1.6vw, 1.16rem);
+  font-style: italic;
+  font-weight: 400;
+  line-height: 1.5;
+  color: rgba(250, 247, 239, 0.78);
+}
+
+.focus-quote blockquote::before {
+  content: "“";
+}
+
+.focus-quote blockquote::after {
+  content: "”";
+}
+
+.focus-quote figcaption {
+  margin: 0;
+  font-size: 0.64rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(250, 247, 239, 0.5);
+}
+
+.focus-quote figcaption::before {
+  content: "";
+  display: inline-block;
+  width: 1.15rem;
+  height: 1px;
+  margin-right: 0.5rem;
+  vertical-align: middle;
+  background: var(--gold);
+  opacity: 0.8;
 }
 
 .btn {

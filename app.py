@@ -1,7 +1,11 @@
 from __future__ import annotations
 
 import re
+import json
+import random
 import sqlite3
+import urllib.error
+import urllib.request
 from datetime import datetime
 
 from flask import Flask, jsonify, render_template, request
@@ -11,6 +15,12 @@ from presets import BUILTINS
 
 app = Flask(__name__)
 app.config["JSON_SORT_KEYS"] = False
+
+FALLBACK_QUOTES = [
+    {"quote": "You have power over your mind, not outside events. Realize this, and you will find strength.", "author": "Marcus Aurelius"},
+    {"quote": "The successful warrior is the average man, with laser-like focus.", "author": "Bruce Lee"},
+    {"quote": "Concentrate all your thoughts upon the work in hand.", "author": "Alexander Graham Bell"},
+]
 
 
 @app.before_request
@@ -115,6 +125,27 @@ def api_delete_preset(preset_id: int):
 @app.get("/api/settings")
 def api_get_settings():
     return jsonify(db.load_settings())
+
+
+@app.get("/api/quote")
+def api_quote():
+    fallback = random.choice(FALLBACK_QUOTES)
+    try:
+        req = urllib.request.Request(
+            "https://zenquotes.io/api/random",
+            headers={"User-Agent": "MuhurataTimer/1.0"},
+        )
+        with urllib.request.urlopen(req, timeout=4) as res:
+            payload = res.read().decode("utf-8")
+        data = json.loads(payload)
+        item = data[0] if isinstance(data, list) and data else {}
+        quote = str(item.get("q") or "").strip()
+        author = str(item.get("a") or "").strip()
+        if quote and author:
+            return jsonify({"quote": quote, "author": author, "source": "zenquotes"})
+    except (urllib.error.URLError, TimeoutError, ValueError, KeyError, TypeError):
+        pass
+    return jsonify({**fallback, "source": "fallback"})
 
 
 @app.put("/api/settings")

@@ -605,6 +605,18 @@
     return Promise.resolve(window.confirm(options?.message || options?.title || "Continue?"));
   }
 
+  async function loadQuote() {
+    const quoteEl = document.getElementById("quoteText");
+    const authorEl = document.getElementById("quoteAuthor");
+    if (!quoteEl || !authorEl) return;
+    try {
+      const res = await api("/api/quote");
+      if (!res?.quote || !res?.author) return;
+      quoteEl.textContent = res.quote;
+      authorEl.textContent = res.author;
+    } catch (_) {}
+  }
+
   function setChoicePanel(visible, prompt, actions) {
     const panel = document.getElementById("choicePanel");
     const promptEl = document.getElementById("choicePrompt");
@@ -1386,6 +1398,7 @@
   async function init() {
     if (window.__PAGE__ !== "home") return;
     wireControls();
+    loadQuote();
     try {
       const [presetRes, settings] = await Promise.all([
         api("/api/presets"),

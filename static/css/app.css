@@ -692,6 +692,16 @@ body.mode-cumulative .phase-label {
   margin: clamp(2.25rem, 4.5vh, 3.6rem) auto 0;
   padding: 0 1rem;
   text-align: center;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.focus-quote.is-loading {
+  opacity: 0;
+  transform: translateY(-0.25rem);
+}
+
+.focus-quote.is-updating {
+  opacity: 0.72;
 }
 
 .focus-quote blockquote {

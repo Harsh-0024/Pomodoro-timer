@@ -79,7 +79,7 @@ def _preset_exists(preset_id: str) -> bool:
 
 @app.route("/")
 def index():
-    return render_template("index.html")
+    return render_template("index.html", initial_quote=random.choice(FALLBACK_QUOTES))
 
 
 @app.route("/settings")

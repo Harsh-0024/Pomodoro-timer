@@ -11,6 +11,7 @@
   let statsTimer = null;
   /** @type {number | null} */
   let phaseEndsAt = null;
+  let quoteLoadId = 0;
 
   const state = {
     presets: [],
@@ -346,6 +347,7 @@
     if (!s.active) {
       s.active = true;
       s.startedAt = Date.now();
+      loadQuote();
     }
     ensureStatsLoop();
   }
@@ -606,14 +608,20 @@
   }
 
   async function loadQuote() {
+    const loadId = ++quoteLoadId;
+    const wrap = document.getElementById("focusQuote");
     const quoteEl = document.getElementById("quoteText");
     const authorEl = document.getElementById("quoteAuthor");
     if (!quoteEl || !authorEl) return;
     try {
       const res = await api("/api/quote");
+      if (loadId !== quoteLoadId) return;
       if (!res?.quote || !res?.author) return;
+      wrap?.classList.add("is-updating");
       quoteEl.textContent = res.quote;
       authorEl.textContent = res.author;
+      wrap?.classList.remove("is-loading");
+      window.setTimeout(() => wrap?.classList.remove("is-updating"), 260);
     } catch (_) {}
   }
 

@@ -63,9 +63,9 @@
         <button type="button" class="btn btn-ghost" id="btnReset">Reset</button>
       </div>
     </div>
-    <figure class="focus-quote" aria-live="polite">
-      <blockquote id="quoteText">Concentrate all your thoughts upon the work in hand.</blockquote>
-      <figcaption id="quoteAuthor">Alexander Graham Bell</figcaption>
+    <figure class="focus-quote" id="focusQuote" aria-live="polite">
+      <blockquote id="quoteText">{{ initial_quote.quote }}</blockquote>
+      <figcaption id="quoteAuthor">{{ initial_quote.author }}</figcaption>
     </figure>
   </div>
 </section>

@@ -347,7 +347,6 @@
     if (!s.active) {
       s.active = true;
       s.startedAt = Date.now();
-      loadQuote();
     }
     ensureStatsLoop();
   }
@@ -945,6 +944,7 @@
     const p = currentPreset();
     if (!p) return;
     ensureSession();
+    loadQuote();
     state.mode = "work";
     state.remainingSec = phaseDurationSec(p, state.phaseIndex);
     state.pendingRest = null;
@@ -1406,7 +1406,6 @@
   async function init() {
     if (window.__PAGE__ !== "home") return;
     wireControls();
-    loadQuote();
     try {
       const [presetRes, settings] = await Promise.all([
         api("/api/presets"),

@@ -7,6 +7,7 @@ import sqlite3
 import urllib.error
 import urllib.request
 from datetime import datetime
+from pathlib import Path
 
 from flask import Flask, jsonify, render_template, request
 
@@ -16,11 +17,57 @@ from presets import BUILTINS
 app = Flask(__name__)
 app.config["JSON_SORT_KEYS"] = False
 
-FALLBACK_QUOTES = [
+BASE_DIR = Path(__file__).resolve().parent
+BUILTIN_QUOTES = [
     {"quote": "You have power over your mind, not outside events. Realize this, and you will find strength.", "author": "Marcus Aurelius"},
     {"quote": "The successful warrior is the average man, with laser-like focus.", "author": "Bruce Lee"},
     {"quote": "Concentrate all your thoughts upon the work in hand.", "author": "Alexander Graham Bell"},
 ]
+QUOTE_FILES = (
+    BASE_DIR / "quotes.json",
+    BASE_DIR / "data" / "quotes.json",
+    BASE_DIR / "static" / "quotes.json",
+    BASE_DIR / "quotes.js",
+)
+
+
+def _normalize_quote(item: dict) -> dict | None:
+    quote = str(item.get("quote") or item.get("q") or "").strip()
+    author = str(item.get("author") or item.get("a") or "").strip()
+    if not quote or not author:
+        return None
+    return {"quote": quote, "author": author}
+
+
+def _read_quote_file(path: Path) -> list[dict]:
+    raw = path.read_text(encoding="utf-8")
+    if path.suffix == ".js":
+        match = re.search(r"const\s+FALLBACK_QUOTES\s*=\s*(\[.*\])\s*;?\s*$", raw, re.DOTALL)
+        if not match:
+            return []
+        raw = match.group(1)
+        raw = re.sub(r"([{,]\s*)([A-Za-z_][A-Za-z0-9_]*)\s*:", r'\1"\2":', raw)
+        raw = re.sub(r",\s*([}\]])", r"\1", raw)
+    data = json.loads(raw)
+    if not isinstance(data, list):
+        return []
+    return [quote for item in data if isinstance(item, dict) and (quote := _normalize_quote(item))]
+
+
+def _load_offline_quotes() -> list[dict]:
+    for path in QUOTE_FILES:
+        if not path.exists():
+            continue
+        try:
+            quotes = _read_quote_file(path)
+        except (OSError, json.JSONDecodeError):
+            continue
+        if quotes:
+            return quotes
+    return BUILTIN_QUOTES
+
+
+FALLBACK_QUOTES = _load_offline_quotes()
 
 
 @app.before_request

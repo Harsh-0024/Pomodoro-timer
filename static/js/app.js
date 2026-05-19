@@ -289,8 +289,18 @@
     return `${m}:${String(r).padStart(2, "0")}`;
   }
 
-  function restLabel(kind) {
-    return kind === "long" ? "long rest" : "short rest";
+  function breakTitle(kind) {
+    return kind === "long" ? "Long break" : "Short break";
+  }
+
+  function nextFocusIndex() {
+    if (state.afterRestWorkIndex != null) return state.afterRestWorkIndex;
+    return workIndexAfterRest(state.phaseIndex);
+  }
+
+  function nextFocusDurationSec() {
+    const p = currentPreset();
+    return p ? phaseDurationSec(p, nextFocusIndex()) : 0;
   }
 
   function playWorkCompleteChime() {
@@ -468,8 +478,15 @@
       document.body.classList.add("mode-choice", "mode-complete");
       return;
     }
-    if (state.mode === "work_choice" || state.mode === "rest_choice") {
+    if (state.mode === "work_choice") {
       document.body.classList.add("mode-choice");
+      const k = state.pendingRest?.kind;
+      if (k === "short") document.body.classList.add("rest-short");
+      else if (k === "long") document.body.classList.add("rest-long");
+      return;
+    }
+    if (state.mode === "rest_choice") {
+      document.body.classList.add("mode-choice", "focus-work");
       return;
     }
     if (state.mode === "extend") {
@@ -500,6 +517,13 @@
       return;
     }
     wrap?.classList.remove("ring-extend");
+    if (
+      (state.mode === "work_choice" && state.pendingRest) ||
+      state.mode === "rest_choice"
+    ) {
+      el.style.strokeDashoffset = "0";
+      return;
+    }
     if (state.mode === "work_choice" || state.mode === "rest_choice") {
       el.style.strokeDashoffset = String(RING_LEN);
       return;
@@ -533,14 +557,18 @@
       return;
     }
     if (state.mode === "work_choice") {
-      phase.textContent = "Session complete";
-      hint.textContent = `Session ${workBlockNumber(state.phaseIndex) || ""} of ${workCycleCount(p)}`;
+      phase.textContent = state.pendingRest ? breakTitle(state.pendingRest.kind) : "Break";
+      hint.textContent = "Focus complete";
       return;
     }
     if (state.mode === "rest_choice") {
-      phase.textContent = "Rest complete";
+      const next = nextFocusIndex();
       const pool = formatPool(state.session.poolSec);
-      hint.textContent = state.session.poolSec >= 1 ? `${pool} in pool` : "Pool empty";
+      phase.textContent = "Deep work";
+      hint.textContent =
+        state.session.poolSec >= 1
+          ? `${pool} in pool`
+          : `Session ${workBlockNumber(next) || 1} of ${workCycleCount(p)} · ${p.name}`;
       return;
     }
     if (state.mode === "cumulative") {
@@ -572,6 +600,14 @@
       return;
     }
     td.classList.remove("time-extend");
+    if (state.mode === "work_choice" && state.pendingRest) {
+      td.textContent = formatClock(state.pendingRest.sec);
+      return;
+    }
+    if (state.mode === "rest_choice") {
+      td.textContent = formatClock(nextFocusDurationSec());
+      return;
+    }
     td.textContent = formatClock(state.remainingSec);
   }
 
@@ -580,20 +616,24 @@
       document.title = baseTitle;
       return;
     }
-    if (!state.running && state.mode !== "idle" && state.mode !== "complete") {
-      document.title = `${formatClock(state.remainingSec)} paused`;
-      return;
-    }
     if (state.mode === "extend") {
       document.title = `${formatClock(liveSegmentElapsed())} focus`;
       return;
     }
-    if (state.mode === "work_choice" || state.mode === "rest_choice") {
-      document.title = "paused";
+    if (state.mode === "work_choice" && state.pendingRest) {
+      document.title = `${formatClock(state.pendingRest.sec)} break`;
+      return;
+    }
+    if (state.mode === "rest_choice") {
+      document.title = `${formatClock(nextFocusDurationSec())} focus`;
       return;
     }
     if (state.mode === "complete") {
       document.title = "done";
+      return;
+    }
+    if (!state.running && state.mode !== "idle") {
+      document.title = `${formatClock(state.remainingSec)} paused`;
       return;
     }
     const suffix =
@@ -624,17 +664,40 @@
     } catch (_) {}
   }
 
-  function setChoicePanel(visible, prompt, actions) {
+  function setChoicePanel(visible, prompt, actions, options = {}) {
     const panel = document.getElementById("choicePanel");
     const promptEl = document.getElementById("choicePrompt");
     const actionsEl = document.getElementById("choiceActions");
     if (!panel || !promptEl || !actionsEl) return;
     panel.classList.toggle("hidden", !visible);
+    const useEqualActions = visible && !!options.equalActions;
+    actionsEl.classList.toggle("choice-actions-equal", useEqualActions);
+    if (useEqualActions) {
+      actionsEl.style.setProperty("--choice-action-count", String(actions.length));
+      actionsEl.style.setProperty(
+        "--choice-actions-width",
+        actions.length <= 2 ? "18.6rem" : "28rem"
+      );
+    } else {
+      actionsEl.style.removeProperty("--choice-action-count");
+      actionsEl.style.removeProperty("--choice-actions-width");
+    }
     if (!visible) {
       actionsEl.innerHTML = "";
+      promptEl.textContent = "";
+      promptEl.classList.add("hidden");
+      panel.removeAttribute("aria-label");
       return;
     }
     promptEl.textContent = prompt;
+    promptEl.classList.toggle("hidden", !prompt);
+    if (prompt) {
+      panel.setAttribute("aria-labelledby", "choicePrompt");
+      panel.removeAttribute("aria-label");
+    } else {
+      panel.removeAttribute("aria-labelledby");
+      panel.setAttribute("aria-label", "Timer choices");
+    }
     actionsEl.innerHTML = "";
     actions.forEach(({ label, primary, onClick, disabled }) => {
       const btn = document.createElement("button");
@@ -663,18 +726,22 @@
     stopTicking();
     state.mode = "work_choice";
     const pr = state.pendingRest;
-    const label = pr ? restLabel(pr.kind) : "rest";
-    const dur = pr ? formatClock(pr.sec) : "";
     if (!silent) playChoiceChime();
-    setChoicePanel(true, `Focus complete · ${dur} ${label}`, [
-      { label: "Begin rest", primary: true, onClick: () => chooseStartRest() },
-      { label: "Extend focus", primary: false, onClick: () => chooseExtendFocus() },
-      { label: "Skip rest", primary: false, onClick: () => chooseSkipRest() },
-    ]);
+    setChoicePanel(
+      true,
+      "",
+      [
+        { label: "Extend focus", primary: false, onClick: () => chooseExtendFocus() },
+        { label: "Begin rest", primary: true, onClick: () => chooseStartRest() },
+        { label: "Skip rest", primary: false, onClick: () => chooseSkipRest() },
+      ],
+      { equalActions: true }
+    );
     applyBodyPhaseClass();
     updateLabels();
     updateRing();
     updateTimeDisplay();
+    updateDocumentTitle();
     updateControlVisibility();
     renderLiveStats();
   }
@@ -685,7 +752,6 @@
     stopTicking();
     state.mode = "rest_choice";
     const pool = state.session.poolSec;
-    const poolLabel = formatPool(pool);
     if (!silent) playChoiceChime();
     const actions = [
       { label: "Start focus", primary: true, onClick: () => chooseStartNextFocus() },
@@ -697,15 +763,12 @@
         onClick: () => chooseCumulativeRest(),
       });
     }
-    const msg =
-      pool >= 1
-        ? `Rest complete · ${poolLabel} pooled`
-        : "Rest complete";
-    setChoicePanel(true, msg, actions);
+    setChoicePanel(true, "", actions, { equalActions: true });
     applyBodyPhaseClass();
     updateLabels();
     updateRing();
     updateTimeDisplay();
+    updateDocumentTitle();
     updateControlVisibility();
     renderLiveStats();
   }
@@ -732,6 +795,7 @@
     updateLabels();
     updateRing();
     updateTimeDisplay();
+    updateDocumentTitle();
     updateControlVisibility();
     renderLiveStats();
     persistSession();
@@ -1379,11 +1443,11 @@
       if (k === "1") {
         e.preventDefault();
         hideChoices();
-        chooseStartRest();
+        chooseExtendFocus();
       } else if (k === "2") {
         e.preventDefault();
         hideChoices();
-        chooseExtendFocus();
+        chooseStartRest();
       } else if (k === "3") {
         e.preventDefault();
         hideChoices();

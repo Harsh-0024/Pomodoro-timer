@@ -4,11 +4,11 @@ from pathlib import Path
 
 DEFAULT_SETTINGS = {
     "auto_start_work": False,
-    "auto_start_break": True,
+    "auto_start_break": False,
     "sound_enabled": True,
     "sound_volume": 70,
-    "sound_profile": "balanced",
-    "tick_sound_enabled": False,
+    "sound_profile": "bold",
+    "tick_sound_enabled": True,
     "chime_work_end": True,
     "chime_break_end": True,
     "chime_session_start": True,
@@ -16,9 +16,9 @@ DEFAULT_SETTINGS = {
     "chime_choice": True,
     "chime_skip": True,
     "notifications_enabled": True,
-    "default_preset_id": "builtin-navin",
+    "default_preset_id": "builtin-shishya",
     "daily_focus_goal_minutes": 120,
-    "theme": "dark",
+    "theme": "system",
 }
 
 DB_PATH = Path(__file__).resolve().parent / "data" / "focus_timer.db"

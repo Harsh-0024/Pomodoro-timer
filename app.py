@@ -78,9 +78,9 @@ def _ensure_db():
 
 @app.context_processor
 def _inject_theme():
-    theme = db.load_settings().get("theme", "dark")
+    theme = db.load_settings().get("theme", "system")
     if theme not in ("light", "dark", "system"):
-        theme = "dark"
+        theme = "system"
     return {"theme": theme}
 
 
@@ -174,7 +174,7 @@ def api_delete_preset(preset_id: int):
         return jsonify({"error": "Not found"}), 404
     settings = db.load_settings()
     if settings.get("default_preset_id") == f"custom-{preset_id}":
-        db.save_settings({"default_preset_id": "builtin-navin"})
+        db.save_settings({"default_preset_id": "builtin-shishya"})
     return "", 204
 
 

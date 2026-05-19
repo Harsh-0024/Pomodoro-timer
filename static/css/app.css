@@ -637,8 +637,30 @@ body.modal-open {
   justify-content: center;
 }
 
+.choice-actions-equal {
+  display: grid;
+  grid-template-columns: repeat(var(--choice-action-count, 3), minmax(0, 1fr));
+  width: min(100%, var(--choice-actions-width, 28rem));
+  margin: 0 auto;
+}
+
+.choice-actions-equal .btn {
+  width: 100%;
+  min-width: 0;
+  min-height: 2.55rem;
+  padding: 0.65rem 0.85rem;
+  white-space: nowrap;
+}
+
 .choice-actions .btn {
   min-width: 0;
+}
+
+@media (max-width: 520px) {
+  .choice-actions-equal {
+    grid-template-columns: 1fr;
+    width: min(100%, 14rem);
+  }
 }
 
 body.page-home.mode-complete .timer-panel {

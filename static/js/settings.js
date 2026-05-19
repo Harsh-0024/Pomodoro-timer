@@ -190,17 +190,17 @@
       if (setVolumeVal) setVolumeVal.textContent = `${setVolume.value}%`;
     }
     function syncProfile(value) {
-      const current = value || "balanced";
+      const current = value || "bold";
       setProfile?.querySelectorAll(".segment").forEach((btn) => {
         const active = btn.dataset.value === current;
         btn.classList.toggle("is-active", active);
         btn.setAttribute("aria-checked", active ? "true" : "false");
       });
     }
-    syncProfile(s.sound_profile || "balanced");
+    syncProfile(s.sound_profile || "bold");
 
     function syncTheme(value) {
-      const current = ["light", "dark", "system"].includes(value) ? value : "dark";
+      const current = ["light", "dark", "system"].includes(value) ? value : "system";
       document.body.dataset.theme = current;
       setTheme?.querySelectorAll(".segment").forEach((btn) => {
         const active = btn.dataset.value === current;
@@ -208,7 +208,7 @@
         btn.setAttribute("aria-checked", active ? "true" : "false");
       });
     }
-    syncTheme(s.theme || "dark");
+    syncTheme(s.theme || "system");
 
     async function onDelete(p) {
       const id = p.id.replace("custom-", "");

@@ -37,6 +37,19 @@
   </section>
 
   <section class="card">
+    <h2 class="card-title">Appearance</h2>
+    <p class="card-lede">Choose the visual tone for focus and planning.</p>
+    <div class="field field-first">
+      <span class="field-label" id="setThemeLabel">Theme</span>
+      <div class="segmented" id="setTheme" role="radiogroup" aria-labelledby="setThemeLabel">
+        <button type="button" class="segment" data-value="dark" role="radio" aria-checked="false">Dark</button>
+        <button type="button" class="segment" data-value="light" role="radio" aria-checked="false">Light</button>
+        <button type="button" class="segment" data-value="system" role="radio" aria-checked="false">System</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
     <h2 class="card-title">Sound</h2>
     <label class="toggle">
       <input type="checkbox" id="setSound" />
@@ -69,23 +82,25 @@
     </div>
   </section>
 
-  <section class="card">
-    <h2 class="card-title">Keyboard</h2>
-    <p class="card-lede">Quick reference for timer controls.</p>
-    <button type="button" class="btn btn-quiet" id="btnShowShortcuts">View shortcuts</button>
-  </section>
+  <div class="settings-stack">
+    <section class="card card-compact">
+      <h2 class="card-title">Keyboard</h2>
+      <p class="card-lede">Quick reference for timer controls.</p>
+      <button type="button" class="btn btn-quiet" id="btnShowShortcuts">View shortcuts</button>
+    </section>
 
-  <section class="card">
-    <h2 class="card-title">Notifications</h2>
-    <label class="toggle">
-      <input type="checkbox" id="setNotify" />
-      <span class="toggle-ui"></span>
-      <span class="toggle-copy">
-        <span class="toggle-name">Desktop notifications</span>
-        <span class="toggle-desc">Gentle alerts when this tab is not in view.</span>
-      </span>
-    </label>
-  </section>
+    <section class="card card-compact">
+      <h2 class="card-title">Notifications</h2>
+      <label class="toggle">
+        <input type="checkbox" id="setNotify" />
+        <span class="toggle-ui"></span>
+        <span class="toggle-copy">
+          <span class="toggle-name">Desktop notifications</span>
+          <span class="toggle-desc">Gentle alerts when this tab is not in view.</span>
+        </span>
+      </label>
+    </section>
+  </div>
 
   <section class="card card-wide">
     <h2 class="card-title">Your combinations</h2>

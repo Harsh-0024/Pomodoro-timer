@@ -177,6 +177,7 @@
     const setVolume = document.getElementById("setVolume");
     const setVolumeVal = document.getElementById("setVolumeVal");
     const setProfile = document.getElementById("setProfile");
+    const setTheme = document.getElementById("setTheme");
     const form = document.getElementById("customForm");
 
     if (setAutoWork) setAutoWork.checked = !!s.auto_start_work;
@@ -197,6 +198,17 @@
       });
     }
     syncProfile(s.sound_profile || "balanced");
+
+    function syncTheme(value) {
+      const current = ["light", "dark", "system"].includes(value) ? value : "dark";
+      document.body.dataset.theme = current;
+      setTheme?.querySelectorAll(".segment").forEach((btn) => {
+        const active = btn.dataset.value === current;
+        btn.classList.toggle("is-active", active);
+        btn.setAttribute("aria-checked", active ? "true" : "false");
+      });
+    }
+    syncTheme(s.theme || "dark");
 
     async function onDelete(p) {
       const id = p.id.replace("custom-", "");
@@ -260,6 +272,16 @@
           const value = btn.dataset.value || "balanced";
           syncProfile(value);
           scheduleSave({ sound_profile: value });
+        });
+      });
+    }
+
+    if (setTheme) {
+      setTheme.querySelectorAll(".segment").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const value = btn.dataset.value || "dark";
+          syncTheme(value);
+          scheduleSave({ theme: value });
         });
       });
     }

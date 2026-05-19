@@ -31,11 +31,6 @@
 
   <div class="timer-layout">
     <div class="timer-panel">
-      <div class="choice-panel hidden" id="choicePanel" role="group" aria-labelledby="choicePrompt">
-        <p class="choice-prompt" id="choicePrompt"></p>
-        <div class="choice-actions" id="choiceActions"></div>
-      </div>
-
       <div class="timer-ring-wrap">
         <svg class="timer-ring" viewBox="0 0 220 220" aria-hidden="true">
           <defs>
@@ -54,10 +49,14 @@
           <p class="cycle-hint" id="cycleHint">Session 1 · Agaman</p>
         </div>
       </div>
+      <div class="choice-panel hidden" id="choicePanel" role="group" aria-labelledby="choicePrompt">
+        <p class="choice-prompt" id="choicePrompt"></p>
+        <div class="choice-actions" id="choiceActions"></div>
+      </div>
       <div class="controls" id="mainControls">
         <button type="button" class="btn btn-primary" id="btnPrimary">Start</button>
-        <button type="button" class="btn btn-quiet hidden" id="btnTakePoolRest">Take rest</button>
-        <button type="button" class="btn btn-quiet hidden" id="btnSkipRemaining">Skip remaining</button>
+        <button type="button" class="btn btn-quiet hidden" id="btnTakePoolRest">Pool rest</button>
+        <button type="button" class="btn btn-quiet hidden" id="btnSkipRemaining">Skip</button>
         <button type="button" class="btn btn-quiet hidden" id="btnBeginRest">Begin rest</button>
         <button type="button" class="btn btn-quiet hidden" id="btnSkipRestExtend">Skip rest</button>
         <button type="button" class="btn btn-ghost" id="btnReset">Reset</button>

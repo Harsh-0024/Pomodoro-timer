@@ -68,11 +68,20 @@ def _load_offline_quotes() -> list[dict]:
 
 
 FALLBACK_QUOTES = _load_offline_quotes()
+INITIAL_QUOTE = random.choice(FALLBACK_QUOTES)
 
 
 @app.before_request
 def _ensure_db():
     db.init_db()
+
+
+@app.context_processor
+def _inject_theme():
+    theme = db.load_settings().get("theme", "dark")
+    if theme not in ("light", "dark", "system"):
+        theme = "dark"
+    return {"theme": theme}
 
 
 def _builtin_public(b: dict) -> dict:
@@ -126,7 +135,7 @@ def _preset_exists(preset_id: str) -> bool:
 
 @app.route("/")
 def index():
-    return render_template("index.html", initial_quote=random.choice(FALLBACK_QUOTES))
+    return render_template("index.html", initial_quote=INITIAL_QUOTE)
 
 
 @app.route("/settings")
@@ -232,6 +241,11 @@ def api_put_settings():
         if profile not in ("subtle", "balanced", "bold"):
             return jsonify({"error": "Invalid sound profile"}), 400
         patch["sound_profile"] = profile
+    if "theme" in body:
+        theme = str(body["theme"])
+        if theme not in ("light", "dark", "system"):
+            return jsonify({"error": "Invalid theme"}), 400
+        patch["theme"] = theme
     if "notifications_enabled" in body:
         patch["notifications_enabled"] = bool(body["notifications_enabled"])
     if "default_preset_id" in body:

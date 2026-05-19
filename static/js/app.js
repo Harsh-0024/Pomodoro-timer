@@ -628,10 +628,8 @@
     const panel = document.getElementById("choicePanel");
     const promptEl = document.getElementById("choicePrompt");
     const actionsEl = document.getElementById("choiceActions");
-    const mainControls = document.getElementById("mainControls");
     if (!panel || !promptEl || !actionsEl) return;
     panel.classList.toggle("hidden", !visible);
-    mainControls?.classList.toggle("hidden", visible);
     if (!visible) {
       actionsEl.innerHTML = "";
       return;
@@ -668,10 +666,10 @@
     const label = pr ? restLabel(pr.kind) : "rest";
     const dur = pr ? formatClock(pr.sec) : "";
     if (!silent) playChoiceChime();
-    setChoicePanel(true, `Focus session complete · ${dur} ${label} is due`, [
-      { label: "Start rest (1)", primary: true, onClick: () => chooseStartRest() },
-      { label: "Extend focus (2)", primary: false, onClick: () => chooseExtendFocus() },
-      { label: "Skip rest (3)", primary: false, onClick: () => chooseSkipRest() },
+    setChoicePanel(true, `Focus complete · ${dur} ${label}`, [
+      { label: "Begin rest", primary: true, onClick: () => chooseStartRest() },
+      { label: "Extend focus", primary: false, onClick: () => chooseExtendFocus() },
+      { label: "Skip rest", primary: false, onClick: () => chooseSkipRest() },
     ]);
     applyBodyPhaseClass();
     updateLabels();
@@ -690,18 +688,18 @@
     const poolLabel = formatPool(pool);
     if (!silent) playChoiceChime();
     const actions = [
-      { label: "Start next focus (1)", primary: true, onClick: () => chooseStartNextFocus() },
+      { label: "Start focus", primary: true, onClick: () => chooseStartNextFocus() },
     ];
     if (pool >= 1) {
       actions.push({
-        label: `Take cumulative rest (2) · ${poolLabel}`,
+        label: "Pool rest",
         primary: false,
         onClick: () => chooseCumulativeRest(),
       });
     }
     const msg =
       pool >= 1
-        ? `Rest complete · ${poolLabel} waiting in your pool`
+        ? `Rest complete · ${poolLabel} pooled`
         : "Rest complete";
     setChoicePanel(true, msg, actions);
     applyBodyPhaseClass();
@@ -771,7 +769,16 @@
     }
     notify("Rest complete", "Choose your next step.");
 
-    if (state.mode !== "cumulative" && state.pendingRest) {
+    if (state.mode === "cumulative") {
+      if (state.afterRestWorkIndex == null) {
+        state.afterRestWorkIndex = workIndexAfterRest(state.phaseIndex);
+      }
+      if (state.settings.auto_start_work) chooseStartNextFocus();
+      else showRestChoices();
+      return;
+    }
+
+    if (state.pendingRest) {
       state.afterRestWorkIndex = workIndexAfterRest(state.pendingRest.restIndex);
     }
 
@@ -780,7 +787,8 @@
       showCycleComplete();
       return;
     }
-    showRestChoices();
+    if (state.settings.auto_start_work) chooseStartNextFocus();
+    else showRestChoices();
   }
 
   function chooseStartRest() {
@@ -867,11 +875,15 @@
     if (state.mode === "rest") return;
 
     syncRemainingFromClock();
+    const interruptedDuration =
+      state.session.segDurationSec ||
+      (state.mode === "work" ? phaseDurationSec(currentPreset(), state.phaseIndex) : state.remainingSec);
     if (state.session.segStartedAt) commitSegment();
     state.resumeAfterPoolRest = {
       mode: state.mode,
       phaseIndex: state.phaseIndex,
       remainingSec: state.remainingSec,
+      segDurationSec: interruptedDuration,
       pendingRest: state.pendingRest ? { ...state.pendingRest } : null,
       afterRestWorkIndex: state.afterRestWorkIndex,
     };
@@ -904,7 +916,7 @@
       return;
     }
     if (state.mode === "work") {
-      startSegment("work", state.remainingSec);
+      startSegment("work", saved.segDurationSec || phaseDurationSec(currentPreset(), state.phaseIndex));
       startCountdown(true);
       applyBodyPhaseClass();
       return;
@@ -997,7 +1009,14 @@
       if (!state.session.segStartedAt) {
         const kind =
           state.mode === "work" ? "work" : state.mode === "cumulative" ? "cumulative" : "rest";
-        startSegment(kind, state.remainingSec);
+        const p = currentPreset();
+        const duration =
+          state.mode === "work"
+            ? phaseDurationSec(p, state.phaseIndex)
+            : state.mode === "rest"
+              ? state.pendingRest?.sec || phaseDurationSec(p, state.phaseIndex)
+              : state.remainingSec;
+        startSegment(kind, duration);
       }
       if (state.remainingSec <= 0) {
         const p = currentPreset();
@@ -1100,33 +1119,91 @@
     }
   }
 
+  function visibleControlSnapshot() {
+    const controls = document.getElementById("mainControls");
+    if (!controls) return new Map();
+    return new Map(
+      [...controls.querySelectorAll("button")].map((btn) => [
+        btn.id || btn.textContent,
+        {
+          hidden: btn.classList.contains("hidden"),
+          text: btn.textContent,
+          primary: btn.classList.contains("btn-primary"),
+        },
+      ])
+    );
+  }
+
+  function animateControlChanges(before) {
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches) return;
+    const controls = document.getElementById("mainControls");
+    if (!controls) return;
+    const buttons = [...controls.querySelectorAll("button")];
+    const changed = buttons.some((btn) => {
+      const prev = before.get(btn.id || btn.textContent);
+      return (
+        !prev ||
+        prev.hidden !== btn.classList.contains("hidden") ||
+        prev.text !== btn.textContent ||
+        prev.primary !== btn.classList.contains("btn-primary")
+      );
+    });
+    if (!changed) return;
+    controls.animate(
+      [
+        { opacity: 0.96, transform: "translateY(2px)" },
+        { opacity: 1, transform: "translateY(0)" },
+      ],
+      { duration: 180, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" }
+    );
+    buttons.filter((btn) => !btn.classList.contains("hidden")).forEach((btn) => {
+      const prev = before.get(btn.id || btn.textContent);
+      if (prev && !prev.hidden && prev.text === btn.textContent && prev.primary === btn.classList.contains("btn-primary")) return;
+      btn.animate(
+        [
+          { opacity: 0, transform: "translateY(0.35rem) scale(0.98)" },
+          { opacity: 1, transform: "translateY(0) scale(1)" },
+        ],
+        { duration: 220, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" }
+      );
+    });
+  }
+
   function updateControlVisibility() {
+    const before = visibleControlSnapshot();
     const primary = document.getElementById("btnPrimary");
     const takeRest = document.getElementById("btnTakePoolRest");
     const skipRem = document.getElementById("btnSkipRemaining");
     const beginRest = document.getElementById("btnBeginRest");
     const skipExtend = document.getElementById("btnSkipRestExtend");
+    const reset = document.getElementById("btnReset");
     const inChoice = state.mode === "work_choice" || state.mode === "rest_choice" || state.mode === "complete";
     const inRest = state.mode === "rest" || state.mode === "cumulative";
     const inExtend = state.mode === "extend";
 
     if (skipRem) {
       skipRem.classList.toggle("hidden", inChoice || !inRest);
-      skipRem.textContent = "Skip remaining";
+      skipRem.textContent = "Skip";
       skipRem.title = "Bank remaining rest to the pool and start next focus";
     }
     if (takeRest) {
-      const canTake = state.session.poolSec >= 1 && !inChoice && !inRest && state.mode !== "complete";
+      const canTake = state.session.poolSec >= 1 && !inChoice && !inRest && !inExtend && state.mode !== "complete";
       takeRest.classList.toggle("hidden", !canTake);
-      takeRest.textContent = `Take rest · ${formatPool(state.session.poolSec)}`;
+      takeRest.textContent = "Pool rest";
+      takeRest.title = "Use accumulated rest";
     }
     beginRest?.classList.toggle("hidden", !inExtend || inChoice);
     skipExtend?.classList.toggle("hidden", !inExtend || inChoice);
+    reset?.classList.toggle("hidden", inChoice);
 
-    if (inChoice) return;
+    if (inChoice) {
+      primary?.classList.add("hidden");
+      animateControlChanges(before);
+      return;
+    }
 
     if (primary) {
-      primary.classList.remove("hidden");
+      primary.classList.toggle("hidden", inRest);
       primary.disabled = false;
       if (state.running) {
         primary.textContent = "Pause";
@@ -1135,6 +1212,7 @@
         else primary.textContent = "Resume";
       }
     }
+    animateControlChanges(before);
   }
 
   function updateAll() {
@@ -1398,7 +1476,7 @@
       if (e.code !== "Space" && e.key !== " ") return;
       if (isTypingTarget(e.target)) return;
       e.preventDefault();
-      if (state.running) pauseTimer();
+      if (state.running && state.mode !== "rest" && state.mode !== "cumulative") pauseTimer();
       else if (!["work_choice", "rest_choice", "complete"].includes(state.mode)) resumeTimer();
     });
   }

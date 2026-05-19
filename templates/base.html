@@ -10,7 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}" />
 </head>
-<body class="{% block body_class %}{% endblock %}">
+<body class="{% block body_class %}{% endblock %}" data-theme="{{ theme }}">
   <div class="ambient" aria-hidden="true"></div>
   <header class="topbar">
     <a class="brand" href="{{ url_for('index') }}">
@@ -24,8 +24,8 @@
       <span class="brand-text">Muhurata<span class="brand-dot">·</span>Timer</span>
     </a>
     <nav class="topnav">
-      <a href="{{ url_for('index') }}" class="nav-link{% if request.endpoint == 'index' %} is-active{% endif %}">Timer</a>
       {% block nav_level %}{% endblock %}
+      <a href="{{ url_for('index') }}" class="nav-link{% if request.endpoint == 'index' %} is-active{% endif %}">Timer</a>
       <a href="{{ url_for('settings_page') }}" class="nav-link{% if request.endpoint == 'settings_page' %} is-active{% endif %}">Settings</a>
     </nav>
   </header>

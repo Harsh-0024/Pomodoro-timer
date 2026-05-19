@@ -18,6 +18,7 @@ DEFAULT_SETTINGS = {
     "notifications_enabled": True,
     "default_preset_id": "builtin-navin",
     "daily_focus_goal_minutes": 120,
+    "theme": "dark",
 }
 
 DB_PATH = Path(__file__).resolve().parent / "data" / "focus_timer.db"

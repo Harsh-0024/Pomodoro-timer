@@ -52,7 +52,7 @@
     const p = currentPreset();
     if (!p) return;
     const rate = restAccrualRate(p);
-    const extTotal = state.session.extendSec + liveSegmentElapsed();
+    const extTotal = liveExtendSec();
     const target = extTotal * rate;
     const prev = state.session.extendPoolAccrued || 0;
     const delta = target - prev;
@@ -408,6 +408,11 @@
     return (Date.now() - s.segStartedAt) / 1000;
   }
 
+  function liveExtendSec() {
+    const s = state.session;
+    return s.extendSec + (s.segKind === "extend" ? liveSegmentElapsed() : 0);
+  }
+
   function liveWorkSec() {
     const s = state.session;
     let w = s.workSec + s.extendSec;
@@ -595,7 +600,7 @@
     const td = document.getElementById("timeDisplay");
     if (!td) return;
     if (state.mode === "extend") {
-      td.textContent = `+${formatClock(liveSegmentElapsed())}`;
+      td.textContent = `+${formatClock(liveExtendSec())}`;
       td.classList.add("time-extend");
       return;
     }
@@ -617,7 +622,7 @@
       return;
     }
     if (state.mode === "extend") {
-      document.title = `${formatClock(liveSegmentElapsed())} focus`;
+      document.title = `${formatClock(liveExtendSec())} focus`;
       return;
     }
     if (state.mode === "work_choice" && state.pendingRest) {

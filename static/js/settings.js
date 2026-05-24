@@ -138,6 +138,31 @@
       .replace(/"/g, "&quot;");
   }
 
+  function soundOptions() {
+    return window.FocusSounds?.options || [
+      { id: "soothing-bell", label: "Soothing bell", detail: "Single long bell" },
+      { id: "opening-bells", label: "Opening bells", detail: "Bright bell cue" },
+      { id: "temple-gong", label: "Temple gong", detail: "Low ritual strike" },
+      { id: "ghanta-trio", label: "Ghanta trio", detail: "Three temple bells" },
+      { id: "soft-bell", label: "Soft bell", detail: "Gentle short chime" },
+      { id: "bamboo-tick", label: "Bamboo tick", detail: "Quiet marker" },
+    ];
+  }
+
+  function populateSoundSelect(el, current) {
+    if (!el) return;
+    const options = soundOptions();
+    el.innerHTML = "";
+    options.forEach((sound) => {
+      const opt = document.createElement("option");
+      opt.value = sound.id;
+      opt.textContent = sound.label;
+      if (sound.detail) opt.title = sound.detail;
+      el.appendChild(opt);
+    });
+    el.value = options.some((sound) => sound.id === current) ? current : options[0]?.id || "";
+  }
+
   async function reloadPresetsInto(defaultPicker, settings, onCustom) {
     const data = await api("/api/presets");
     const all = [...data.builtins, ...data.custom];
@@ -179,6 +204,12 @@
     const setProfile = document.getElementById("setProfile");
     const setTheme = document.getElementById("setTheme");
     const form = document.getElementById("customForm");
+    const soundSelects = [
+      { el: document.getElementById("setSoundWorkEnd"), key: "sound_work_end", fallback: "soothing-bell" },
+      { el: document.getElementById("setSoundBreakEnd"), key: "sound_break_end", fallback: "opening-bells" },
+      { el: document.getElementById("setSoundSessionStart"), key: "sound_session_start", fallback: "temple-gong" },
+      { el: document.getElementById("setSoundAction"), key: "sound_action", fallback: "soft-bell" },
+    ];
 
     if (setAutoWork) setAutoWork.checked = !!s.auto_start_work;
     if (setAutoBreak) setAutoBreak.checked = !!s.auto_start_break;
@@ -198,6 +229,10 @@
       });
     }
     syncProfile(s.sound_profile || "bold");
+
+    soundSelects.forEach(({ el, key, fallback }) => {
+      populateSoundSelect(el, s[key] || fallback);
+    });
 
     function syncTheme(value) {
       const current = ["light", "dark", "system"].includes(value) ? value : "system";
@@ -249,6 +284,7 @@
     function bindToggle(el, key) {
       if (!el) return;
       el.addEventListener("change", () => {
+        s[key] = el.checked;
         scheduleSave({ [key]: el.checked });
       });
     }
@@ -262,7 +298,8 @@
     if (setVolume) {
       setVolume.addEventListener("input", () => {
         if (setVolumeVal) setVolumeVal.textContent = `${setVolume.value}%`;
-        scheduleSave({ sound_volume: parseInt(setVolume.value, 10) });
+        s.sound_volume = parseInt(setVolume.value, 10);
+        scheduleSave({ sound_volume: s.sound_volume });
       });
     }
 
@@ -270,16 +307,41 @@
       setProfile.querySelectorAll(".segment").forEach((btn) => {
         btn.addEventListener("click", () => {
           const value = btn.dataset.value || "balanced";
+          s.sound_profile = value;
           syncProfile(value);
           scheduleSave({ sound_profile: value });
         });
       });
     }
 
+    soundSelects.forEach(({ el, key }) => {
+      if (!el) return;
+      el.addEventListener("change", () => {
+        s[key] = el.value;
+        scheduleSave({ [key]: el.value });
+      });
+    });
+
+    document.querySelectorAll("[data-preview-for]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const select = document.getElementById(btn.dataset.previewFor || "");
+        if (!select?.value || !window.FocusSounds?.preview) return;
+        const previewSettings = { ...s };
+        soundSelects.forEach(({ el, key }) => {
+          if (el) previewSettings[key] = el.value;
+        });
+        previewSettings.sound_volume = setVolume ? parseInt(setVolume.value, 10) : previewSettings.sound_volume;
+        window.FocusSounds.preview(select.value, previewSettings).catch((e) => {
+          toast(e.message || "Could not play sound");
+        });
+      });
+    });
+
     if (setTheme) {
       setTheme.querySelectorAll(".segment").forEach((btn) => {
         btn.addEventListener("click", () => {
           const value = btn.dataset.value || "dark";
+          s.theme = value;
           syncTheme(value);
           scheduleSave({ theme: value });
         });

@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block body_class %}page-dashboard{% endblock %}
+{% block page_id %}dashboard{% endblock %}
+{% block content %}
+<section class="dashboard-hero">
+  <div>
+    <p class="eyebrow">Practice dashboard</p>
+    <h1 class="title title-dashboard">Your focus, over time.</h1>
+    <p class="lede lede-dashboard">A quiet view of consistency, productive minutes, rest balance, and the rhythms you return to.</p>
+  </div>
+  <div class="dashboard-goal" hidden>
+    <span class="dashboard-goal-value" id="goalValue">--</span>
+    <span class="dashboard-goal-label">daily goal</span>
+  </div>
+</section>
+
+<section class="dashboard-stats" aria-label="Focus summary">
+  <article class="metric-card metric-card-primary">
+    <span class="metric-label" id="totalFocusLabel">Focus this year</span>
+    <strong class="metric-value" id="totalFocus">--</strong>
+    <span class="metric-note" id="activeDays">-- active days</span>
+  </article>
+  <article class="metric-card">
+    <span class="metric-label">Current streak</span>
+    <strong class="metric-value" id="currentStreak">--</strong>
+    <span class="metric-note" id="longestStreak">-- longest</span>
+  </article>
+  <article class="metric-card">
+    <span class="metric-label">Consistency</span>
+    <strong class="metric-value" id="consistencyRate">--</strong>
+    <span class="metric-note" id="consistencyNote">-- days per week</span>
+  </article>
+  <article class="metric-card">
+    <span class="metric-label">Focus ratio</span>
+    <strong class="metric-value" id="productivity">--</strong>
+    <span class="metric-note" id="restMinutes">-- rest tracked</span>
+  </article>
+</section>
+
+<section class="dashboard-panel heatmap-panel" aria-labelledby="heatmapTitle">
+  <div class="panel-head">
+    <div>
+      <h2 class="card-title" id="heatmapTitle">Yearly consistency</h2>
+      <p class="card-lede" id="heatmapSubtitle">Loading focus history...</p>
+    </div>
+    <div class="heatmap-actions">
+      <ol class="year-filter-list" id="yearList" role="list" aria-label="Dashboard year"></ol>
+      <div class="heatmap-legend" aria-label="Heat intensity legend">
+        <span>Less</span>
+        <span class="heat-swatch heat-level-0"></span>
+        <span class="heat-swatch heat-level-1"></span>
+        <span class="heat-swatch heat-level-2"></span>
+        <span class="heat-swatch heat-level-3"></span>
+        <span class="heat-swatch heat-level-4"></span>
+        <span>More</span>
+      </div>
+    </div>
+  </div>
+  <div class="heatmap-scroll">
+    <div class="heatmap-wrap">
+      <div class="heatmap-months" id="heatmapMonths" aria-hidden="true"></div>
+      <div class="heatmap-body">
+        <div class="heatmap-days" aria-hidden="true">
+          <span></span>
+          <span>Mon</span>
+          <span></span>
+          <span>Wed</span>
+          <span></span>
+          <span>Fri</span>
+          <span></span>
+        </div>
+        <div class="heatmap-grid" id="heatmapGrid" role="img" aria-label="Daily focus activity for the selected year"></div>
+      </div>
+    </div>
+  </div>
+  <div class="heatmap-tooltip hidden" id="heatmapTooltip" role="status" aria-live="polite"></div>
+</section>
+
+<div class="dashboard-lower">
+  <section class="dashboard-panel" aria-labelledby="recentTitle">
+    <div class="panel-head">
+      <div>
+        <h2 class="card-title" id="recentTitle">Recent days</h2>
+        <p class="card-lede">Focus and rest from the latest two weeks.</p>
+      </div>
+    </div>
+    <div class="recent-list" id="recentList"></div>
+  </section>
+
+  <section class="dashboard-panel" aria-labelledby="rhythmTitle">
+    <div class="panel-head">
+      <div>
+        <h2 class="card-title" id="rhythmTitle">Rhythms used</h2>
+        <p class="card-lede">Share of total focus time by rhythm.</p>
+      </div>
+    </div>
+    <div class="rhythm-list" id="rhythmList"></div>
+  </section>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}" defer></script>
+{% endblock %}

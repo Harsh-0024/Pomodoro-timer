@@ -49,35 +49,71 @@
     </div>
   </section>
 
-  <section class="card">
+  <section class="card sound-card">
     <h2 class="card-title">Sound</h2>
-    <label class="toggle">
-      <input type="checkbox" id="setSound" />
-      <span class="toggle-ui"></span>
-      <span class="toggle-copy">
-        <span class="toggle-name">Sound on</span>
-        <span class="toggle-desc">Master switch for audio cues.</span>
-      </span>
-    </label>
-    <label class="toggle">
-      <input type="checkbox" id="setTick" />
-      <span class="toggle-ui"></span>
-      <span class="toggle-copy">
-        <span class="toggle-name">Subtle minute pulse</span>
-        <span class="toggle-desc">A soft marker at each minute boundary.</span>
-      </span>
-    </label>
-    <div class="field">
-      <label class="field-label" for="setVolume">Volume</label>
-      <input type="range" id="setVolume" class="range" min="0" max="100" step="5" />
-      <span class="range-val" id="setVolumeVal">70%</span>
+    <div class="sound-toggle-grid">
+      <label class="toggle">
+        <input type="checkbox" id="setSound" />
+        <span class="toggle-ui"></span>
+        <span class="toggle-copy">
+          <span class="toggle-name">Sound on</span>
+          <span class="toggle-desc">Master switch for audio cues.</span>
+        </span>
+      </label>
+      <label class="toggle">
+        <input type="checkbox" id="setTick" />
+        <span class="toggle-ui"></span>
+        <span class="toggle-copy">
+          <span class="toggle-name">Minute pulse</span>
+          <span class="toggle-desc">Soft marker at each minute.</span>
+        </span>
+      </label>
     </div>
-    <div class="field">
-      <span class="field-label" id="setProfileLabel">Character</span>
-      <div class="segmented" id="setProfile" role="radiogroup" aria-labelledby="setProfileLabel">
-        <button type="button" class="segment" data-value="subtle" role="radio" aria-checked="false">Subtle</button>
-        <button type="button" class="segment" data-value="balanced" role="radio" aria-checked="false">Balanced</button>
-        <button type="button" class="segment" data-value="bold" role="radio" aria-checked="false">Bold</button>
+    <div class="sound-control-grid">
+      <div class="field">
+        <label class="field-label" for="setVolume">Volume</label>
+        <div class="sound-volume-row">
+          <input type="range" id="setVolume" class="range" min="0" max="100" step="5" />
+          <span class="range-val" id="setVolumeVal">70%</span>
+        </div>
+      </div>
+      <div class="field">
+        <span class="field-label" id="setProfileLabel">Character</span>
+        <div class="segmented" id="setProfile" role="radiogroup" aria-labelledby="setProfileLabel">
+          <button type="button" class="segment" data-value="subtle" role="radio" aria-checked="false">Subtle</button>
+          <button type="button" class="segment" data-value="balanced" role="radio" aria-checked="false">Balanced</button>
+          <button type="button" class="segment" data-value="bold" role="radio" aria-checked="false">Bold</button>
+        </div>
+      </div>
+    </div>
+    <div class="sound-purpose-grid">
+      <div class="field sound-cue">
+        <label class="field-label" for="setSoundWorkEnd">Before rest</label>
+        <div class="sound-picker-row">
+          <select class="select" id="setSoundWorkEnd"></select>
+          <button type="button" class="btn btn-quiet btn-preview" data-preview-for="setSoundWorkEnd" aria-label="Preview before rest sound" title="Preview">&#9658;</button>
+        </div>
+      </div>
+      <div class="field sound-cue">
+        <label class="field-label" for="setSoundBreakEnd">Before work</label>
+        <div class="sound-picker-row">
+          <select class="select" id="setSoundBreakEnd"></select>
+          <button type="button" class="btn btn-quiet btn-preview" data-preview-for="setSoundBreakEnd" aria-label="Preview before work sound" title="Preview">&#9658;</button>
+        </div>
+      </div>
+      <div class="field sound-cue">
+        <label class="field-label" for="setSoundSessionStart">Session start</label>
+        <div class="sound-picker-row">
+          <select class="select" id="setSoundSessionStart"></select>
+          <button type="button" class="btn btn-quiet btn-preview" data-preview-for="setSoundSessionStart" aria-label="Preview session start sound" title="Preview">&#9658;</button>
+        </div>
+      </div>
+      <div class="field sound-cue">
+        <label class="field-label" for="setSoundAction">Small actions</label>
+        <div class="sound-picker-row">
+          <select class="select" id="setSoundAction"></select>
+          <button type="button" class="btn btn-quiet btn-preview" data-preview-for="setSoundAction" aria-label="Preview small actions sound" title="Preview">&#9658;</button>
+        </div>
       </div>
     </div>
   </section>

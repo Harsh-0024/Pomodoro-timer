@@ -27,7 +27,7 @@ QUOTE_FILES = (
     BASE_DIR / "quotes.json",
     BASE_DIR / "data" / "quotes.json",
     BASE_DIR / "static" / "quotes.json",
-    BASE_DIR / "quotes.js",
+    BASE_DIR / "static" / "js" / "quotes.js",
 )
 
 
@@ -69,6 +69,20 @@ def _load_offline_quotes() -> list[dict]:
 
 FALLBACK_QUOTES = _load_offline_quotes()
 INITIAL_QUOTE = random.choice(FALLBACK_QUOTES)
+SOUND_CHOICES = {
+    "soothing-bell",
+    "opening-bells",
+    "temple-gong",
+    "ghanta-trio",
+    "soft-bell",
+    "bamboo-tick",
+}
+SOUND_SETTING_KEYS = (
+    "sound_work_end",
+    "sound_break_end",
+    "sound_session_start",
+    "sound_action",
+)
 
 
 @app.before_request
@@ -141,6 +155,11 @@ def index():
 @app.route("/settings")
 def settings_page():
     return render_template("settings.html")
+
+
+@app.route("/dashboard")
+def dashboard_page():
+    return render_template("dashboard.html")
 
 
 @app.get("/api/presets")
@@ -241,6 +260,12 @@ def api_put_settings():
         if profile not in ("subtle", "balanced", "bold"):
             return jsonify({"error": "Invalid sound profile"}), 400
         patch["sound_profile"] = profile
+    for key in SOUND_SETTING_KEYS:
+        if key in body:
+            sound = str(body[key])
+            if sound not in SOUND_CHOICES:
+                return jsonify({"error": "Invalid sound choice"}), 400
+            patch[key] = sound
     if "theme" in body:
         theme = str(body["theme"])
         if theme not in ("light", "dark", "system"):
@@ -290,6 +315,77 @@ def api_focus_log():
         return jsonify({"error": "Minutes out of range"}), 400
     total = db.add_focus_minutes(str(day), minutes)
     return jsonify({"day": day, "minutes": total})
+
+
+@app.post("/api/activity/segment")
+def api_activity_segment():
+    data = request.get_json(silent=True) or {}
+    kind = str(data.get("kind") or "")
+    if kind not in ("work", "extend", "rest", "cumulative", "pause"):
+        return jsonify({"error": "Invalid activity kind"}), 400
+    day = str(data.get("day") or "")
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", day):
+        return jsonify({"error": "Invalid day"}), 400
+    started_at = str(data.get("started_at") or "")
+    ended_at = str(data.get("ended_at") or "")
+    try:
+        datetime.fromisoformat(started_at.replace("Z", "+00:00"))
+        datetime.fromisoformat(ended_at.replace("Z", "+00:00"))
+        duration_sec = float(data.get("duration_sec"))
+    except (TypeError, ValueError):
+        return jsonify({"error": "Invalid activity timing"}), 400
+    if not (0.5 <= duration_sec <= 24 * 60 * 60):
+        return jsonify({"error": "Activity duration out of range"}), 400
+    phase_index = data.get("phase_index")
+    if phase_index is not None:
+        try:
+            phase_index = int(phase_index)
+        except (TypeError, ValueError):
+            return jsonify({"error": "Invalid phase index"}), 400
+    details = data.get("details")
+    if details is not None and not isinstance(details, dict):
+        return jsonify({"error": "Invalid details"}), 400
+    segment = db.add_activity_segment(
+        {
+            "day": day,
+            "kind": kind,
+            "started_at": started_at,
+            "ended_at": ended_at,
+            "duration_sec": duration_sec,
+            "preset_id": str(data.get("preset_id") or ""),
+            "preset_name": str(data.get("preset_name") or ""),
+            "phase_index": phase_index,
+            "details": details or {},
+        }
+    )
+    return jsonify(segment), 201
+
+
+@app.get("/api/activity/day")
+def api_activity_day():
+    day = request.args.get("day")
+    if not day or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", day):
+        day = datetime.now().date().isoformat()
+    return jsonify(db.activity_for_day(str(day)))
+
+
+@app.get("/api/dashboard")
+def api_dashboard():
+    day = request.args.get("day")
+    if day and not re.fullmatch(r"\d{4}-\d{2}-\d{2}", day):
+        return jsonify({"error": "Invalid day"}), 400
+    year = request.args.get("year")
+    parsed_year = None
+    if year:
+        try:
+            parsed_year = int(year)
+        except (TypeError, ValueError):
+            return jsonify({"error": "Invalid year"}), 400
+    try:
+        days = int(request.args.get("days", 365))
+    except (TypeError, ValueError):
+        days = 365
+    return jsonify(db.dashboard_summary(day, days, parsed_year))
 
 
 if __name__ == "__main__":

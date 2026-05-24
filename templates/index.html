@@ -57,8 +57,8 @@
         <button type="button" class="btn btn-primary" id="btnPrimary">Start</button>
         <button type="button" class="btn btn-quiet hidden" id="btnTakePoolRest">Pool rest</button>
         <button type="button" class="btn btn-quiet hidden" id="btnSkipRemaining">Skip</button>
-        <button type="button" class="btn btn-quiet hidden" id="btnBeginRest">Begin rest</button>
-        <button type="button" class="btn btn-quiet hidden" id="btnSkipRestExtend">Skip rest</button>
+        <button type="button" class="btn btn-quiet hidden" id="btnBeginRest">Rest</button>
+        <button type="button" class="btn btn-quiet hidden" id="btnSkipRestExtend">Skip</button>
         <button type="button" class="btn btn-ghost" id="btnReset">Reset</button>
       </div>
     </div>
@@ -70,6 +70,5 @@
 </section>
 {% endblock %}
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/sounds.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
 {% endblock %}

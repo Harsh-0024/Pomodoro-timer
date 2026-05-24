@@ -26,13 +26,12 @@
     <nav class="topnav">
       {% block nav_level %}{% endblock %}
       <a href="{{ url_for('index') }}" class="nav-link{% if request.endpoint == 'index' %} is-active{% endif %}">Timer</a>
+      <a href="{{ url_for('dashboard_page') }}" class="nav-link{% if request.endpoint == 'dashboard_page' %} is-active{% endif %}">Dashboard</a>
       <a href="{{ url_for('settings_page') }}" class="nav-link{% if request.endpoint == 'settings_page' %} is-active{% endif %}">Settings</a>
     </nav>
   </header>
   <main class="main">{% block content %}{% endblock %}</main>
   <footer class="foot">
-    <span>4 work · 3 short · 1 long · 76.2% focus ratio</span>
-    <span class="foot-sep">·</span>
     <span>1 Muhurat = 48 min · 1 Ghadi = 24 min</span>
   </footer>
   <div id="shortcutsModal" class="modal hidden" role="dialog" aria-labelledby="shortcutsTitle" aria-hidden="true">
@@ -56,6 +55,8 @@
     </div>
   </div>
   <script>window.__PAGE__ = "{% block page_id %}home{% endblock %}";</script>
+  <script src="{{ url_for('static', filename='js/sounds.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='js/session-monitor.js') }}" defer></script>
   <script src="{{ url_for('static', filename='js/dialog.js') }}" defer></script>
   <script src="{{ url_for('static', filename='js/shortcuts.js') }}" defer></script>
   {% block scripts %}{% endblock %}

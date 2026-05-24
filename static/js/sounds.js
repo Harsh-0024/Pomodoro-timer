@@ -2,8 +2,50 @@
   "use strict";
 
   let audioCtx = null;
+  const buffers = new Map();
 
   const PROFILE_GAIN = { subtle: 0.45, balanced: 1, bold: 1.85 };
+  const SOUND_OPTIONS = [
+    {
+      id: "soothing-bell",
+      label: "Soothing bell",
+      detail: "A single long bell for entering rest.",
+      asset: "/static/audio/soothing-church-bell.mp3",
+      gain: 0.85,
+    },
+    {
+      id: "opening-bells",
+      label: "Opening bells",
+      detail: "A brighter bell cue for returning to work.",
+      asset: "/static/audio/opening-bells.mp3",
+      gain: 0.9,
+    },
+    {
+      id: "temple-gong",
+      label: "Temple gong",
+      detail: "A warm low ritual strike.",
+      synth: templeGong,
+    },
+    {
+      id: "ghanta-trio",
+      label: "Ghanta trio",
+      detail: "Three clear temple bell rings.",
+      synth: ghantaTrio,
+    },
+    {
+      id: "soft-bell",
+      label: "Soft bell",
+      detail: "A gentle short chime.",
+      synth: softBell,
+    },
+    {
+      id: "bamboo-tick",
+      label: "Bamboo tick",
+      detail: "A quiet marker for small actions.",
+      synth: bambooTick,
+    },
+  ];
+  const SOUND_BY_ID = Object.fromEntries(SOUND_OPTIONS.map((item) => [item.id, item]));
 
   function ensureCtx() {
     if (!audioCtx) {
@@ -30,12 +72,18 @@
     osc.type = type;
     osc.frequency.setValueAtTime(freq, t0);
     gain.gain.setValueAtTime(0.0001, t0);
-    gain.gain.exponentialRampToValueAtTime(g, t0 + 0.02);
+    gain.gain.exponentialRampToValueAtTime(g, t0 + 0.018);
     gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
     osc.connect(gain);
     gain.connect(audioCtx.destination);
     osc.start(t0);
-    osc.stop(t0 + dur + 0.06);
+    osc.stop(t0 + dur + 0.08);
+  }
+
+  function strike(settings, start, partials) {
+    partials.forEach(([freq, dur, vol, type]) => {
+      tone(settings, freq, start, dur, vol, type || "sine");
+    });
   }
 
   function sequence(settings, notes) {
@@ -47,28 +95,98 @@
     });
   }
 
+  async function loadBuffer(option) {
+    if (buffers.has(option.id)) return buffers.get(option.id);
+    const res = await fetch(option.asset);
+    if (!res.ok) throw new Error("Could not load sound");
+    const data = await res.arrayBuffer();
+    const decoded = await audioCtx.decodeAudioData(data.slice(0));
+    buffers.set(option.id, decoded);
+    return decoded;
+  }
+
+  async function playAsset(settings, option) {
+    if (!settings?.sound_enabled) return;
+    await ensureCtx();
+    if (!audioCtx) return;
+    const gainValue = masterGain(settings) * (option.gain ?? 1);
+    if (gainValue < 0.01) return;
+    const buffer = await loadBuffer(option);
+    const source = audioCtx.createBufferSource();
+    const gain = audioCtx.createGain();
+    source.buffer = buffer;
+    gain.gain.setValueAtTime(gainValue, audioCtx.currentTime);
+    source.connect(gain);
+    gain.connect(audioCtx.destination);
+    source.start();
+  }
+
+  function playSound(settings, soundId) {
+    const option = SOUND_BY_ID[soundId] || SOUND_BY_ID["soft-bell"];
+    if (option.asset) return playAsset(settings, option);
+    if (!settings?.sound_enabled) return Promise.resolve();
+    return ensureCtx().then(() => option.synth(settings));
+  }
+
+  function selected(settings, key, fallback) {
+    const value = settings?.[key] || fallback;
+    return SOUND_BY_ID[value] ? value : fallback;
+  }
+
+  function templeGong(settings) {
+    strike(settings, 0, [
+      [174.61, 1.9, 0.28, "sine"],
+      [261.63, 1.55, 0.16, "triangle"],
+      [349.23, 1.25, 0.09, "sine"],
+      [523.25, 0.85, 0.05, "triangle"],
+    ]);
+  }
+
+  function ghantaTrio(settings) {
+    [0, 0.38, 0.78].forEach((start, idx) => {
+      const scale = idx === 0 ? 1 : 0.82;
+      strike(settings, start, [
+        [523.25, 0.62, 0.15 * scale, "sine"],
+        [784, 0.5, 0.1 * scale, "triangle"],
+        [1046.5, 0.42, 0.06 * scale, "sine"],
+      ]);
+    });
+  }
+
+  function softBell(settings) {
+    strike(settings, 0, [
+      [523.25, 0.32, 0.15, "sine"],
+      [659.25, 0.38, 0.09, "triangle"],
+    ]);
+  }
+
+  function bambooTick(settings) {
+    sequence(settings, [
+      [880, 0, 0.045, 0.1, "triangle"],
+      [660, 0.04, 0.045, 0.07, "triangle"],
+    ]);
+  }
+
   window.FocusSounds = {
+    options: SOUND_OPTIONS.map(({ id, label, detail }) => ({ id, label, detail })),
+
     prime(settings) {
       if (!settings?.sound_enabled) return Promise.resolve();
       return ensureCtx().then(() => tone(settings, 440, 0, 0.04, 0.2, "sine"));
     },
 
+    preview(soundId, settings) {
+      return playSound({ ...settings, sound_enabled: true }, soundId);
+    },
+
     workComplete(settings) {
       if (!settings?.chime_work_end) return;
-      return sequence(settings, [
-        [523.25, 0, 0.28, 0.22],
-        [392.0, 0.14, 0.32, 0.18],
-        [659.25, 0.32, 0.45, 0.16, "triangle"],
-      ]);
+      return playSound(settings, selected(settings, "sound_work_end", "soothing-bell"));
     },
 
     breakComplete(settings) {
       if (!settings?.chime_break_end) return;
-      return sequence(settings, [
-        [659.25, 0, 0.22, 0.2],
-        [880.0, 0.16, 0.38, 0.18],
-        [1046.5, 0.38, 0.5, 0.14, "triangle"],
-      ]);
+      return playSound(settings, selected(settings, "sound_break_end", "opening-bells"));
     },
 
     tick(settings) {
@@ -78,28 +196,22 @@
 
     start(settings) {
       if (!settings?.chime_session_start) return;
-      return sequence(settings, [
-        [392, 0, 0.12, 0.16],
-        [523.25, 0.1, 0.22, 0.18],
-      ]);
+      return playSound(settings, selected(settings, "sound_session_start", "temple-gong"));
     },
 
     poolAdd(settings) {
       if (!settings?.chime_pool_add) return;
-      return sequence(settings, [
-        [349.23, 0, 0.14, 0.14],
-        [440, 0.12, 0.2, 0.12],
-      ]);
+      return playSound(settings, selected(settings, "sound_action", "soft-bell"));
     },
 
     choice(settings) {
       if (!settings?.chime_choice) return;
-      return sequence(settings, [[523.25, 0, 0.15, 0.14]]);
+      return playSound(settings, selected(settings, "sound_action", "soft-bell"));
     },
 
     skip(settings) {
       if (!settings?.chime_skip) return;
-      return sequence(settings, [[330, 0, 0.1, 0.12], [262, 0.08, 0.14, 0.1]]);
+      return playSound(settings, selected(settings, "sound_action", "bamboo-tick"));
     },
   };
 })();

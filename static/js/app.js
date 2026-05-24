@@ -26,7 +26,12 @@
     pendingRest: null,
     afterRestWorkIndex: null,
     resumeAfterPoolRest: null,
+    extendBaseSec: 0,
+    pauseStartedAt: null,
+    currentQuote: null,
     restartAfterLevelChange: false,
+    phaseNotificationKey: null,
+    monitorNotifiedPhase: null,
     session: {
       active: false,
       startedAt: null,
@@ -47,12 +52,21 @@
     return workSec > 0 ? restSec / workSec : 0;
   }
 
+  function totalExtendSec() {
+    const s = state.session;
+    return s.extendSec + (s.segKind === "extend" ? liveSegmentElapsed() : 0);
+  }
+
+  function currentExtendSec() {
+    return Math.max(0, totalExtendSec() - (state.extendBaseSec || 0));
+  }
+
   function syncExtendPoolAccrual() {
     if (state.mode !== "extend") return;
     const p = currentPreset();
     if (!p) return;
     const rate = restAccrualRate(p);
-    const extTotal = liveExtendSec();
+    const extTotal = totalExtendSec();
     const target = extTotal * rate;
     const prev = state.session.extendPoolAccrued || 0;
     const delta = target - prev;
@@ -80,8 +94,13 @@
         pendingRest: state.pendingRest,
         afterRestWorkIndex: state.afterRestWorkIndex,
         resumeAfterPoolRest: state.resumeAfterPoolRest,
+        extendBaseSec: state.extendBaseSec,
+        pauseStartedAt: state.pauseStartedAt,
+        currentQuote: state.currentQuote || readDisplayedQuote(),
         lastMinuteBucket: state.lastMinuteBucket,
         phaseEndsAt,
+        phaseNotificationKey: state.phaseNotificationKey,
+        monitorNotifiedPhase: state.monitorNotifiedPhase,
         session: {
           active: state.session.active,
           startedAt: state.session.startedAt,
@@ -113,7 +132,12 @@
       state.pendingRest = data.pendingRest ?? null;
       state.afterRestWorkIndex = data.afterRestWorkIndex ?? null;
       state.resumeAfterPoolRest = data.resumeAfterPoolRest ?? null;
+      state.extendBaseSec = data.extendBaseSec ?? 0;
+      state.pauseStartedAt = data.pauseStartedAt ?? null;
+      state.currentQuote = data.currentQuote ?? null;
       state.lastMinuteBucket = data.lastMinuteBucket ?? null;
+      state.phaseNotificationKey = data.phaseNotificationKey ?? null;
+      state.monitorNotifiedPhase = data.monitorNotifiedPhase ?? null;
       state.session = {
         active: true,
         startedAt: data.session.startedAt,
@@ -145,6 +169,7 @@
       }
 
       syncLevelSelect();
+      applyQuote(state.currentQuote);
 
       if (state.session.segStartedAt && state.session.segKind) {
         const pausedMs = Date.now() - data.savedAt;
@@ -185,6 +210,9 @@
     state.pendingRest = null;
     state.afterRestWorkIndex = null;
     state.resumeAfterPoolRest = null;
+    state.extendBaseSec = 0;
+    state.pauseStartedAt = null;
+    state.currentQuote = readDisplayedQuote();
     disarmPhaseEnd();
     applyBodyPhaseClass();
     updateAll();
@@ -352,6 +380,31 @@
     }).catch(() => {});
   }
 
+  function localDayISO(ms) {
+    const d = new Date(ms);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }
+
+  function logActivitySegment(kind, startedAt, endedAt, details = {}) {
+    const duration = Math.max(0, (endedAt - startedAt) / 1000);
+    if (duration < 0.5) return Promise.resolve();
+    const p = currentPreset();
+    return api("/api/activity/segment", {
+      method: "POST",
+      body: JSON.stringify({
+        day: localDayISO(startedAt),
+        kind,
+        started_at: new Date(startedAt).toISOString(),
+        ended_at: new Date(endedAt).toISOString(),
+        duration_sec: duration,
+        preset_id: state.presetId,
+        preset_name: p?.name || "",
+        phase_index: state.phaseIndex,
+        details,
+      }),
+    }).catch(() => {});
+  }
+
   function ensureSession() {
     const s = state.session;
     if (!s.active) {
@@ -385,13 +438,29 @@
     const s = state.session;
     if (!s.segStartedAt || !s.segKind) return;
     if (s.segKind === "extend") syncExtendPoolAccrual();
+    const startedAt = s.segStartedAt;
+    const endedAt = Date.now();
     const elapsed = (Date.now() - s.segStartedAt) / 1000;
     if (s.segKind === "work") s.workSec += elapsed;
     else if (s.segKind === "extend") s.extendSec += elapsed;
     else if (s.segKind === "rest" || s.segKind === "cumulative") s.restTakenSec += elapsed;
+    logActivitySegment(s.segKind, startedAt, endedAt, {
+      duration_sec: s.segDurationSec,
+    });
     s.segStartedAt = null;
     s.segKind = null;
     s.segDurationSec = 0;
+    persistSession();
+  }
+
+  function commitPauseSegment() {
+    if (!state.pauseStartedAt) return;
+    const startedAt = state.pauseStartedAt;
+    const endedAt = Date.now();
+    const elapsed = Math.max(0, (endedAt - startedAt) / 1000);
+    state.session.restTakenSec += elapsed;
+    state.pauseStartedAt = null;
+    logActivitySegment("pause", startedAt, endedAt);
     persistSession();
   }
 
@@ -406,11 +475,6 @@
     const s = state.session;
     if (!s.segStartedAt || !s.segKind) return 0;
     return (Date.now() - s.segStartedAt) / 1000;
-  }
-
-  function liveExtendSec() {
-    const s = state.session;
-    return s.extendSec + (s.segKind === "extend" ? liveSegmentElapsed() : 0);
   }
 
   function liveWorkSec() {
@@ -463,10 +527,15 @@
 
   function armPhaseEnd() {
     phaseEndsAt = Date.now() + state.remainingSec * 1000;
+    state.phaseNotificationKey = `${state.mode}:${state.phaseIndex}:${Math.round(phaseEndsAt)}`;
   }
 
   function disarmPhaseEnd() {
     phaseEndsAt = null;
+  }
+
+  function phaseAlreadyChimed() {
+    return !!state.phaseNotificationKey && state.monitorNotifiedPhase === state.phaseNotificationKey;
   }
 
   function applyBodyPhaseClass() {
@@ -600,7 +669,7 @@
     const td = document.getElementById("timeDisplay");
     if (!td) return;
     if (state.mode === "extend") {
-      td.textContent = `+${formatClock(liveExtendSec())}`;
+      td.textContent = `+${formatClock(currentExtendSec())}`;
       td.classList.add("time-extend");
       return;
     }
@@ -622,7 +691,7 @@
       return;
     }
     if (state.mode === "extend") {
-      document.title = `${formatClock(liveExtendSec())} focus`;
+      document.title = `${formatClock(currentExtendSec())} focus`;
       return;
     }
     if (state.mode === "work_choice" && state.pendingRest) {
@@ -651,6 +720,21 @@
     return Promise.resolve(window.confirm(options?.message || options?.title || "Continue?"));
   }
 
+  function readDisplayedQuote() {
+    const quote = document.getElementById("quoteText")?.textContent?.trim();
+    const author = document.getElementById("quoteAuthor")?.textContent?.trim();
+    return quote && author ? { quote, author } : null;
+  }
+
+  function applyQuote(quote) {
+    if (!quote?.quote || !quote?.author) return;
+    const quoteEl = document.getElementById("quoteText");
+    const authorEl = document.getElementById("quoteAuthor");
+    if (!quoteEl || !authorEl) return;
+    quoteEl.textContent = quote.quote;
+    authorEl.textContent = quote.author;
+  }
+
   async function loadQuote() {
     const loadId = ++quoteLoadId;
     const wrap = document.getElementById("focusQuote");
@@ -662,9 +746,10 @@
       if (loadId !== quoteLoadId) return;
       if (!res?.quote || !res?.author) return;
       wrap?.classList.add("is-updating");
-      quoteEl.textContent = res.quote;
-      authorEl.textContent = res.author;
+      state.currentQuote = { quote: res.quote, author: res.author };
+      applyQuote(state.currentQuote);
       wrap?.classList.remove("is-loading");
+      persistSession();
       window.setTimeout(() => wrap?.classList.remove("is-updating"), 260);
     } catch (_) {}
   }
@@ -736,9 +821,9 @@
       true,
       "",
       [
-        { label: "Extend focus", primary: false, onClick: () => chooseExtendFocus() },
-        { label: "Begin rest", primary: true, onClick: () => chooseStartRest() },
-        { label: "Skip rest", primary: false, onClick: () => chooseSkipRest() },
+        { label: "Extend", primary: false, onClick: () => chooseExtendFocus() },
+        { label: "Rest", primary: true, onClick: () => chooseStartRest() },
+        { label: "Skip", primary: false, onClick: () => chooseSkipRest() },
       ],
       { equalActions: true }
     );
@@ -793,8 +878,8 @@
     }
     setChoicePanel(true, p ? `${p.name} complete` : "Cycle complete", [
       { label: "Done", primary: false, onClick: () => resetSession() },
-      { label: "Restart", primary: true, onClick: () => restartCurrentLevel() },
-      { label: "Change level and restart", primary: false, onClick: () => chooseLevelAndRestart() },
+      { label: "Start next cycle", primary: true, onClick: () => startNextCycle() },
+      { label: "Change level", primary: false, onClick: () => chooseLevelAndRestart() },
     ]);
     applyBodyPhaseClass();
     updateLabels();
@@ -819,11 +904,17 @@
     if (!p) return;
     ensureSession();
     commitSegment();
-    playWorkCompleteChime();
-    notify("Focus session complete", `${p.name} · choose your next step.`);
+    if (!phaseAlreadyChimed()) playWorkCompleteChime();
     logWorkBlock(p.work_min);
 
     state.pendingRest = buildPendingRest(state.phaseIndex);
+    if (state.settings.auto_start_break && state.pendingRest) {
+      const restName = state.pendingRest.kind === "long_rest" ? "long rest" : "short rest";
+      notify("Focus complete", `${p.name} · starting ${restName}.`);
+      chooseStartRest();
+      return;
+    }
+    notify("Focus complete", `${p.name} · choose your next step.`);
     showWorkChoices();
   }
 
@@ -831,9 +922,14 @@
     const p = currentPreset();
     if (!p) return;
     commitSegment();
-    playBreakCompleteChime();
+    if (!phaseAlreadyChimed()) playBreakCompleteChime();
     if (state.resumeAfterPoolRest) {
-      resumeInterruptedFocus();
+      if (state.settings.auto_start_work) {
+        restoreInterruptedFocus(true);
+      } else {
+        notify("Pool rest complete", "Resume focus when ready.");
+        restoreInterruptedFocus(false);
+      }
       return;
     }
     notify("Rest complete", "Choose your next step.");
@@ -877,6 +973,7 @@
     const pr = state.pendingRest;
     if (!pr) return;
     ensureSession();
+    state.extendBaseSec = state.session.extendSec;
     state.mode = "extend";
     state.running = true;
     disarmPhaseEnd();
@@ -929,6 +1026,10 @@
     const pool = state.session.poolSec;
     if (pool < 1) return;
     ensureSession();
+    if (state.afterRestWorkIndex == null && state.pendingRest) {
+      state.afterRestWorkIndex = workIndexAfterRest(state.pendingRest.restIndex);
+    }
+    state.pendingRest = null;
     state.session.poolSec = 0;
     renderLiveStats();
     state.mode = "cumulative";
@@ -955,6 +1056,7 @@
       segDurationSec: interruptedDuration,
       pendingRest: state.pendingRest ? { ...state.pendingRest } : null,
       afterRestWorkIndex: state.afterRestWorkIndex,
+      extendBaseSec: state.extendBaseSec,
     };
     state.session.poolSec = 0;
     state.mode = "cumulative";
@@ -965,7 +1067,7 @@
     applyBodyPhaseClass();
   }
 
-  function resumeInterruptedFocus() {
+  function restoreInterruptedFocus(autoRun) {
     const saved = state.resumeAfterPoolRest;
     state.resumeAfterPoolRest = null;
     if (!saved || saved.mode === "idle") {
@@ -977,24 +1079,42 @@
     state.remainingSec = saved.remainingSec;
     state.pendingRest = saved.pendingRest;
     state.afterRestWorkIndex = saved.afterRestWorkIndex;
+    state.extendBaseSec = saved.extendBaseSec ?? state.extendBaseSec ?? 0;
+    state.running = !!autoRun;
+    state.pauseStartedAt = autoRun ? null : Date.now();
     if (state.mode === "extend") {
-      state.running = true;
-      startSegment("extend", 0);
-      startTicking();
+      if (autoRun) {
+        startSegment("extend", 0);
+        startTicking();
+      } else {
+        disarmPhaseEnd();
+        stopTicking();
+      }
       updateAll();
       return;
     }
     if (state.mode === "work") {
-      startSegment("work", saved.segDurationSec || phaseDurationSec(currentPreset(), state.phaseIndex));
-      startCountdown(true);
+      if (autoRun) {
+        startSegment("work", saved.segDurationSec || phaseDurationSec(currentPreset(), state.phaseIndex));
+        startCountdown(true);
+      } else {
+        disarmPhaseEnd();
+        stopTicking();
+        updateAll();
+      }
       applyBodyPhaseClass();
       return;
     }
     setupIdleTimer();
   }
 
-  function restartCurrentLevel() {
-    resetSession();
+  function startNextCycle() {
+    hideChoices();
+    state.phaseIndex = 0;
+    state.pendingRest = null;
+    state.afterRestWorkIndex = null;
+    state.resumeAfterPoolRest = null;
+    state.restartAfterLevelChange = false;
     beginWork(true);
   }
 
@@ -1029,6 +1149,7 @@
     state.mode = "work";
     state.remainingSec = phaseDurationSec(p, state.phaseIndex);
     state.pendingRest = null;
+    state.extendBaseSec = state.session.extendSec;
     startSegment("work", state.remainingSec);
     if (autoRun) {
       if (liveWorkSec() < 0.5) window.FocusSounds?.start(state.settings);
@@ -1059,6 +1180,7 @@
     if (state.running) {
       syncRemainingFromClock();
       commitSegment();
+      state.pauseStartedAt = Date.now();
     }
     state.running = false;
     disarmPhaseEnd();
@@ -1070,6 +1192,7 @@
   function resumeTimer() {
     requestNotifyPermission();
     primeAudio();
+    commitPauseSegment();
     if (state.mode === "extend") {
       if (!state.session.segStartedAt) startSegment("extend", 0);
       state.running = true;
@@ -1111,7 +1234,12 @@
     stopTicking();
 
     if (state.resumeAfterPoolRest) {
-      resumeInterruptedFocus();
+      if (state.settings.auto_start_work) {
+        restoreInterruptedFocus(true);
+      } else {
+        notify("Pool rest complete", "Resume focus when ready.");
+        restoreInterruptedFocus(false);
+      }
       return;
     }
 
@@ -1263,6 +1391,8 @@
     }
     beginRest?.classList.toggle("hidden", !inExtend || inChoice);
     skipExtend?.classList.toggle("hidden", !inExtend || inChoice);
+    if (beginRest) beginRest.textContent = "Rest";
+    if (skipExtend) skipExtend.textContent = "Skip";
     reset?.classList.toggle("hidden", inChoice);
 
     if (inChoice) {
@@ -1297,6 +1427,7 @@
   function resetSession() {
     pauseTimer();
     commitSegment();
+    commitPauseSegment();
     stopTicking();
     stopStatsLoop();
     state.mode = "idle";
@@ -1304,7 +1435,12 @@
     state.pendingRest = null;
     state.afterRestWorkIndex = null;
     state.resumeAfterPoolRest = null;
+    state.extendBaseSec = 0;
+    state.pauseStartedAt = null;
+    state.currentQuote = null;
     state.restartAfterLevelChange = false;
+    state.phaseNotificationKey = null;
+    state.monitorNotifiedPhase = null;
     state.session = {
       active: false,
       startedAt: null,
@@ -1359,14 +1495,13 @@
 
   async function selectPreset(id, fromUser) {
     if (!presetById(id)) return;
-    if (state.presetId === id) return;
+    if (state.presetId === id && !state.restartAfterLevelChange) return;
     if (state.restartAfterLevelChange) {
       hideChoices();
       state.presetId = id;
       syncLevelSelect();
       closeLevelMenu();
-      resetSession();
-      beginWork(true);
+      startNextCycle();
       return;
     }
     if (
@@ -1424,7 +1559,6 @@
       });
     }
   }
-
 
   function escapeHtml(s) {
     return String(s)
@@ -1585,5 +1719,6 @@
   });
 
   document.addEventListener("DOMContentLoaded", init);
+  window.addEventListener("pagehide", persistSession);
   window.addEventListener("beforeunload", persistSession);
 })();

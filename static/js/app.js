@@ -151,12 +151,14 @@
         segStartedAt: data.session.segStartedAt,
       };
 
+      let restoredExpiredCountdown = false;
       if (data.running && data.phaseEndsAt) {
         const left = (data.phaseEndsAt - Date.now()) / 1000;
         if (left <= 0 && ["work", "rest", "cumulative"].includes(state.mode)) {
           state.remainingSec = 0;
           state.running = false;
           phaseEndsAt = null;
+          restoredExpiredCountdown = true;
         } else {
           state.remainingSec = left;
           state.running = true;
@@ -171,7 +173,7 @@
       syncLevelSelect();
       applyQuote(state.currentQuote);
 
-      if (state.session.segStartedAt && state.session.segKind) {
+      if (state.session.segStartedAt && state.session.segKind && !restoredExpiredCountdown) {
         const pausedMs = Date.now() - data.savedAt;
         if (!state.running && pausedMs > 0) {
           state.session.segStartedAt += pausedMs;
@@ -339,6 +341,10 @@
     window.FocusSounds?.breakComplete(state.settings);
   }
 
+  function playWorkBeginChime() {
+    window.FocusSounds?.start(state.settings);
+  }
+
   function playMinutePulse() {
     window.FocusSounds?.tick(state.settings);
   }
@@ -439,8 +445,12 @@
     if (!s.segStartedAt || !s.segKind) return;
     if (s.segKind === "extend") syncExtendPoolAccrual();
     const startedAt = s.segStartedAt;
-    const endedAt = Date.now();
-    const elapsed = (Date.now() - s.segStartedAt) / 1000;
+    const completedTimedSegment =
+      s.segDurationSec > 0 &&
+      state.remainingSec <= 0 &&
+      (s.segKind === "work" || s.segKind === "rest" || s.segKind === "cumulative");
+    const elapsed = completedTimedSegment ? s.segDurationSec : (Date.now() - s.segStartedAt) / 1000;
+    const endedAt = completedTimedSegment ? startedAt + elapsed * 1000 : Date.now();
     if (s.segKind === "work") s.workSec += elapsed;
     else if (s.segKind === "extend") s.extendSec += elapsed;
     else if (s.segKind === "rest" || s.segKind === "cumulative") s.restTakenSec += elapsed;
@@ -477,12 +487,40 @@
     return (Date.now() - s.segStartedAt) / 1000;
   }
 
+  function completedWorkFloorSec() {
+    const p = currentPreset();
+    if (!p) return 0;
+    const maxBlocks = workCycleCount(p);
+    let blocks = 0;
+
+    if (state.mode === "complete") {
+      blocks = maxBlocks;
+    } else if (
+      state.pendingRest &&
+      state.pendingRest.workIndex != null &&
+      (state.mode === "work_choice" || state.mode === "rest" || state.mode === "extend")
+    ) {
+      blocks = Math.floor(state.pendingRest.workIndex / 2) + 1;
+    } else if (state.mode === "rest") {
+      blocks = Math.floor(state.phaseIndex / 2) + 1;
+    } else if (
+      (state.mode === "rest_choice" || (state.mode === "cumulative" && !state.resumeAfterPoolRest)) &&
+      state.afterRestWorkIndex != null
+    ) {
+      blocks = Math.floor(state.afterRestWorkIndex / 2);
+    } else if (state.mode === "work" || state.mode === "cumulative") {
+      blocks = Math.floor(state.phaseIndex / 2);
+    }
+
+    return Math.max(0, Math.min(maxBlocks, blocks)) * p.work_min * 60;
+  }
+
   function liveWorkSec() {
     const s = state.session;
-    let w = s.workSec + s.extendSec;
+    const completed = Math.max(s.workSec + s.extendSec, completedWorkFloorSec());
     const k = s.segKind;
-    if (k === "work" || k === "extend") w += liveSegmentElapsed();
-    return w;
+    const live = k === "work" || k === "extend" ? liveSegmentElapsed() : 0;
+    return completed + live;
   }
 
   function sessionElapsedSec() {
@@ -978,6 +1016,7 @@
     state.running = true;
     disarmPhaseEnd();
     startSegment("extend", 0);
+    playWorkBeginChime();
     startTicking();
     updateAll();
     persistSession();
@@ -990,7 +1029,7 @@
     playSkipChime();
     state.pendingRest = null;
     if (isFinalWorkIndex(pr.workIndex)) {
-      showCycleComplete();
+      startNextCycleAfterSkippedRest();
       return;
     }
     state.phaseIndex = workIndexAfterSkipRest(pr.workIndex);
@@ -1003,11 +1042,12 @@
     commitSegment();
     const pr = state.pendingRest;
     if (!pr) return;
+    playWorkCompleteChime();
     addToPool(pr.sec, false);
     playSkipChime();
     state.pendingRest = null;
     if (isFinalWorkIndex(pr.workIndex)) {
-      showCycleComplete();
+      startNextCycleAfterSkippedRest();
       return;
     }
     state.phaseIndex = workIndexAfterSkipRest(pr.workIndex);
@@ -1085,6 +1125,7 @@
     if (state.mode === "extend") {
       if (autoRun) {
         startSegment("extend", 0);
+        playWorkBeginChime();
         startTicking();
       } else {
         disarmPhaseEnd();
@@ -1096,6 +1137,7 @@
     if (state.mode === "work") {
       if (autoRun) {
         startSegment("work", saved.segDurationSec || phaseDurationSec(currentPreset(), state.phaseIndex));
+        playWorkBeginChime();
         startCountdown(true);
       } else {
         disarmPhaseEnd();
@@ -1118,6 +1160,16 @@
     beginWork(true);
   }
 
+  function startNextCycleAfterSkippedRest() {
+    notify("Rest skipped", "Next cycle started.");
+    state.phaseIndex = 0;
+    state.pendingRest = null;
+    state.afterRestWorkIndex = null;
+    state.resumeAfterPoolRest = null;
+    state.restartAfterLevelChange = false;
+    beginWork(true);
+  }
+
   function chooseLevelAndRestart() {
     state.restartAfterLevelChange = true;
     setChoicePanel(true, "Choose a level", [
@@ -1132,6 +1184,7 @@
     commitSegment();
     const pr = state.pendingRest;
     if (!pr) return;
+    playWorkCompleteChime();
     state.mode = "rest";
     state.phaseIndex = pr.restIndex;
     state.remainingSec = pr.sec;
@@ -1152,7 +1205,7 @@
     state.extendBaseSec = state.session.extendSec;
     startSegment("work", state.remainingSec);
     if (autoRun) {
-      if (liveWorkSec() < 0.5) window.FocusSounds?.start(state.settings);
+      playWorkBeginChime();
       startCountdown(true);
     }
     else {
@@ -1234,12 +1287,8 @@
     stopTicking();
 
     if (state.resumeAfterPoolRest) {
-      if (state.settings.auto_start_work) {
-        restoreInterruptedFocus(true);
-      } else {
-        notify("Pool rest complete", "Resume focus when ready.");
-        restoreInterruptedFocus(false);
-      }
+      notify("Pool rest skipped", "Focus resumed.");
+      restoreInterruptedFocus(true);
       return;
     }
 

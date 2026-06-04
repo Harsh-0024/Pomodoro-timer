@@ -205,10 +205,10 @@
     const setTheme = document.getElementById("setTheme");
     const form = document.getElementById("customForm");
     const soundSelects = [
-      { el: document.getElementById("setSoundWorkEnd"), key: "sound_work_end", fallback: "soothing-bell" },
-      { el: document.getElementById("setSoundBreakEnd"), key: "sound_break_end", fallback: "opening-bells" },
-      { el: document.getElementById("setSoundSessionStart"), key: "sound_session_start", fallback: "temple-gong" },
-      { el: document.getElementById("setSoundAction"), key: "sound_action", fallback: "soft-bell" },
+      { el: document.getElementById("setSoundRestEnd"), key: "manual_sound_rest_end", fallback: "opening-bells" },
+      { el: document.getElementById("setSoundWorkBegin"), key: "manual_sound_work_begin", fallback: "temple-gong" },
+      { el: document.getElementById("setSoundWorkEnd"), key: "manual_sound_work_end", fallback: "soothing-bell" },
+      { el: document.getElementById("setSoundAction"), key: "manual_sound_action", fallback: "soft-bell" },
     ];
 
     if (setAutoWork) setAutoWork.checked = !!s.auto_start_work;

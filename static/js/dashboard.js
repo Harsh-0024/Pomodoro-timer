@@ -5,6 +5,8 @@
   const dayFormatter = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" });
   const fullDayFormatter = new Intl.DateTimeFormat(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" });
   let selectedYear = Number(new URLSearchParams(window.location.search).get("year")) || new Date().getFullYear();
+  let currentDashboardData = null;
+  let rhythmSort = { key: "share", direction: "desc" };
 
   async function api(path) {
     const r = await fetch(path, { headers: { Accept: "application/json" } });
@@ -31,6 +33,14 @@
     const h = Math.floor(n / 60);
     const m = n % 60;
     return m ? `${h}h ${m}m` : `${h}h`;
+  }
+
+  function formatSessionMinutes(minutes) {
+    const n = Math.round(Number(minutes || 0));
+    if (n < 60) return `${n} min`;
+    const h = Math.floor(n / 60);
+    const m = n % 60;
+    return m ? `${h} hr ${m} min` : `${h} hr`;
   }
 
   function formatDays(n) {
@@ -211,22 +221,24 @@
 
       const cell = document.createElement("span");
       const level = levelFor(day, goal);
-      cell.className = `heat-cell heat-level-${level}`;
+      cell.className = `heat-cell heat-level-${level} ${level > 0 ? "heat-active" : "heat-inactive"}`;
       if (level > 0) {
         cell.style.background = heatColor(Number(day.focus_minutes || 0) / maxFocus);
+        const details = tooltipText(day, date);
+        cell.tabIndex = 0;
+        cell.setAttribute("aria-label", details);
+        cell.addEventListener("mouseenter", (event) => showTooltip(event, details));
+        cell.addEventListener("mouseover", (event) => showTooltip(event, details));
+        cell.addEventListener("pointerover", (event) => showTooltip(event, details));
+        cell.addEventListener("mousemove", moveTooltip);
+        cell.addEventListener("mouseleave", hideTooltip);
+        cell.addEventListener("pointerleave", hideTooltip);
+        cell.addEventListener("click", (event) => showTooltip(event, details));
+        cell.addEventListener("focus", (event) => showTooltip(event, details));
+        cell.addEventListener("blur", hideTooltip);
+      } else {
+        cell.setAttribute("aria-hidden", "true");
       }
-      const details = tooltipText(day, date);
-      cell.tabIndex = 0;
-      cell.setAttribute("aria-label", details);
-      cell.addEventListener("mouseenter", (event) => showTooltip(event, details));
-      cell.addEventListener("mouseover", (event) => showTooltip(event, details));
-      cell.addEventListener("pointerover", (event) => showTooltip(event, details));
-      cell.addEventListener("mousemove", moveTooltip);
-      cell.addEventListener("mouseleave", hideTooltip);
-      cell.addEventListener("pointerleave", hideTooltip);
-      cell.addEventListener("click", (event) => showTooltip(event, details));
-      cell.addEventListener("focus", (event) => showTooltip(event, details));
-      cell.addEventListener("blur", hideTooltip);
       grid.appendChild(cell);
     });
   }
@@ -267,7 +279,7 @@
   function renderRhythms(data) {
     const list = byId("rhythmList");
     if (!list) return;
-    const rhythms = data.top_presets || [];
+    const rhythms = [...(data.top_presets || [])];
     list.innerHTML = "";
     if (!rhythms.length) {
       const empty = document.createElement("p");
@@ -276,18 +288,62 @@
       list.appendChild(empty);
       return;
     }
+
+    const header = document.createElement("div");
+    header.className = "rhythm-header";
+    const headings = [
+      ["session", "Session"],
+      ["share", "Share"],
+    ];
+    headings.forEach(([key, label]) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = `rhythm-heading rhythm-heading-${key}`;
+      button.dataset.sort = key;
+      const active = rhythmSort.key === key;
+      button.setAttribute("aria-sort", active ? (rhythmSort.direction === "asc" ? "ascending" : "descending") : "none");
+      button.textContent = active ? `${label} ${rhythmSort.direction === "asc" ? "↑" : "↓"}` : label;
+      button.addEventListener("click", () => {
+        rhythmSort = {
+          key,
+          direction: active ? (rhythmSort.direction === "asc" ? "desc" : "asc") : "desc",
+        };
+        renderRhythms(currentDashboardData || data);
+      });
+      header.appendChild(button);
+    });
+    list.appendChild(header);
+
+    const valueForSort = (rhythm) => {
+      if (rhythmSort.key === "session") return Number(rhythm.session_minutes || 0);
+      return Number(rhythm.focus_pct || 0);
+    };
+    rhythms.sort((a, b) => {
+      const av = valueForSort(a);
+      const bv = valueForSort(b);
+      const order = rhythmSort.direction === "asc" ? 1 : -1;
+      if (av < bv) return -1 * order;
+      if (av > bv) return 1 * order;
+      return String(a.name || "").localeCompare(String(b.name || ""));
+    });
+
+    const maxShare = Math.max(...rhythms.map((rhythm) => Number(rhythm.focus_pct || 0)), 1);
     rhythms.forEach((rhythm) => {
       const row = document.createElement("div");
       row.className = "rhythm-row";
       const pct = Math.max(0, Math.min(100, Number(rhythm.focus_pct || 0)));
-      const width = pct > 0 ? Math.max(4, pct) : 0;
+      const width = pct > 0 ? Math.max(4, (pct / maxShare) * 100) : 0;
+      const sessionText = rhythm.session_minutes ? formatSessionMinutes(rhythm.session_minutes) : "";
       row.innerHTML = `
         <div class="rhythm-copy">
           <strong>${escapeHtml(rhythm.name)}</strong>
-          <span>${Number(rhythm.segment_count || 0)} ${Number(rhythm.segment_count || 0) === 1 ? "session" : "sessions"}</span>
+          <span>${escapeHtml(sessionText)}</span>
         </div>
-        <div class="rhythm-track" aria-hidden="true"><span style="width: ${width}%"></span></div>
-        <strong class="rhythm-percent">${pct.toFixed(1)}%</strong>
+        <strong class="rhythm-focus">${formatMinutes(rhythm.focus_minutes)}</strong>
+        <div class="rhythm-share">
+          <div class="rhythm-track" aria-hidden="true"><span style="width: ${width}%"></span></div>
+          <strong class="rhythm-percent">${pct.toFixed(1)}%</strong>
+        </div>
       `;
       list.appendChild(row);
     });
@@ -296,6 +352,7 @@
   async function loadDashboard(year) {
     try {
       const data = await api(`/api/dashboard?year=${encodeURIComponent(year)}`);
+      currentDashboardData = data;
       selectedYear = Number(data.range?.year || year);
       renderSummary(data);
       renderYears(data);

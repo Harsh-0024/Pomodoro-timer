@@ -1927,6 +1927,10 @@ body[data-theme="light"] .page-dashboard .main {
   cursor: default;
 }
 
+.heat-inactive {
+  pointer-events: none;
+}
+
 .heat-cell:focus {
   outline: 2px solid var(--growth-3);
   outline-offset: 2px;
@@ -2066,6 +2070,10 @@ body[data-theme="light"] .heat-level-0 {
   padding-top: 0;
 }
 
+.rhythm-header + .rhythm-row {
+  border-top: 0;
+}
+
 .recent-date,
 .recent-minutes,
 .rhythm-copy {
@@ -2099,9 +2107,62 @@ body[data-theme="light"] .heat-level-0 {
   text-align: right;
 }
 
+.rhythm-header,
+.rhythm-row {
+  display: grid;
+  grid-template-columns: minmax(6.5rem, 0.9fr) minmax(5.2rem, 0.62fr) minmax(7rem, 1.18fr);
+  gap: 0.7rem;
+  align-items: center;
+}
+
+.rhythm-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 0 0 0.38rem;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+}
+
+.rhythm-heading {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.66rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  padding: 0;
+  text-align: left;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.rhythm-heading:hover,
+.rhythm-heading:focus-visible {
+  color: var(--ink);
+}
+
+.rhythm-heading:focus-visible {
+  outline: 2px solid var(--growth-3);
+  outline-offset: 0.2rem;
+}
+
+.rhythm-heading-share {
+  grid-column: 2 / 4;
+  text-align: center;
+}
+
 .rhythm-percent {
-  min-width: 3.8rem;
+  min-width: 3.5rem;
   text-align: right;
+  color: var(--ink);
+  font-size: 0.78rem;
+  font-weight: 500;
+  white-space: nowrap;
 }
 
 .recent-bar,
@@ -2133,13 +2194,28 @@ body[data-theme="light"] .rhythm-track {
 }
 
 .rhythm-row {
-  display: grid;
-  grid-template-columns: minmax(7rem, 0.75fr) minmax(7rem, 1fr) auto;
-  gap: 0.6rem;
-  align-items: center;
   min-height: 2.05rem;
   padding-top: 0.42rem;
   border-top: 1px solid var(--line);
+}
+
+.rhythm-focus {
+  color: var(--ink);
+  font-size: 0.78rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.rhythm-focus {
+  text-align: right;
+}
+
+.rhythm-share {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.55rem;
+  align-items: center;
+  min-width: 0;
 }
 
 @media (max-width: 980px) {
@@ -2196,5 +2272,23 @@ body[data-theme="light"] .rhythm-track {
 
   .rhythm-row {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .rhythm-header {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 0.45rem;
+    overflow-x: auto;
+  }
+
+  .rhythm-heading-share {
+    grid-column: auto;
+  }
+
+  .rhythm-heading {
+    font-size: 0.6rem;
+  }
+
+  .rhythm-focus {
+    text-align: left;
   }
 }

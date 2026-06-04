@@ -1,7 +1,9 @@
 import json
 import sqlite3
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
+
+from presets import BUILTINS
 
 DEFAULT_SETTINGS = {
     "auto_start_work": False,
@@ -9,10 +11,14 @@ DEFAULT_SETTINGS = {
     "sound_enabled": True,
     "sound_volume": 70,
     "sound_profile": "bold",
+    "sound_rest_end": "opening-bells",
+    "sound_work_begin": "temple-gong",
     "sound_work_end": "soothing-bell",
-    "sound_break_end": "opening-bells",
-    "sound_session_start": "temple-gong",
     "sound_action": "soft-bell",
+    "manual_sound_rest_end": "opening-bells",
+    "manual_sound_work_begin": "temple-gong",
+    "manual_sound_work_end": "soothing-bell",
+    "manual_sound_action": "soft-bell",
     "tick_sound_enabled": True,
     "chime_work_end": True,
     "chime_break_end": True,
@@ -91,6 +97,20 @@ def load_settings() -> dict:
         data = json.loads(raw)
     finally:
         conn.close()
+    if "sound_rest_end" not in data and "sound_break_end" in data:
+        data["sound_rest_end"] = data["sound_break_end"]
+    if "sound_work_begin" not in data and "sound_session_start" in data:
+        data["sound_work_begin"] = data["sound_session_start"]
+    if "manual_sound_rest_end" not in data and "sound_rest_end" in data:
+        data["manual_sound_rest_end"] = data["sound_rest_end"]
+    if "manual_sound_work_begin" not in data and "sound_work_begin" in data:
+        data["manual_sound_work_begin"] = data["sound_work_begin"]
+    if "manual_sound_work_end" not in data and "sound_work_end" in data:
+        data["manual_sound_work_end"] = data["sound_work_end"]
+    if "manual_sound_action" not in data and "sound_action" in data:
+        data["manual_sound_action"] = data["sound_action"]
+    data.pop("sound_break_end", None)
+    data.pop("sound_session_start", None)
     return {**DEFAULT_SETTINGS, **data}
 
 
@@ -309,6 +329,119 @@ def _dashboard_years(first_year: int, selected_year: int) -> list[int]:
     return list(range(first_year, end_year + 1))
 
 
+RHYTHM_BOUT_GAP_SEC = 120
+
+
+def _parse_segment_time(value: str) -> datetime | None:
+    try:
+        return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        return None
+
+
+def _builtin_rhythms() -> list[dict]:
+    return sorted(
+        (
+            {
+                "id": preset["id"],
+                "name": preset["name"],
+                "session_minutes": int(preset["work_min"]),
+                "work_sec": float(preset["work_min"]) * 60,
+            }
+            for preset in BUILTINS
+        ),
+        key=lambda rhythm: rhythm["work_sec"],
+    )
+
+
+def _continuous_focus_bouts(segment_rows: list[sqlite3.Row]) -> list[float]:
+    bouts: list[float] = []
+    current_sec = 0.0
+    current_end: datetime | None = None
+
+    for row in segment_rows:
+        productive_sec = float(row["productive_sec"] or 0)
+        if productive_sec <= 0:
+            continue
+        started_at = _parse_segment_time(row["started_at"])
+        ended_at = _parse_segment_time(row["ended_at"])
+        joins_current = False
+        if current_sec > 0 and current_end is not None and started_at is not None:
+            gap_sec = (started_at - current_end).total_seconds()
+            joins_current = gap_sec < RHYTHM_BOUT_GAP_SEC
+
+        if current_sec > 0 and not joins_current:
+            bouts.append(current_sec)
+            current_sec = 0.0
+
+        current_sec += productive_sec
+        if ended_at is not None:
+            current_end = max(current_end, ended_at) if current_end and joins_current else ended_at
+        elif started_at is not None:
+            fallback_end = started_at + timedelta(seconds=productive_sec)
+            current_end = max(current_end, fallback_end) if current_end and joins_current else fallback_end
+        else:
+            current_end = None
+
+    if current_sec > 0:
+        bouts.append(current_sec)
+    return bouts
+
+
+def _rhythm_weights_for_bout(duration_sec: float, rhythms: list[dict]) -> list[tuple[str, float]]:
+    if not rhythms or duration_sec <= 0:
+        return []
+    first = rhythms[0]
+    last = rhythms[-1]
+    if duration_sec <= first["work_sec"]:
+        return [(first["name"], duration_sec)]
+    if duration_sec >= last["work_sec"]:
+        return [(last["name"], duration_sec)]
+
+    for rhythm in rhythms:
+        if abs(duration_sec - rhythm["work_sec"]) < 0.001:
+            return [(rhythm["name"], duration_sec)]
+
+    for lower, upper in zip(rhythms, rhythms[1:]):
+        if lower["work_sec"] < duration_sec < upper["work_sec"]:
+            lower_gap = duration_sec - lower["work_sec"]
+            upper_gap = upper["work_sec"] - duration_sec
+            total_gap = lower_gap + upper_gap
+            if total_gap <= 0:
+                return [(lower["name"], duration_sec)]
+            return [
+                (lower["name"], duration_sec * (upper_gap / total_gap)),
+                (upper["name"], duration_sec * (lower_gap / total_gap)),
+            ]
+    return [(last["name"], duration_sec)]
+
+
+def _weighted_rhythm_profile(segment_rows: list[sqlite3.Row]) -> list[dict]:
+    rhythms = _builtin_rhythms()
+    weighted_sec = {rhythm["name"]: 0.0 for rhythm in rhythms}
+    total_weighted_sec = 0.0
+
+    for bout_sec in _continuous_focus_bouts(segment_rows):
+        total_weighted_sec += bout_sec
+        for name, contribution_sec in _rhythm_weights_for_bout(bout_sec, rhythms):
+            weighted_sec[name] += contribution_sec
+
+    rows = []
+    for rhythm in rhythms:
+        sec = weighted_sec[rhythm["name"]]
+        if sec <= 0:
+            continue
+        rows.append(
+            {
+                "name": rhythm["name"],
+                "session_minutes": rhythm["session_minutes"],
+                "focus_minutes": round(sec / 60, 1),
+                "focus_pct": round((sec / total_weighted_sec) * 100, 1) if total_weighted_sec else 0,
+            }
+        )
+    return sorted(rows, key=lambda row: row["focus_minutes"], reverse=True)
+
+
 def dashboard_summary(end_day_iso: str | None = None, days: int = 365, year: int | None = None) -> dict:
     init_db()
     today = date.today()
@@ -377,16 +510,13 @@ def dashboard_summary(end_day_iso: str | None = None, days: int = 365, year: int
             """,
             (start_iso, end_iso),
         ).fetchall()
-        preset_rows = conn.execute(
+        rhythm_segment_rows = conn.execute(
             """
-            SELECT COALESCE(NULLIF(preset_name, ''), 'Unnamed rhythm') AS preset_name,
-                   SUM(productive_sec) AS productive_sec,
-                   COUNT(*) AS segment_count
+            SELECT started_at, ended_at, productive_sec
             FROM activity_segments
             WHERE day BETWEEN ? AND ?
               AND productive_sec > 0
-            GROUP BY COALESCE(NULLIF(preset_name, ''), 'Unnamed rhythm')
-            ORDER BY productive_sec DESC
+            ORDER BY started_at ASC, id ASC
             """,
             (start_iso, end_iso),
         ).fetchall()
@@ -465,18 +595,7 @@ def dashboard_summary(end_day_iso: str | None = None, days: int = 365, year: int
     else:
         consistency_days_elapsed = max(1, (calc_end_day - start_day).days + 1)
 
-    total_preset_focus = sum(float(row["productive_sec"] or 0) for row in preset_rows)
-    top_presets = [
-        {
-            "name": row["preset_name"],
-            "focus_minutes": round(float(row["productive_sec"] or 0) / 60, 1),
-            "focus_pct": round((float(row["productive_sec"] or 0) / total_preset_focus) * 100, 1)
-            if total_preset_focus
-            else 0,
-            "segment_count": int(row["segment_count"] or 0),
-        }
-        for row in preset_rows
-    ]
+    top_presets = _weighted_rhythm_profile(rhythm_segment_rows)
 
     return {
         "range": {

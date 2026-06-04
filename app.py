@@ -78,9 +78,13 @@ SOUND_CHOICES = {
     "bamboo-tick",
 }
 SOUND_SETTING_KEYS = (
+    "manual_sound_rest_end",
+    "manual_sound_work_begin",
+    "manual_sound_work_end",
+    "manual_sound_action",
+    "sound_rest_end",
+    "sound_work_begin",
     "sound_work_end",
-    "sound_break_end",
-    "sound_session_start",
     "sound_action",
 )
 

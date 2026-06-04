@@ -129,8 +129,18 @@
   }
 
   function selected(settings, key, fallback) {
-    const value = settings?.[key] || fallback;
+    const legacyKeys = {
+      sound_rest_end: "sound_break_end",
+      sound_work_begin: "sound_session_start",
+    };
+    const value = settings?.[key] || settings?.[legacyKeys[key]] || fallback;
     return SOUND_BY_ID[value] ? value : fallback;
+  }
+
+  function selectedForFlow(settings, manualKey, commonKey, fallback) {
+    const manualFlow = !settings?.auto_start_work && !settings?.auto_start_break;
+    const key = manualFlow ? manualKey : commonKey;
+    return selected(settings, key, selected(settings, commonKey, fallback));
   }
 
   function templeGong(settings) {
@@ -181,12 +191,18 @@
 
     workComplete(settings) {
       if (!settings?.chime_work_end) return;
-      return playSound(settings, selected(settings, "sound_work_end", "soothing-bell"));
+      return playSound(
+        settings,
+        selectedForFlow(settings, "manual_sound_work_end", "sound_work_end", "soothing-bell")
+      );
     },
 
     breakComplete(settings) {
       if (!settings?.chime_break_end) return;
-      return playSound(settings, selected(settings, "sound_break_end", "opening-bells"));
+      return playSound(
+        settings,
+        selectedForFlow(settings, "manual_sound_rest_end", "sound_rest_end", "opening-bells")
+      );
     },
 
     tick(settings) {
@@ -196,22 +212,34 @@
 
     start(settings) {
       if (!settings?.chime_session_start) return;
-      return playSound(settings, selected(settings, "sound_session_start", "temple-gong"));
+      return playSound(
+        settings,
+        selectedForFlow(settings, "manual_sound_work_begin", "sound_work_begin", "temple-gong")
+      );
     },
 
     poolAdd(settings) {
       if (!settings?.chime_pool_add) return;
-      return playSound(settings, selected(settings, "sound_action", "soft-bell"));
+      return playSound(
+        settings,
+        selectedForFlow(settings, "manual_sound_action", "sound_action", "soft-bell")
+      );
     },
 
     choice(settings) {
       if (!settings?.chime_choice) return;
-      return playSound(settings, selected(settings, "sound_action", "soft-bell"));
+      return playSound(
+        settings,
+        selectedForFlow(settings, "manual_sound_action", "sound_action", "soft-bell")
+      );
     },
 
     skip(settings) {
       if (!settings?.chime_skip) return;
-      return playSound(settings, selected(settings, "sound_action", "bamboo-tick"));
+      return playSound(
+        settings,
+        selectedForFlow(settings, "manual_sound_action", "sound_action", "bamboo-tick")
+      );
     },
   };
 })();

@@ -278,9 +278,11 @@
 
   function renderRhythms(data) {
     const list = byId("rhythmList");
+    const header = byId("rhythmHeader");
     if (!list) return;
     const rhythms = [...(data.top_presets || [])];
     list.innerHTML = "";
+    if (header) header.innerHTML = "";
     if (!rhythms.length) {
       const empty = document.createElement("p");
       empty.className = "empty-note";
@@ -289,8 +291,6 @@
       return;
     }
 
-    const header = document.createElement("div");
-    header.className = "rhythm-header";
     const headings = [
       ["session", "Session"],
       ["share", "Share"],
@@ -310,9 +310,8 @@
         };
         renderRhythms(currentDashboardData || data);
       });
-      header.appendChild(button);
+      if (header) header.appendChild(button);
     });
-    list.appendChild(header);
 
     const valueForSort = (rhythm) => {
       if (rhythmSort.key === "session") return Number(rhythm.session_minutes || 0);

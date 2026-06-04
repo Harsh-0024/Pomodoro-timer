@@ -330,6 +330,7 @@ def _dashboard_years(first_year: int, selected_year: int) -> list[int]:
 
 
 RHYTHM_BOUT_GAP_SEC = 120
+RHYTHM_NOISE_FLOOR_SEC = 5 * 60
 
 
 def _parse_segment_time(value: str) -> datetime | None:
@@ -422,6 +423,8 @@ def _weighted_rhythm_profile(segment_rows: list[sqlite3.Row]) -> list[dict]:
     total_weighted_sec = 0.0
 
     for bout_sec in _continuous_focus_bouts(segment_rows):
+        if bout_sec < RHYTHM_NOISE_FLOOR_SEC:
+            continue
         total_weighted_sec += bout_sec
         for name, contribution_sec in _rhythm_weights_for_bout(bout_sec, rhythms):
             weighted_sec[name] += contribution_sec

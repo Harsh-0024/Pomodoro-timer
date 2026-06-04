@@ -952,8 +952,8 @@
       chooseStartRest();
       return;
     }
-    notify("Focus complete", `${p.name} · choose your next step.`);
-    showWorkChoices();
+    notify("Focus complete", `${p.name} · extending focus until rest.`);
+    startExtendFocus(false);
   }
 
   function onRestComplete() {
@@ -970,14 +970,16 @@
       }
       return;
     }
-    notify("Rest complete", "Choose your next step.");
 
     if (state.mode === "cumulative") {
       if (state.afterRestWorkIndex == null) {
         state.afterRestWorkIndex = workIndexAfterRest(state.phaseIndex);
       }
       if (state.settings.auto_start_work) chooseStartNextFocus();
-      else showRestChoices();
+      else {
+        notify("Pool rest complete", "Start focus when ready.");
+        showRestChoices();
+      }
       return;
     }
 
@@ -986,12 +988,22 @@
     }
 
     state.pendingRest = null;
+    if (!state.settings.auto_start_work && state.session.poolSec >= 1) {
+      notify("Rest complete", "Starting pooled rest.");
+      chooseCumulativeRest();
+      return;
+    }
     if (isFinalRestIndex(state.phaseIndex)) {
       showCycleComplete();
       return;
     }
-    if (state.settings.auto_start_work) chooseStartNextFocus();
-    else showRestChoices();
+    if (state.settings.auto_start_work) {
+      notify("Rest complete", "Starting next focus.");
+      chooseStartNextFocus();
+    } else {
+      notify("Rest complete", "Start focus when ready.");
+      showRestChoices();
+    }
   }
 
   function chooseStartRest() {
@@ -1008,6 +1020,10 @@
   }
 
   function chooseExtendFocus() {
+    startExtendFocus(true);
+  }
+
+  function startExtendFocus(playBeginSound) {
     const pr = state.pendingRest;
     if (!pr) return;
     ensureSession();
@@ -1016,8 +1032,9 @@
     state.running = true;
     disarmPhaseEnd();
     startSegment("extend", 0);
-    playWorkBeginChime();
+    if (playBeginSound) playWorkBeginChime();
     startTicking();
+    applyBodyPhaseClass();
     updateAll();
     persistSession();
   }

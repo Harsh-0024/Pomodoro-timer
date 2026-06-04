@@ -962,12 +962,8 @@
     commitSegment();
     if (!phaseAlreadyChimed()) playBreakCompleteChime();
     if (state.resumeAfterPoolRest) {
-      if (state.settings.auto_start_work) {
-        restoreInterruptedFocus(true);
-      } else {
-        notify("Pool rest complete", "Resume focus when ready.");
-        restoreInterruptedFocus(false);
-      }
+      notify("Pool rest complete", "Resume focus when ready.");
+      restoreInterruptedFocus(false);
       return;
     }
 
@@ -1443,6 +1439,8 @@
     const inChoice = state.mode === "work_choice" || state.mode === "rest_choice" || state.mode === "complete";
     const inRest = state.mode === "rest" || state.mode === "cumulative";
     const inExtend = state.mode === "extend";
+    const poolAvailable = state.session.poolSec >= 1;
+    const poolRestReplacesPause = state.mode === "work" && poolAvailable;
 
     if (skipRem) {
       skipRem.classList.toggle("hidden", inChoice || !inRest);
@@ -1450,10 +1448,12 @@
       skipRem.title = "Bank remaining rest to the pool and start next focus";
     }
     if (takeRest) {
-      const canTake = state.session.poolSec >= 1 && !inChoice && !inRest && !inExtend && state.mode !== "complete";
+      const canTake = poolAvailable && !inChoice && !inRest && !inExtend && state.mode !== "complete";
       takeRest.classList.toggle("hidden", !canTake);
       takeRest.textContent = "Pool rest";
       takeRest.title = "Use accumulated rest";
+      takeRest.classList.toggle("btn-primary", poolRestReplacesPause);
+      takeRest.classList.toggle("btn-quiet", !poolRestReplacesPause);
     }
     beginRest?.classList.toggle("hidden", !inExtend || inChoice);
     skipExtend?.classList.toggle("hidden", !inExtend || inChoice);
@@ -1468,7 +1468,7 @@
     }
 
     if (primary) {
-      primary.classList.toggle("hidden", inRest);
+      primary.classList.toggle("hidden", inRest || poolRestReplacesPause);
       primary.disabled = false;
       if (state.running) {
         primary.textContent = "Pause";
@@ -1745,7 +1745,8 @@
       if (e.code !== "Space" && e.key !== " ") return;
       if (isTypingTarget(e.target)) return;
       e.preventDefault();
-      if (state.running && state.mode !== "rest" && state.mode !== "cumulative") pauseTimer();
+      if (state.running && state.mode === "work" && state.session.poolSec >= 1) takePoolRestNow();
+      else if (state.running && state.mode !== "rest" && state.mode !== "cumulative") pauseTimer();
       else if (!["work_choice", "rest_choice", "complete"].includes(state.mode)) resumeTimer();
     });
   }

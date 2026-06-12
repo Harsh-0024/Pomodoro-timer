@@ -766,6 +766,20 @@ body.mode-cumulative .phase-label {
   transition: stroke-dashoffset 0.35s ease;
 }
 
+.page-flow .flow-ring-progress {
+  stroke: url(#flowRingGrad);
+  stroke-dashoffset: 0;
+  opacity: 0.55;
+}
+
+.page-flow .flow-ring-wrap.is-flowing .flow-ring-progress {
+  animation: ring-breathe 3s ease-in-out infinite;
+}
+
+.page-flow .timer-panel {
+  border-color: rgba(201, 169, 98, 0.14);
+}
+
 .timer-core {
   position: absolute;
   inset: 0;

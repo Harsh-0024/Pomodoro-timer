@@ -18,6 +18,16 @@ app = Flask(__name__)
 app.config["JSON_SORT_KEYS"] = False
 
 BASE_DIR = Path(__file__).resolve().parent
+ASSET_VERSION_PATHS = (
+    BASE_DIR / "static" / "js" / "app.js",
+    BASE_DIR / "static" / "js" / "flow.js",
+    BASE_DIR / "static" / "js" / "session-monitor.js",
+    BASE_DIR / "static" / "js" / "dashboard.js",
+    BASE_DIR / "static" / "js" / "settings.js",
+    BASE_DIR / "static" / "js" / "sounds.js",
+    BASE_DIR / "static" / "js" / "dialog.js",
+    BASE_DIR / "static" / "js" / "shortcuts.js",
+)
 BUILTIN_QUOTES = [
     {"quote": "You have power over your mind, not outside events. Realize this, and you will find strength.", "author": "Marcus Aurelius"},
     {"quote": "The successful warrior is the average man, with laser-like focus.", "author": "Bruce Lee"},
@@ -29,6 +39,15 @@ QUOTE_FILES = (
     BASE_DIR / "static" / "quotes.json",
     BASE_DIR / "static" / "js" / "quotes.js",
 )
+
+
+@app.context_processor
+def inject_asset_version():
+    try:
+        version = int(max(path.stat().st_mtime for path in ASSET_VERSION_PATHS if path.exists()))
+    except ValueError:
+        version = 1
+    return {"asset_version": version}
 
 
 def _normalize_quote(item: dict) -> dict | None:
@@ -154,6 +173,11 @@ def _preset_exists(preset_id: str) -> bool:
 @app.route("/")
 def index():
     return render_template("index.html", initial_quote=INITIAL_QUOTE)
+
+
+@app.route("/flow")
+def flow_page():
+    return render_template("flow.html", initial_quote=INITIAL_QUOTE)
 
 
 @app.route("/settings")

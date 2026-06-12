@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Flow{% endblock %}
+{% block body_class %}page-flow{% endblock %}
+{% block page_id %}flow{% endblock %}
+{% block content %}
+<section class="hero">
+  <div class="session-live" aria-live="polite">
+    <div class="live-stat">
+      <span class="live-val" id="flowFocusedDisplay">0:00</span>
+      <span class="live-key">focused</span>
+    </div>
+    <span class="live-divider" aria-hidden="true"></span>
+    <div class="live-stat">
+      <span class="live-val" id="flowElapsedDisplay">0:00</span>
+      <span class="live-key">elapsed</span>
+    </div>
+    <span class="live-divider" aria-hidden="true"></span>
+    <div class="live-stat">
+      <span class="live-val" id="flowProductivityDisplay">—</span>
+      <span class="live-key">productivity</span>
+    </div>
+  </div>
+
+  <div class="timer-layout">
+    <div class="timer-panel">
+      <div class="timer-ring-wrap flow-ring-wrap" id="flowRingWrap">
+        <svg class="timer-ring" viewBox="0 0 220 220" aria-hidden="true">
+          <defs>
+            <linearGradient id="flowRingGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#d4bc7c" />
+              <stop offset="45%" stop-color="#f0e6d2" />
+              <stop offset="100%" stop-color="#9a7b4f" />
+            </linearGradient>
+          </defs>
+          <circle class="ring-track" cx="110" cy="110" r="96" />
+          <circle class="ring-progress flow-ring-progress" cx="110" cy="110" r="96" />
+        </svg>
+        <div class="timer-core">
+          <p class="phase-label" id="flowPhaseLabel">Flow</p>
+          <p class="time-display" id="flowTimeDisplay">00:00</p>
+          <p class="cycle-hint" id="flowHint">Start when ready</p>
+        </div>
+      </div>
+      <div class="controls" id="flowControls">
+        <button type="button" class="btn btn-primary" id="btnFlowStart">Start</button>
+        <button type="button" class="btn btn-primary hidden" id="btnFlowResume">Resume</button>
+        <button type="button" class="btn btn-quiet hidden" id="btnFlowPause">Pause</button>
+        <button type="button" class="btn btn-ghost hidden" id="btnFlowStop">Stop</button>
+      </div>
+    </div>
+    <figure class="focus-quote" id="flowQuote" aria-live="polite">
+      <blockquote id="flowQuoteText">{{ initial_quote.quote }}</blockquote>
+      <figcaption id="flowQuoteAuthor">{{ initial_quote.author }}</figcaption>
+    </figure>
+  </div>
+</section>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/flow.js') }}?v={{ asset_version }}" defer></script>
+{% endblock %}

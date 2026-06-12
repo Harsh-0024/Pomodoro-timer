@@ -87,5 +87,5 @@
 </div>
 {% endblock %}
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/dashboard.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/dashboard.js') }}?v={{ asset_version }}" defer></script>
 {% endblock %}

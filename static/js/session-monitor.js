@@ -7,10 +7,29 @@
   let monitorTimer = null;
   const pendingSounds = new Set();
 
+  function parseSession(raw) {
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw);
+    } catch (_) {
+      return null;
+    }
+  }
+
   function readSession() {
     try {
-      const raw = sessionStorage.getItem(SESSION_STORAGE_KEY);
-      return raw ? JSON.parse(raw) : null;
+      const local = parseSession(localStorage.getItem(SESSION_STORAGE_KEY));
+      const session = parseSession(sessionStorage.getItem(SESSION_STORAGE_KEY));
+      if (!local && !session) return null;
+      const data = !local
+        ? session
+        : !session
+          ? local
+          : Number(session.savedAt || 0) > Number(local.savedAt || 0)
+            ? session
+            : local;
+      if (data) writeSession(data);
+      return data;
     } catch (_) {
       return null;
     }
@@ -19,6 +38,7 @@
   function writeSession(data) {
     try {
       sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(data));
+      localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(data));
     } catch (_) {}
   }
 
@@ -38,17 +58,16 @@
     return `${String(m).padStart(2, "0")}:${String(r).padStart(2, "0")}`;
   }
 
-  function titleSuffix(mode) {
-    if (mode === "work" || mode === "extend" || mode === "idle") return "focus";
-    if (mode === "rest" || mode === "cumulative") return "rest";
-    if (mode === "work_choice") return "break";
-    return "timer";
-  }
-
   function phaseKey(data) {
     if (data.phaseNotificationKey) return data.phaseNotificationKey;
     if (!data.phaseEndsAt) return null;
     return `${data.mode}:${data.phaseIndex}:${Math.round(data.phaseEndsAt)}`;
+  }
+
+  function remainingForCountdown(data) {
+    const end = Number(data.phaseEndsAt || 0);
+    if (data.running && end) return (end - Date.now()) / 1000;
+    return Number(data.remainingSec || 0);
   }
 
   function syncTitle(data) {
@@ -58,13 +77,31 @@
     }
     if (data.mode === "extend") {
       const started = Number(data.session?.segStartedAt || Date.now());
+      const extendSec = Number(data.session?.extendSec || 0);
       const base = Number(data.extendBaseSec || 0);
-      document.title = `+${formatClock((Date.now() - started) / 1000 + base)} focus`;
+      const live = data.running ? (Date.now() - started) / 1000 : 0;
+      document.title = `+${formatClock(Math.max(0, extendSec + live - base))} focus`;
       return;
     }
-    const end = Number(data.phaseEndsAt || 0);
-    const remaining = data.running && end ? (end - Date.now()) / 1000 : Number(data.remainingSec || 0);
-    document.title = `${formatClock(remaining)} ${titleSuffix(data.mode)}`;
+    if (data.mode === "complete") {
+      document.title = "done";
+      return;
+    }
+    if (data.mode === "work_choice" && data.pendingRest?.sec) {
+      document.title = `${formatClock(data.pendingRest.sec)} break`;
+      return;
+    }
+    if (data.mode === "rest_choice") {
+      document.title = "ready for focus";
+      return;
+    }
+    const remaining = remainingForCountdown(data);
+    if (!data.running) {
+      document.title = `${formatClock(remaining)} paused`;
+      return;
+    }
+    const suffix = data.mode === "work" ? "focus" : data.mode === "rest" || data.mode === "cumulative" ? "rest" : "timer";
+    document.title = `${formatClock(remaining)} ${suffix}`;
   }
 
   async function playDueSound(data) {
@@ -88,14 +125,14 @@
   }
 
   function tick() {
-    if (window.__PAGE__ === "home") return;
+    if (window.__PAGE__ === "home" || window.__PAGE__ === "flow") return;
     const data = readSession();
     syncTitle(data);
     playDueSound(data);
   }
 
   function start() {
-    if (window.__PAGE__ === "home") return;
+    if (window.__PAGE__ === "home" || window.__PAGE__ === "flow") return;
     tick();
     monitorTimer = window.setInterval(tick, 500);
     document.addEventListener("visibilitychange", tick);

@@ -154,5 +154,5 @@
 <p class="settings-toast" id="settingsToast" role="status" aria-live="polite"></p>
 {% endblock %}
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/settings.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/settings.js') }}?v={{ asset_version }}" defer></script>
 {% endblock %}

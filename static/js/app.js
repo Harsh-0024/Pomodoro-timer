@@ -81,6 +81,7 @@
     if (!state.session.active && state.mode === "idle") {
       try {
         sessionStorage.removeItem(SESSION_STORAGE_KEY);
+        localStorage.removeItem(SESSION_STORAGE_KEY);
       } catch (_) {}
       return;
     }
@@ -116,14 +117,31 @@
         savedAt: Date.now(),
       };
       sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(payload));
+      localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(payload));
     } catch (_) {}
+  }
+
+  function parseStoredSession(raw) {
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function readStoredSession() {
+    const local = parseStoredSession(localStorage.getItem(SESSION_STORAGE_KEY));
+    const session = parseStoredSession(sessionStorage.getItem(SESSION_STORAGE_KEY));
+    if (!local) return session;
+    if (!session) return local;
+    return Number(session.savedAt || 0) > Number(local.savedAt || 0) ? session : local;
   }
 
   function restoreSession() {
     try {
-      const raw = sessionStorage.getItem(SESSION_STORAGE_KEY);
-      if (!raw) return false;
-      const data = JSON.parse(raw);
+      const data = readStoredSession();
+      if (!data) return false;
       if (!data?.session?.active || !presetById(data.presetId)) return false;
 
       state.presetId = data.presetId;
@@ -152,7 +170,11 @@
       };
 
       let restoredExpiredCountdown = false;
-      if (data.running && data.phaseEndsAt) {
+      if (state.mode === "extend") {
+        state.remainingSec = data.remainingSec ?? 0;
+        state.running = !!data.running;
+        phaseEndsAt = null;
+      } else if (data.running && data.phaseEndsAt) {
         const left = (data.phaseEndsAt - Date.now()) / 1000;
         if (left <= 0 && ["work", "rest", "cumulative"].includes(state.mode)) {
           state.remainingSec = 0;
@@ -429,7 +451,11 @@
         return;
       }
       renderLiveStats();
-      if (state.mode === "extend") persistSession();
+      if (state.mode === "extend") {
+        if (state.running && !tickTimer) startTicking();
+        repaintExtendFocus();
+        persistSession();
+      }
     }, 200);
   }
 
@@ -729,7 +755,7 @@
       return;
     }
     if (state.mode === "extend") {
-      document.title = `${formatClock(currentExtendSec())} focus`;
+      document.title = `+${formatClock(currentExtendSec())} focus`;
       return;
     }
     if (state.mode === "work_choice" && state.pendingRest) {
@@ -751,6 +777,14 @@
     const suffix =
       state.mode === "work" || state.mode === "idle" ? "focus" : "rest";
     document.title = `${formatClock(state.remainingSec)} ${suffix}`;
+  }
+
+  function repaintExtendFocus() {
+    if (state.mode !== "extend") return;
+    updateTimeDisplay();
+    updateRing();
+    updateDocumentTitle();
+    updateLabels();
   }
 
   function askConfirm(options) {
@@ -1335,10 +1369,7 @@
     renderLiveStats();
 
     if (state.mode === "extend" && state.running) {
-      updateTimeDisplay();
-      updateRing();
-      updateDocumentTitle();
-      updateLabels();
+      repaintExtendFocus();
       return;
     }
 
@@ -1468,7 +1499,7 @@
     }
 
     if (primary) {
-      primary.classList.toggle("hidden", inRest || poolRestReplacesPause);
+      primary.classList.toggle("hidden", inRest || inExtend || poolRestReplacesPause);
       primary.disabled = false;
       if (state.running) {
         primary.textContent = "Pause";
@@ -1524,6 +1555,7 @@
     hideChoices();
     try {
       sessionStorage.removeItem(SESSION_STORAGE_KEY);
+      localStorage.removeItem(SESSION_STORAGE_KEY);
     } catch (_) {}
     setChoicePanel(false, "", []);
     applyBodyPhaseClass();
@@ -1746,6 +1778,7 @@
       if (isTypingTarget(e.target)) return;
       e.preventDefault();
       if (state.running && state.mode === "work" && state.session.poolSec >= 1) takePoolRestNow();
+      else if (state.running && state.mode === "extend") beginRestFromExtend();
       else if (state.running && state.mode !== "rest" && state.mode !== "cumulative") pauseTimer();
       else if (!["work_choice", "rest_choice", "complete"].includes(state.mode)) resumeTimer();
     });
@@ -1780,7 +1813,8 @@
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") persistSession();
     else if (state.running) {
-      if (state.mode !== "extend") syncRemainingFromClock();
+      if (state.mode === "extend") startTicking();
+      else syncRemainingFromClock();
       updateAll();
     }
   });

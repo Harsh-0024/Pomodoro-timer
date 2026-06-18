@@ -889,6 +889,15 @@ body.mode-cumulative .phase-label {
   display: none;
 }
 
+.session-notice {
+  margin: 0.95rem auto 0;
+  max-width: 28rem;
+  color: var(--gold2);
+  font-size: 0.82rem;
+  line-height: 1.45;
+  text-align: center;
+}
+
 .focus-quote {
   display: flex;
   flex-direction: column;

@@ -350,7 +350,10 @@
 
   async function loadDashboard(year) {
     try {
-      const data = await api(`/api/dashboard?year=${encodeURIComponent(year)}`);
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+      const params = new URLSearchParams({ year: String(year) });
+      if (tz) params.set("tz", tz);
+      const data = await api(`/api/dashboard?${params.toString()}`);
       currentDashboardData = data;
       selectedYear = Number(data.range?.year || year);
       renderSummary(data);

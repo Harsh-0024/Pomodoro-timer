@@ -1,7 +1,8 @@
 import json
 import sqlite3
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from presets import BUILTINS
 
@@ -223,7 +224,7 @@ def add_activity_segment(segment: dict) -> dict:
     init_db()
     kind = str(segment["kind"])
     duration_sec = float(segment["duration_sec"])
-    productive_sec = duration_sec if kind in ("work", "extend") else 0.0
+    productive_sec = duration_sec if kind in ("work", "extend", "flow") else 0.0
     rest_sec = duration_sec if kind in ("rest", "cumulative", "pause") else 0.0
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
@@ -335,9 +336,109 @@ RHYTHM_NOISE_FLOOR_SEC = 5 * 60
 
 def _parse_segment_time(value: str) -> datetime | None:
     try:
-        return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
     except (TypeError, ValueError):
         return None
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed
+
+
+def _dashboard_timezone(timezone_name: str | None):
+    if timezone_name:
+        try:
+            return ZoneInfo(timezone_name)
+        except (ZoneInfoNotFoundError, ValueError):
+            pass
+    return datetime.now().astimezone().tzinfo or timezone.utc
+
+
+def _day_range_utc_bounds(start_day: date, end_day: date, tz) -> tuple[str, str]:
+    local_start = datetime.combine(start_day, time.min, tzinfo=tz)
+    local_end = datetime.combine(end_day + timedelta(days=1), time.min, tzinfo=tz)
+    return (
+        local_start.astimezone(timezone.utc).isoformat(),
+        local_end.astimezone(timezone.utc).isoformat(),
+    )
+
+
+def _empty_dashboard_bucket() -> dict:
+    return {
+        "productive_sec": 0.0,
+        "rest_sec": 0.0,
+        "duration_sec": 0.0,
+        "segment_count": 0,
+        "focus_segments": 0,
+    }
+
+
+def _credit_bucket(bucket: dict, duration_sec: float, productive_sec: float, rest_sec: float):
+    if duration_sec <= 0 and productive_sec <= 0 and rest_sec <= 0:
+        return
+    bucket["duration_sec"] += duration_sec
+    bucket["productive_sec"] += productive_sec
+    bucket["rest_sec"] += rest_sec
+    bucket["segment_count"] += 1
+    if productive_sec > 0:
+        bucket["focus_segments"] += 1
+
+
+def _credit_row_to_days(
+    buckets: dict[str, dict],
+    row: sqlite3.Row,
+    started_at: datetime,
+    ended_at: datetime,
+    start_day: date,
+    end_day: date,
+    tz,
+):
+    duration_sec = max(0.0, float(row["duration_sec"] or 0))
+    productive_sec = max(0.0, float(row["productive_sec"] or 0))
+    rest_sec = max(0.0, float(row["rest_sec"] or 0))
+    actual_sec = max(0.0, (ended_at - started_at).total_seconds())
+    if actual_sec <= 0:
+        return
+
+    range_start = datetime.combine(start_day, time.min, tzinfo=tz)
+    range_end = datetime.combine(end_day + timedelta(days=1), time.min, tzinfo=tz)
+    local_start = max(started_at.astimezone(tz), range_start)
+    local_end = min(ended_at.astimezone(tz), range_end)
+    if local_end <= local_start:
+        return
+
+    cursor = local_start
+    while cursor < local_end:
+        next_midnight = datetime.combine(cursor.date() + timedelta(days=1), time.min, tzinfo=tz)
+        chunk_end = min(local_end, next_midnight)
+        chunk_sec = max(0.0, (chunk_end - cursor).total_seconds())
+        if chunk_sec > 0:
+            fraction = chunk_sec / actual_sec
+            day_iso = cursor.date().isoformat()
+            bucket = buckets.setdefault(day_iso, _empty_dashboard_bucket())
+            _credit_bucket(
+                bucket,
+                duration_sec * fraction,
+                productive_sec * fraction,
+                rest_sec * fraction,
+            )
+        cursor = chunk_end
+
+
+def _rhythm_profile_from_weights(weighted_sec: dict[str, float], total_weighted_sec: float, rhythms: list[dict]) -> list[dict]:
+    rows = []
+    for rhythm in rhythms:
+        sec = weighted_sec[rhythm["name"]]
+        if sec <= 0:
+            continue
+        rows.append(
+            {
+                "name": rhythm["name"],
+                "session_minutes": rhythm["session_minutes"],
+                "focus_minutes": round(sec / 60, 1),
+                "focus_pct": round((sec / total_weighted_sec) * 100, 1) if total_weighted_sec else 0,
+            }
+        )
+    return sorted(rows, key=lambda row: row["focus_minutes"], reverse=True)
 
 
 def _builtin_rhythms() -> list[dict]:
@@ -353,40 +454,6 @@ def _builtin_rhythms() -> list[dict]:
         ),
         key=lambda rhythm: rhythm["work_sec"],
     )
-
-
-def _continuous_focus_bouts(segment_rows: list[sqlite3.Row]) -> list[float]:
-    bouts: list[float] = []
-    current_sec = 0.0
-    current_end: datetime | None = None
-
-    for row in segment_rows:
-        productive_sec = float(row["productive_sec"] or 0)
-        if productive_sec <= 0:
-            continue
-        started_at = _parse_segment_time(row["started_at"])
-        ended_at = _parse_segment_time(row["ended_at"])
-        joins_current = False
-        if current_sec > 0 and current_end is not None and started_at is not None:
-            gap_sec = (started_at - current_end).total_seconds()
-            joins_current = gap_sec < RHYTHM_BOUT_GAP_SEC
-
-        if current_sec > 0 and not joins_current:
-            bouts.append(current_sec)
-            current_sec = 0.0
-
-        current_sec += productive_sec
-        if ended_at is not None:
-            current_end = max(current_end, ended_at) if current_end and joins_current else ended_at
-        elif started_at is not None:
-            fallback_end = started_at + timedelta(seconds=productive_sec)
-            current_end = max(current_end, fallback_end) if current_end and joins_current else fallback_end
-        else:
-            current_end = None
-
-    if current_sec > 0:
-        bouts.append(current_sec)
-    return bouts
 
 
 def _rhythm_weights_for_bout(duration_sec: float, rhythms: list[dict]) -> list[tuple[str, float]]:
@@ -417,37 +484,15 @@ def _rhythm_weights_for_bout(duration_sec: float, rhythms: list[dict]) -> list[t
     return [(last["name"], duration_sec)]
 
 
-def _weighted_rhythm_profile(segment_rows: list[sqlite3.Row]) -> list[dict]:
-    rhythms = _builtin_rhythms()
-    weighted_sec = {rhythm["name"]: 0.0 for rhythm in rhythms}
-    total_weighted_sec = 0.0
-
-    for bout_sec in _continuous_focus_bouts(segment_rows):
-        if bout_sec < RHYTHM_NOISE_FLOOR_SEC:
-            continue
-        total_weighted_sec += bout_sec
-        for name, contribution_sec in _rhythm_weights_for_bout(bout_sec, rhythms):
-            weighted_sec[name] += contribution_sec
-
-    rows = []
-    for rhythm in rhythms:
-        sec = weighted_sec[rhythm["name"]]
-        if sec <= 0:
-            continue
-        rows.append(
-            {
-                "name": rhythm["name"],
-                "session_minutes": rhythm["session_minutes"],
-                "focus_minutes": round(sec / 60, 1),
-                "focus_pct": round((sec / total_weighted_sec) * 100, 1) if total_weighted_sec else 0,
-            }
-        )
-    return sorted(rows, key=lambda row: row["focus_minutes"], reverse=True)
-
-
-def dashboard_summary(end_day_iso: str | None = None, days: int = 365, year: int | None = None) -> dict:
+def dashboard_summary(
+    end_day_iso: str | None = None,
+    days: int = 365,
+    year: int | None = None,
+    timezone_name: str | None = None,
+) -> dict:
     init_db()
-    today = date.today()
+    tz = _dashboard_timezone(timezone_name)
+    today = datetime.now(tz).date()
     try:
         selected_year = int(year) if year is not None else None
     except (TypeError, ValueError):
@@ -471,6 +516,7 @@ def dashboard_summary(end_day_iso: str | None = None, days: int = 365, year: int
 
     start_iso = start_day.isoformat()
     end_iso = end_day.isoformat()
+    range_start_utc, range_end_utc = _day_range_utc_bounds(start_day, end_day, tz)
 
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
@@ -489,49 +535,67 @@ def dashboard_summary(end_day_iso: str | None = None, days: int = 365, year: int
             calc_end_day = min(end_day, today)
             start_iso = start_day.isoformat()
             end_iso = end_day.isoformat()
+            range_start_utc, range_end_utc = _day_range_utc_bounds(start_day, end_day, tz)
 
         years = _dashboard_years(first_year, selected_year)
-        focus_rows = conn.execute(
-            """
-            SELECT day, minutes
-            FROM daily_focus
-            WHERE day BETWEEN ? AND ?
-            """,
-            (start_iso, end_iso),
-        ).fetchall()
         segment_rows = conn.execute(
             """
-            SELECT day,
-                   SUM(productive_sec) AS productive_sec,
-                   SUM(rest_sec) AS rest_sec,
-                   SUM(duration_sec) AS duration_sec,
-                   COUNT(*) AS segment_count,
-                   SUM(CASE WHEN kind IN ('work', 'extend') THEN 1 ELSE 0 END) AS focus_segments
+            SELECT kind, started_at, ended_at, duration_sec, productive_sec, rest_sec
             FROM activity_segments
-            WHERE day BETWEEN ? AND ?
-            GROUP BY day
+            WHERE julianday(started_at) < julianday(?)
+              AND julianday(ended_at) > julianday(?)
+            ORDER BY julianday(started_at) ASC, id ASC
             """,
-            (start_iso, end_iso),
-        ).fetchall()
-        rhythm_segment_rows = conn.execute(
-            """
-            SELECT started_at, ended_at, productive_sec
-            FROM activity_segments
-            WHERE day BETWEEN ? AND ?
-              AND productive_sec > 0
-            ORDER BY started_at ASC, id ASC
-            """,
-            (start_iso, end_iso),
+            (range_end_utc, range_start_utc),
         ).fetchall()
     finally:
         conn.close()
 
-    daily_focus = {row["day"]: float(row["minutes"] or 0) for row in focus_rows}
-    activity = {row["day"]: row for row in segment_rows}
     settings = load_settings()
     goal_minutes = int(settings.get("daily_focus_goal_minutes") or 120)
+    activity: dict[str, dict] = {}
+
+    rhythms = _builtin_rhythms()
+    weighted_sec = {rhythm["name"]: 0.0 for rhythm in rhythms}
+    total_weighted_sec = 0.0
+    current_bout_sec = 0.0
+    current_bout_end: datetime | None = None
+
+    def finalize_bout():
+        nonlocal current_bout_sec, current_bout_end, total_weighted_sec
+        if current_bout_sec >= RHYTHM_NOISE_FLOOR_SEC:
+            total_weighted_sec += current_bout_sec
+            for name, contribution_sec in _rhythm_weights_for_bout(current_bout_sec, rhythms):
+                weighted_sec[name] += contribution_sec
+        current_bout_sec = 0.0
+        current_bout_end = None
+
+    for row in segment_rows:
+        started_at = _parse_segment_time(row["started_at"])
+        ended_at = _parse_segment_time(row["ended_at"])
+        if started_at is None or ended_at is None or ended_at <= started_at:
+            continue
+
+        productive_sec = max(0.0, float(row["productive_sec"] or 0))
+        if productive_sec > 0:
+            rhythm_duration_sec = max(0.0, float(row["duration_sec"] or 0))
+            joins_current = False
+            if current_bout_sec > 0 and current_bout_end is not None:
+                gap_sec = (started_at - current_bout_end).total_seconds()
+                joins_current = gap_sec <= RHYTHM_BOUT_GAP_SEC
+
+            if current_bout_sec > 0 and not joins_current:
+                finalize_bout()
+
+            current_bout_sec += rhythm_duration_sec
+            current_bout_end = max(current_bout_end, ended_at) if current_bout_end and joins_current else ended_at
+
+        _credit_row_to_days(activity, row, started_at, ended_at, start_day, end_day, tz)
+
+    finalize_bout()
 
     records = []
+    recent_days = []
     total_focus = 0.0
     total_rest = 0.0
     total_tracked = 0.0
@@ -540,7 +604,9 @@ def dashboard_summary(end_day_iso: str | None = None, days: int = 365, year: int
     best_day = None
     longest_streak = 0
     running_streak = 0
+    current_streak = 0
     first_active_day = None
+    calc_end_iso = calc_end_day.isoformat()
 
     for offset in range(days):
         day = start_day + timedelta(days=offset)
@@ -548,7 +614,7 @@ def dashboard_summary(end_day_iso: str | None = None, days: int = 365, year: int
         seg = activity.get(day_iso)
         segment_focus = float(seg["productive_sec"] or 0) / 60 if seg else 0.0
         segment_rest = float(seg["rest_sec"] or 0) / 60 if seg else 0.0
-        focus_minutes = max(segment_focus, daily_focus.get(day_iso, 0.0))
+        focus_minutes = segment_focus
         rest_minutes = segment_rest
         tracked_minutes = max(
             float(seg["duration_sec"] or 0) / 60 if seg else 0.0,
@@ -571,34 +637,29 @@ def dashboard_summary(end_day_iso: str | None = None, days: int = 365, year: int
         total_focus += focus_minutes
         total_rest += rest_minutes
         total_tracked += tracked_minutes
-        records.append(
-            {
-                "day": day_iso,
-                "weekday": day.weekday(),
-                "focus_minutes": round(focus_minutes, 1),
-                "rest_minutes": round(rest_minutes, 1),
-                "tracked_minutes": round(tracked_minutes, 1),
-                "segment_count": int(seg["segment_count"] or 0) if seg else 0,
-                "focus_segments": int(seg["focus_segments"] or 0) if seg else 0,
-                "goal_met": focus_minutes >= goal_minutes,
-            }
-        )
-
-    current_streak = 0
-    for record in reversed(records):
-        if record["day"] > calc_end_day.isoformat():
-            continue
-        if record["focus_minutes"] > 0:
-            current_streak += 1
-        else:
-            break
+        record = {
+            "day": day_iso,
+            "weekday": day.weekday(),
+            "focus_minutes": round(focus_minutes, 1),
+            "rest_minutes": round(rest_minutes, 1),
+            "tracked_minutes": round(tracked_minutes, 1),
+            "segment_count": int(seg["segment_count"] or 0) if seg else 0,
+            "focus_segments": int(seg["focus_segments"] or 0) if seg else 0,
+            "goal_met": focus_minutes >= goal_minutes,
+        }
+        records.append(record)
+        if day_iso <= calc_end_iso:
+            current_streak = current_streak + 1 if focus_minutes > 0 else 0
+            recent_days.insert(0, record)
+            if len(recent_days) > 14:
+                recent_days.pop()
 
     if first_active_day:
         consistency_days_elapsed = max(1, (calc_end_day - first_active_day).days + 1)
     else:
         consistency_days_elapsed = max(1, (calc_end_day - start_day).days + 1)
 
-    top_presets = _weighted_rhythm_profile(rhythm_segment_rows)
+    top_presets = _rhythm_profile_from_weights(weighted_sec, total_weighted_sec, rhythms)
 
     return {
         "range": {
@@ -608,13 +669,11 @@ def dashboard_summary(end_day_iso: str | None = None, days: int = 365, year: int
             "year": selected_year,
             "years": years,
             "calc_start": first_active_day.isoformat() if first_active_day else start_iso,
-            "calc_end": calc_end_day.isoformat(),
+            "calc_end": calc_end_iso,
         },
         "goal_minutes": goal_minutes,
         "days": records,
-        "recent_days": [
-            record for record in reversed(records) if record["day"] <= calc_end_day.isoformat()
-        ][:14],
+        "recent_days": recent_days,
         "top_presets": top_presets,
         "summary": {
             "total_focus_minutes": round(total_focus, 1),

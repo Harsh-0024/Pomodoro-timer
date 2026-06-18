@@ -349,7 +349,7 @@ def api_focus_log():
 def api_activity_segment():
     data = request.get_json(silent=True) or {}
     kind = str(data.get("kind") or "")
-    if kind not in ("work", "extend", "rest", "cumulative", "pause"):
+    if kind not in ("work", "extend", "flow", "rest", "cumulative", "pause"):
         return jsonify({"error": "Invalid activity kind"}), 400
     day = str(data.get("day") or "")
     if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", day):
@@ -413,7 +413,8 @@ def api_dashboard():
         days = int(request.args.get("days", 365))
     except (TypeError, ValueError):
         days = 365
-    return jsonify(db.dashboard_summary(day, days, parsed_year))
+    timezone_name = request.args.get("tz")
+    return jsonify(db.dashboard_summary(day, days, parsed_year, timezone_name))
 
 
 if __name__ == "__main__":

@@ -7,6 +7,10 @@
   let selectedYear = Number(new URLSearchParams(window.location.search).get("year")) || new Date().getFullYear();
   let currentDashboardData = null;
   let rhythmSort = { key: "share", direction: "desc" };
+  const cardStates = {
+    streakCard: 0,
+    averageCard: 0,
+  };
 
   async function api(path) {
     const r = await fetch(path, { headers: { Accept: "application/json" } });
@@ -53,6 +57,62 @@
     return `${value.toFixed(value >= 10 ? 0 : 1)}/wk`;
   }
 
+  function updateToggleCard(cardId, states) {
+    const card = byId(cardId);
+    if (!card || !states.length) return;
+    const index = cardStates[cardId] % states.length;
+    const state = states[index];
+    setText(state.labelId, state.label);
+    setText(state.valueId, state.value);
+    setText(state.noteId, state.note);
+    card.setAttribute("aria-label", `${state.label}: ${state.value}. ${state.note}`);
+    card.dataset.state = String(index);
+    card.dataset.stateCount = String(states.length);
+  }
+
+  function cycleToggleCard(cardId, states) {
+    if (!states.length) return;
+    cardStates[cardId] = (cardStates[cardId] + 1) % states.length;
+    updateToggleCard(cardId, states);
+  }
+
+  function summaryCardStates(data) {
+    const s = data.summary || {};
+    const year = data.range?.year || selectedYear;
+    const elapsedDays = Number(s.days_elapsed || 0);
+    const averageAllDays = elapsedDays ? Number(s.total_focus_minutes || 0) / elapsedDays : 0;
+    return {
+      streakCard: [
+        {
+          labelId: "streakLabel",
+          valueId: "currentStreak",
+          noteId: "longestStreak",
+          label: "Current streak",
+          value: formatDays(s.current_streak),
+          note: `Best this year: ${formatDays(s.longest_streak)}`,
+        },
+      ],
+      averageCard: [
+        {
+          labelId: "averageLabel",
+          valueId: "averageFocus",
+          noteId: "averageNote",
+          label: "Avg / active day",
+          value: formatMinutes(s.average_focus_active_day),
+          note: `in ${year}`,
+        },
+        {
+          labelId: "averageLabel",
+          valueId: "averageFocus",
+          noteId: "averageNote",
+          label: "Avg / all days",
+          value: formatMinutes(averageAllDays),
+          note: `in ${year}`,
+        },
+      ],
+    };
+  }
+
   const heatStops = [
     [207, 227, 197],
     [135, 187, 120],
@@ -89,16 +149,15 @@
     const s = data.summary || {};
     const goal = Number(data.goal_minutes || 0);
     const year = data.range?.year || selectedYear;
+    const states = summaryCardStates(data);
     setText("goalValue", formatMinutes(goal));
     setText("totalFocusLabel", `Focus in ${year}`);
     setText("totalFocus", formatMinutes(s.total_focus_minutes));
     setText("activeDays", `${formatDays(s.active_days)} active`);
-    setText("currentStreak", formatDays(s.current_streak));
-    setText("longestStreak", `${formatDays(s.longest_streak)} longest`);
+    updateToggleCard("streakCard", states.streakCard);
+    updateToggleCard("averageCard", states.averageCard);
     setText("consistencyRate", formatDayRate(s.consistency_days_per_week));
-    setText("consistencyNote", `${formatDays(s.active_days)} across ${formatDays(s.days_elapsed)}`);
-    setText("productivity", s.productivity_pct == null ? "--" : `${Number(s.productivity_pct).toFixed(1)}%`);
-    setText("restMinutes", `${formatMinutes(s.total_rest_minutes)} rest tracked`);
+    setText("consistencyNote", `${s.active_days || 0} of ${s.days_elapsed || 0} days`);
     setText(
       "heatmapSubtitle",
       `${formatMinutes(s.total_focus_minutes)} across ${formatDays(s.active_days)} in ${year}.`
@@ -369,6 +428,20 @@
 
   async function init() {
     if (window.__PAGE__ !== "dashboard") return;
+    ["streakCard", "averageCard"].forEach((cardId) => {
+      const card = byId(cardId);
+      if (!card) return;
+      const activate = () => {
+        if (!currentDashboardData) return;
+        cycleToggleCard(cardId, summaryCardStates(currentDashboardData)[cardId] || []);
+      };
+      card.addEventListener("click", activate);
+      card.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        activate();
+      });
+    });
     window.addEventListener("popstate", () => {
       selectedYear = Number(new URLSearchParams(window.location.search).get("year")) || new Date().getFullYear();
       loadDashboard(selectedYear);

@@ -659,6 +659,14 @@
     state.remainingSec = Math.max(0, (phaseEndsAt - Date.now()) / 1000);
   }
 
+  function reconcileTimedPhaseFromClock() {
+    if (!state.running || !["work", "rest", "cumulative"].includes(state.mode)) return false;
+    syncRemainingFromClock();
+    if (state.remainingSec > 0) return false;
+    onTimerElapsed();
+    return true;
+  }
+
   function armPhaseEnd() {
     phaseEndsAt = Date.now() + state.remainingSec * 1000;
     state.phaseNotificationKey = `${state.mode}:${state.phaseIndex}:${Math.round(phaseEndsAt)}`;
@@ -1446,7 +1454,7 @@
     }
 
     if (!state.running) return;
-    syncRemainingFromClock();
+    if (reconcileTimedPhaseFromClock()) return;
 
     const bucket = Math.floor(state.remainingSec / 60);
     if (
@@ -1884,9 +1892,16 @@
 
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") persistSession();
-    else if (state.running) {
+    else {
+      const stored = readStoredSession();
+      if (stored?.monitorAdvancedPhase) {
+        restoreSession();
+        return;
+      }
+    }
+    if (document.visibilityState !== "hidden" && state.running) {
       if (state.mode === "extend") startTicking();
-      else syncRemainingFromClock();
+      else if (reconcileTimedPhaseFromClock()) return;
       updateAll();
     }
   });
@@ -1894,7 +1909,12 @@
   window.addEventListener("storage", (event) => {
     if (event.key !== SESSION_STORAGE_KEY || !event.newValue || window.__PAGE__ !== "home") return;
     const data = parseStoredSession(event.newValue);
-    if (!data || data.pausedBy !== "flow") return;
+    if (!data) return;
+    if (data.monitorAdvancedPhase) {
+      restoreSession();
+      return;
+    }
+    if (data.pausedBy !== "flow") return;
     restoreSession();
     showTimerNotice(data.notice || "Timer paused while Flow starts.");
   });

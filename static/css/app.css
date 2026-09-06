@@ -1699,6 +1699,7 @@ body[data-theme="light"] .page-dashboard .main {
 }
 
 .metric-card {
+  position: relative;
   min-width: 0;
   padding: 1rem 1rem 0.95rem;
 }
@@ -1706,6 +1707,33 @@ body[data-theme="light"] .page-dashboard .main {
 .metric-card-primary {
   background: linear-gradient(145deg, var(--growth-wash), var(--surface));
   border-color: var(--growth-line);
+}
+
+.metric-card-toggle {
+  cursor: pointer;
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.metric-card-toggle:hover,
+.metric-card-toggle:focus-visible {
+  border-color: var(--growth-line);
+  box-shadow: 0 0 0 3px var(--growth-wash);
+}
+
+.metric-card-toggle:active {
+  transform: translateY(1px);
+}
+
+.metric-card-toggle[data-state-count="2"]::after {
+  content: "";
+  position: absolute;
+  top: 0.85rem;
+  right: 0.85rem;
+  width: 0.42rem;
+  height: 0.42rem;
+  border-radius: 999px;
+  background: var(--growth-2);
+  box-shadow: 0 0 0 0.22rem var(--growth-wash);
 }
 
 .metric-label,

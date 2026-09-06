@@ -4,8 +4,10 @@
   const SESSION_STORAGE_KEY = "muhurat_timer_session_v1";
   const baseTitle = "Muhurata timer";
   let settings = null;
+  let presets = null;
   let monitorTimer = null;
   const pendingSounds = new Set();
+  const pendingTransitions = new Set();
 
   function parseSession(raw) {
     if (!raw) return null;
@@ -51,6 +53,18 @@
     return settings || {};
   }
 
+  async function loadPresets() {
+    if (presets) return presets;
+    try {
+      const res = await fetch("/api/presets", { headers: { Accept: "application/json" } });
+      if (res.ok) {
+        const payload = await res.json();
+        presets = [...(payload.builtins || []), ...(payload.custom || [])];
+      }
+    } catch (_) {}
+    return presets || [];
+  }
+
   function formatClock(sec) {
     const s = Math.max(0, Math.ceil(sec));
     const m = Math.floor(s / 60);
@@ -62,6 +76,54 @@
     if (data.phaseNotificationKey) return data.phaseNotificationKey;
     if (!data.phaseEndsAt) return null;
     return `${data.mode}:${data.phaseIndex}:${Math.round(data.phaseEndsAt)}`;
+  }
+
+  function presetById(list, id) {
+    return (list || []).find((p) => p.id === id) || null;
+  }
+
+  function workCycleCount(p) {
+    return Math.max(1, Number(p?.work_cycles || 4));
+  }
+
+  function lastWorkIndex(p) {
+    return (workCycleCount(p) - 1) * 2;
+  }
+
+  function lastRestIndex(p) {
+    return lastWorkIndex(p) + 1;
+  }
+
+  function phaseKind(p, i) {
+    if (p && i === lastRestIndex(p)) return "long";
+    if (i % 2 === 0) return "work";
+    return "short";
+  }
+
+  function phaseDurationSec(p, i) {
+    const k = phaseKind(p, i);
+    if (k === "work") return Number(p.work_min || 0) * 60;
+    if (k === "short") return Number(p.short_rest_min || 0) * 60;
+    return Number(p.long_rest_min || 0) * 60;
+  }
+
+  function buildPendingRest(p, workIndex) {
+    const restIndex = workIndex + 1;
+    const kind = phaseKind(p, restIndex);
+    return { sec: phaseDurationSec(p, restIndex), kind, restIndex, workIndex };
+  }
+
+  function localDayISO(ms) {
+    const d = new Date(ms);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }
+
+  function postJSON(path, body) {
+    return fetch(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify(body),
+    }).catch(() => {});
   }
 
   function remainingForCountdown(data) {
@@ -124,11 +186,82 @@
     }
   }
 
+  async function advanceDueWork(data) {
+    if (!data?.running || data.mode !== "work" || !data.phaseEndsAt) return;
+    if (Date.now() < Number(data.phaseEndsAt)) return;
+    const key = phaseKey(data);
+    if (!key || data.monitorAdvancedPhase === key || pendingTransitions.has(key)) return;
+    pendingTransitions.add(key);
+
+    try {
+      const [currentSettings, allPresets] = await Promise.all([loadSettings(), loadPresets()]);
+      const preset = presetById(allPresets, data.presetId);
+      if (!preset) return;
+
+      const endedAt = Number(data.phaseEndsAt);
+      const durationSec =
+        Number(data.session?.segDurationSec || 0) || phaseDurationSec(preset, Number(data.phaseIndex || 0));
+      const startedAt = Number(data.session?.segStartedAt || 0) || endedAt - durationSec * 1000;
+      const now = Date.now();
+      const session = data.session || {};
+      const rest = buildPendingRest(preset, Number(data.phaseIndex || 0));
+
+      session.active = true;
+      session.workSec = Number(session.workSec || 0) + durationSec;
+      session.segStartedAt = now;
+      data.pendingRest = rest;
+      data.monitorNotifiedPhase = key;
+      data.monitorAdvancedPhase = key;
+
+      postJSON("/api/activity/segment", {
+        day: localDayISO(startedAt),
+        kind: "work",
+        started_at: new Date(startedAt).toISOString(),
+        ended_at: new Date(endedAt).toISOString(),
+        duration_sec: durationSec,
+        preset_id: data.presetId,
+        preset_name: preset.name || "",
+        phase_index: data.phaseIndex,
+        details: { duration_sec: durationSec, advanced_by: "session-monitor" },
+      });
+      postJSON("/api/focus/log", {
+        day: localDayISO(endedAt),
+        minutes: Math.max(1, Math.min(240, Math.round(durationSec / 60))),
+      });
+
+      if (currentSettings.auto_start_break && rest) {
+        data.mode = "rest";
+        data.phaseIndex = rest.restIndex;
+        data.remainingSec = rest.sec;
+        data.phaseEndsAt = now + rest.sec * 1000;
+        data.phaseNotificationKey = `${data.mode}:${data.phaseIndex}:${Math.round(data.phaseEndsAt)}`;
+        session.segKind = "rest";
+        session.segDurationSec = rest.sec;
+      } else {
+        data.mode = "extend";
+        data.running = true;
+        data.remainingSec = 0;
+        data.phaseEndsAt = null;
+        data.extendBaseSec = Number(session.extendSec || 0);
+        session.segKind = "extend";
+        session.segDurationSec = 0;
+      }
+
+      data.session = session;
+      data.savedAt = now;
+      writeSession(data);
+      syncTitle(data);
+    } finally {
+      pendingTransitions.delete(key);
+    }
+  }
+
   function tick() {
     if (window.__PAGE__ === "home" || window.__PAGE__ === "flow") return;
     const data = readSession();
     syncTitle(data);
     playDueSound(data);
+    advanceDueWork(data);
   }
 
   function start() {

@@ -1,4 +1,5 @@
 import json
+import math
 import sqlite3
 from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
@@ -332,6 +333,7 @@ def _dashboard_years(first_year: int, selected_year: int) -> list[int]:
 
 RHYTHM_BOUT_GAP_SEC = 120
 RHYTHM_NOISE_FLOOR_SEC = 5 * 60
+BELL_MIN_BOUTS = 15
 
 
 def _parse_segment_time(value: str) -> datetime | None:
@@ -424,65 +426,158 @@ def _credit_row_to_days(
         cursor = chunk_end
 
 
-def _rhythm_profile_from_weights(weighted_sec: dict[str, float], total_weighted_sec: float, rhythms: list[dict]) -> list[dict]:
-    rows = []
-    for rhythm in rhythms:
-        sec = weighted_sec[rhythm["name"]]
-        if sec <= 0:
-            continue
-        rows.append(
-            {
-                "name": rhythm["name"],
-                "session_minutes": rhythm["session_minutes"],
-                "focus_minutes": round(sec / 60, 1),
-                "focus_pct": round((sec / total_weighted_sec) * 100, 1) if total_weighted_sec else 0,
-            }
-        )
-    return sorted(rows, key=lambda row: row["focus_minutes"], reverse=True)
+def _compute_percentile(sorted_data: list[float], p: float) -> float:
+    """Compute the p-th percentile (0-100) from sorted data."""
+    n = len(sorted_data)
+    if n == 0:
+        return 0.0
+    if n == 1:
+        return sorted_data[0]
+    k = (n - 1) * p / 100.0
+    f = int(k)
+    c = min(f + 1, n - 1)
+    frac = k - f
+    return sorted_data[f] + frac * (sorted_data[c] - sorted_data[f])
 
 
-def _builtin_rhythms() -> list[dict]:
-    return sorted(
-        (
-            {
-                "id": preset["id"],
-                "name": preset["name"],
-                "session_minutes": int(preset["work_min"]),
-                "work_sec": float(preset["work_min"]) * 60,
-            }
-            for preset in BUILTINS
-        ),
-        key=lambda rhythm: rhythm["work_sec"],
-    )
+def _bell_bandwidth(sorted_d: list[float]) -> float:
+    """Silverman's rule of thumb, guarded against zero spread."""
+    n = len(sorted_d)
+    mean = sum(sorted_d) / n
+    variance = sum((x - mean) ** 2 for x in sorted_d) / (n - 1) if n > 1 else 0.0
+    std = variance ** 0.5
+    iqr = _compute_percentile(sorted_d, 75) - _compute_percentile(sorted_d, 25)
+    spread = min(std, iqr / 1.34) if iqr > 0 else std
+    h = 0.9 * spread * (n ** -0.2)
+    if h <= 0:
+        h = (std * (n ** -0.2)) if std > 0 else 0.0
+    if h <= 0:
+        h = max(0.5, sorted_d[-1] * 0.05)
+    return h
 
 
-def _rhythm_weights_for_bout(duration_sec: float, rhythms: list[dict]) -> list[tuple[str, float]]:
-    if not rhythms or duration_sec <= 0:
+def _bell_domain(sorted_d: list[float], h: float) -> tuple[float, float]:
+    """Pick a display domain that is robust to a handful of very long sittings.
+
+    A single 16-hour outlier must not squash every real session into the far
+    left of the chart, so the upper edge is capped at an outlier fence. The
+    true maximum is still reported separately so nothing is hidden.
+
+    The lower edge follows the data too, so a user whose shortest sitting is an
+    hour does not get half a chart of empty space.
+    """
+    q1 = _compute_percentile(sorted_d, 25)
+    q3 = _compute_percentile(sorted_d, 75)
+    iqr = max(0.0, q3 - q1)
+    p1 = _compute_percentile(sorted_d, 1)
+    p95 = _compute_percentile(sorted_d, 95)
+    data_max = sorted_d[-1]
+
+    x_lo = max(0.0, p1 - 2.0 * h)
+    fence = max(q3 + 3.0 * iqr, p95 * 1.25, q3 + 2.0 * h)
+    x_hi = min(data_max, fence) + 2.0 * h
+    x_hi = min(x_hi, data_max + 2.0 * h)
+    if x_hi <= x_lo:
+        x_hi = x_lo + max(1.0, h)
+    return x_lo, x_hi
+
+
+def _compute_kde(
+    durations: list[float],
+    x_lo: float,
+    x_hi: float,
+    h: float,
+    num_points: int = 160,
+) -> list[list[float]]:
+    """Gaussian KDE sampled across [x_lo, x_hi].
+
+    No boundary correction is applied: the 5-minute noise floor is a reporting
+    cutoff rather than a real limit on how short a sitting can be, so mirroring
+    the kernel there would invent a peak that the data does not contain.
+    """
+    n = len(durations)
+    if n == 0 or h <= 0 or num_points < 2:
         return []
-    first = rhythms[0]
-    last = rhythms[-1]
-    if duration_sec <= first["work_sec"]:
-        return [(first["name"], duration_sec)]
-    if duration_sec >= last["work_sec"]:
-        return [(last["name"], duration_sec)]
 
-    for rhythm in rhythms:
-        if abs(duration_sec - rhythm["work_sec"]) < 0.001:
-            return [(rhythm["name"], duration_sec)]
+    step = (x_hi - x_lo) / (num_points - 1)
+    inv_sqrt_2pi = 0.3989422804014327
 
-    for lower, upper in zip(rhythms, rhythms[1:]):
-        if lower["work_sec"] < duration_sec < upper["work_sec"]:
-            lower_gap = duration_sec - lower["work_sec"]
-            upper_gap = upper["work_sec"] - duration_sec
-            total_gap = lower_gap + upper_gap
-            if total_gap <= 0:
-                return [(lower["name"], duration_sec)]
-            return [
-                (lower["name"], duration_sec * (upper_gap / total_gap)),
-                (upper["name"], duration_sec * (lower_gap / total_gap)),
-            ]
-    return [(last["name"], duration_sec)]
+    points: list[list[float]] = []
+    for i in range(num_points):
+        x = x_lo + i * step
+        density = 0.0
+        for d in durations:
+            z = (x - d) / h
+            if -6.0 < z < 6.0:
+                density += inv_sqrt_2pi * math.exp(-0.5 * z * z)
+        density /= (n * h)
+        points.append([round(x, 2), density])
 
+    return points
+
+
+def _compute_bell_curve(bout_durations_sec: list[float]) -> dict:
+    """Session-length distribution for the dashboard's rhythm curve.
+
+    Below the minimum bout count the shape would be noise, so only progress
+    towards the threshold is returned.
+    """
+    min_bouts = BELL_MIN_BOUTS
+    durations_min = [d / 60.0 for d in bout_durations_sec]
+    bout_count = len(durations_min)
+
+    if bout_count < min_bouts:
+        return {
+            "ready": False,
+            "bout_count": bout_count,
+            "min_required": min_bouts,
+        }
+
+    sorted_d = sorted(durations_min)
+    n = len(sorted_d)
+    mean_min = sum(sorted_d) / n
+    variance = sum((x - mean_min) ** 2 for x in sorted_d) / (n - 1)
+    std_dev_min = variance ** 0.5
+
+    median_min = _compute_percentile(sorted_d, 50)
+    p5_min = _compute_percentile(sorted_d, 5)
+    p25_min = _compute_percentile(sorted_d, 25)
+    p75_min = _compute_percentile(sorted_d, 75)
+    p95_min = _compute_percentile(sorted_d, 95)
+
+    h = _bell_bandwidth(sorted_d)
+    x_lo, x_hi = _bell_domain(sorted_d, h)
+    curve = _compute_kde(sorted_d, x_lo, x_hi, h)
+
+    peak_min = median_min
+    y_max = 0.0
+    if curve:
+        peak_point = max(curve, key=lambda pt: pt[1])
+        peak_min = peak_point[0]
+        y_max = peak_point[1]
+
+    clipped = [d for d in sorted_d if d > x_hi]
+
+    return {
+        "ready": True,
+        "bout_count": bout_count,
+        "mean_min": round(mean_min, 1),
+        "median_min": round(median_min, 1),
+        "std_dev_min": round(std_dev_min, 1),
+        "peak_min": round(peak_min, 1),
+        "p5_min": round(p5_min, 1),
+        "p25_min": round(p25_min, 1),
+        "p75_min": round(p75_min, 1),
+        "p95_min": round(p95_min, 1),
+        "max_min": round(sorted_d[-1], 1),
+        "bandwidth_min": round(h, 2),
+        "x_min": round(x_lo, 2),
+        "x_max": round(x_hi, 2),
+        "y_max": y_max,
+        "clipped_count": len(clipped),
+        "curve": curve,
+        "durations": [round(d, 2) for d in sorted_d],
+    }
 
 def dashboard_summary(
     end_day_iso: str | None = None,
@@ -555,18 +650,14 @@ def dashboard_summary(
     goal_minutes = int(settings.get("daily_focus_goal_minutes") or 120)
     activity: dict[str, dict] = {}
 
-    rhythms = _builtin_rhythms()
-    weighted_sec = {rhythm["name"]: 0.0 for rhythm in rhythms}
-    total_weighted_sec = 0.0
     current_bout_sec = 0.0
     current_bout_end: datetime | None = None
+    bout_durations: list[float] = []
 
     def finalize_bout():
-        nonlocal current_bout_sec, current_bout_end, total_weighted_sec
+        nonlocal current_bout_sec, current_bout_end
         if current_bout_sec >= RHYTHM_NOISE_FLOOR_SEC:
-            total_weighted_sec += current_bout_sec
-            for name, contribution_sec in _rhythm_weights_for_bout(current_bout_sec, rhythms):
-                weighted_sec[name] += contribution_sec
+            bout_durations.append(current_bout_sec)
         current_bout_sec = 0.0
         current_bout_end = None
 
@@ -578,7 +669,10 @@ def dashboard_summary(
 
         productive_sec = max(0.0, float(row["productive_sec"] or 0))
         if productive_sec > 0:
-            rhythm_duration_sec = max(0.0, float(row["duration_sec"] or 0))
+            # Use productive seconds, not wall-clock duration: a paused or
+            # abandoned flow segment can span hours of clock time while only a
+            # few minutes were actually focused.
+            rhythm_duration_sec = productive_sec
             joins_current = False
             if current_bout_sec > 0 and current_bout_end is not None:
                 gap_sec = (started_at - current_bout_end).total_seconds()
@@ -659,7 +753,7 @@ def dashboard_summary(
     else:
         consistency_days_elapsed = max(1, (calc_end_day - start_day).days + 1)
 
-    top_presets = _rhythm_profile_from_weights(weighted_sec, total_weighted_sec, rhythms)
+    bell_curve = _compute_bell_curve(bout_durations)
 
     return {
         "range": {
@@ -674,7 +768,7 @@ def dashboard_summary(
         "goal_minutes": goal_minutes,
         "days": records,
         "recent_days": recent_days,
-        "top_presets": top_presets,
+        "bell_curve": bell_curve,
         "summary": {
             "total_focus_minutes": round(total_focus, 1),
             "total_rest_minutes": round(total_rest, 1),

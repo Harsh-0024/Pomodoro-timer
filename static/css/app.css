@@ -1996,7 +1996,7 @@ body[data-theme="light"] .heat-level-0 {
 
 .dashboard-lower {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
   gap: 1rem;
   align-items: stretch;
 }
@@ -2216,9 +2216,11 @@ body[data-theme="light"] .rhythm-track {
 }
 
 @media (max-width: 980px) {
-  .dashboard-stats,
-  .dashboard-lower {
+  .dashboard-stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .dashboard-lower {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
   }
 }
 
@@ -2283,4 +2285,221 @@ body[data-theme="light"] .rhythm-track {
   .rhythm-focus {
     text-align: left;
   }
+}
+
+/* ── Bell Curve ────────────────────────────────────────────────── */
+
+.bell-curve-panel {
+  position: relative;
+}
+
+.bell-curve-container {
+  flex: 1 1 auto;
+  min-height: 0;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bell-curve-svg {
+  width: 100%;
+  height: auto;
+  max-height: 100%;
+  display: block;
+}
+
+.bell-curve-line {
+  fill: none;
+  stroke: url(#bellGrad);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.bell-range-band {
+  fill: #d4bc7c;
+  opacity: 0.1;
+}
+
+body[data-theme="light"] .bell-range-band {
+  opacity: 0.15;
+}
+
+@media (prefers-color-scheme: light) {
+  body[data-theme="system"] .bell-range-band {
+    opacity: 0.15;
+  }
+}
+
+.bell-peak-line {
+  stroke: #d4bc7c;
+  stroke-width: 1.2;
+  stroke-dasharray: 5, 4;
+  opacity: 0.7;
+}
+
+.bell-peak-label {
+  fill: #d4bc7c;
+  font-size: 10.5px;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 500;
+}
+
+body[data-theme="light"] .bell-peak-label {
+  fill: #8a6a35;
+}
+
+@media (prefers-color-scheme: light) {
+  body[data-theme="system"] .bell-peak-label {
+    fill: #8a6a35;
+  }
+}
+
+.bell-p95-line {
+  stroke: var(--muted, #888);
+  stroke-width: 1;
+  stroke-dasharray: 2, 4;
+  opacity: 0.4;
+}
+
+.bell-p95-label {
+  fill: var(--muted, #888);
+  font-size: 9.5px;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 400;
+}
+
+.bell-axis {
+  stroke: var(--line, #333);
+  stroke-width: 1;
+}
+
+.bell-axis-tick {
+  stroke: var(--line, #333);
+  stroke-width: 1;
+}
+
+.bell-axis-label {
+  fill: var(--muted, #888);
+  font-size: 10px;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 400;
+}
+
+.bell-zone-label {
+  fill: var(--muted, #888);
+  font-size: 9.5px;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 300;
+  letter-spacing: 0.02em;
+  opacity: 0.75;
+}
+
+.bell-clip-note {
+  fill: var(--muted, #888);
+  font-size: 9.5px;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 300;
+  opacity: 0.7;
+}
+
+.bell-zone-sep {
+  stroke: var(--line, #333);
+  stroke-width: 1;
+  opacity: 0.45;
+}
+
+.bell-crosshair {
+  stroke: #d4bc7c;
+  stroke-width: 1;
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.bell-curve-dot {
+  fill: #d4bc7c;
+  stroke: var(--surface, #1a1a1a);
+  stroke-width: 1.5;
+  pointer-events: none;
+}
+
+.bell-tooltip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding: 0.32rem 0.6rem;
+  background: var(--surface, #1a1a1a);
+  color: var(--ink, #e8e0d0);
+  font-size: 0.72rem;
+  font-weight: 400;
+  border: 1px solid var(--line, #333);
+  border-radius: 0.4rem;
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 10;
+  transition: opacity 0.12s ease;
+}
+
+.bell-tooltip.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.bell-curve-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem 0.5rem;
+  justify-content: center;
+  padding: 0.45rem 0 0;
+  font-size: 0.72rem;
+  color: var(--muted, #888);
+  font-weight: 300;
+}
+
+.bell-curve-stats strong {
+  color: var(--ink, #e8e0d0);
+  font-weight: 500;
+}
+
+.bell-stats-sep {
+  opacity: 0.4;
+}
+
+.bell-curve-threshold {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 0.5rem;
+  text-align: center;
+}
+
+.bell-curve-threshold-count {
+  margin: 0;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.8rem;
+  font-weight: 500;
+  color: var(--ink, #e8e0d0);
+  line-height: 1;
+}
+
+.bell-curve-threshold-text {
+  margin: 0;
+  color: var(--muted, #888);
+  font-size: 0.78rem;
+  font-weight: 300;
+}
+
+/* Animation */
+.bell-curve-enter {
+  opacity: 0;
+  transform: scale(0.97);
+}
+
+.bell-curve-visible {
+  opacity: 1;
+  transform: scale(1);
+  transition: opacity 0.25s ease, transform 0.25s ease;
 }

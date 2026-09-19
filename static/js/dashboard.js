@@ -6,7 +6,6 @@
   const fullDayFormatter = new Intl.DateTimeFormat(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" });
   let selectedYear = Number(new URLSearchParams(window.location.search).get("year")) || new Date().getFullYear();
   let currentDashboardData = null;
-  let rhythmSort = { key: "share", direction: "desc" };
   const cardStates = {
     streakCard: 0,
     averageCard: 0,
@@ -37,14 +36,6 @@
     const h = Math.floor(n / 60);
     const m = n % 60;
     return m ? `${h}h ${m}m` : `${h}h`;
-  }
-
-  function formatSessionMinutes(minutes) {
-    const n = Math.round(Number(minutes || 0));
-    if (n < 60) return `${n} min`;
-    const h = Math.floor(n / 60);
-    const m = n % 60;
-    return m ? `${h} hr ${m} min` : `${h} hr`;
   }
 
   function formatDays(n) {
@@ -327,84 +318,351 @@
     });
   }
 
-  function escapeHtml(value) {
-    return String(value)
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;");
+  // ── Bell curve: session-length distribution ───────────────────────
+
+  const PRESET_ZONES = [
+    { name: "Agaman",   start: 0,  end: 18 },
+    { name: "Sparsha",  start: 18, end: 30 },
+    { name: "Sthiti",   start: 30, end: 42 },
+    { name: "Abhyasi",  start: 42, end: 54 },
+    { name: "Tapas",    start: 54, end: 66 },
+    { name: "Samadhan", start: 66, end: 78 },
+    { name: "Tanmaya",  start: 78, end: 90 },
+    { name: "Ekagra",   start: 90, end: Infinity },
+  ];
+
+  // Readable step sizes for a time axis, in minutes. Unbounded at the top so a
+  // wide range never falls back to cramming 30-minute ticks edge to edge.
+  const TIME_STEPS = [1, 2, 5, 10, 15, 20, 30, 45, 60, 90, 120, 180, 240, 360, 480, 720];
+
+  function niceTimeStep(raw) {
+    for (const step of TIME_STEPS) {
+      if (step >= raw) return step;
+    }
+    return Math.ceil(raw / 720) * 720;
   }
 
-  function renderRhythms(data) {
-    const list = byId("rhythmList");
-    const header = byId("rhythmHeader");
-    if (!list) return;
-    const rhythms = [...(data.top_presets || [])];
-    list.innerHTML = "";
-    if (header) header.innerHTML = "";
-    if (!rhythms.length) {
-      const empty = document.createElement("p");
-      empty.className = "empty-note";
-      empty.textContent = "No rhythm data yet.";
-      list.appendChild(empty);
+  function nearestTimeStep(raw) {
+    return TIME_STEPS.reduce((best, step) =>
+      Math.abs(step - raw) < Math.abs(best - raw) ? step : best, TIME_STEPS[0]);
+  }
+
+  function formatAxisMinutes(value) {
+    const n = Math.round(value);
+    if (n < 60) return `${n}m`;
+    const h = Math.floor(n / 60);
+    const m = n % 60;
+    return m ? `${h}h ${m}m` : `${h}h`;
+  }
+
+  // Rough advance width for DM Sans; good enough to decide whether a label fits.
+  function estimateTextWidth(text, fontSize) {
+    return text.length * fontSize * 0.56;
+  }
+
+  function svgEl(tag, attrs, text) {
+    const el = document.createElementNS("http://www.w3.org/2000/svg", tag);
+    Object.entries(attrs || {}).forEach(([k, v]) => el.setAttribute(k, String(v)));
+    if (text != null) el.textContent = text;
+    return el;
+  }
+
+  let bellData = null;
+  let bellObserver = null;
+  let bellLastSize = "";
+  let bellFrame = 0;
+
+  function renderBellCurve(data) {
+    bellData = data;
+    bellLastSize = "";
+    drawBellCurve();
+
+    const container = byId("bellCurveContainer");
+    if (container && !bellObserver && typeof ResizeObserver !== "undefined") {
+      bellObserver = new ResizeObserver(() => {
+        cancelAnimationFrame(bellFrame);
+        bellFrame = requestAnimationFrame(drawBellCurve);
+      });
+      bellObserver.observe(container);
+    }
+  }
+
+  function drawBellCurve() {
+    const container = byId("bellCurveContainer");
+    const statsEl = byId("bellCurveStats");
+    if (!container || !bellData) return;
+
+    const bc = bellData.bell_curve;
+
+    if (!bc) {
+      container.innerHTML = '<p class="empty-note">No rhythm data yet.</p>';
+      if (statsEl) statsEl.innerHTML = "";
+      bellLastSize = "";
       return;
     }
 
-    const headings = [
-      ["session", "Session"],
-      ["share", "Share"],
-    ];
-    headings.forEach(([key, label]) => {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = `rhythm-heading rhythm-heading-${key}`;
-      button.dataset.sort = key;
-      const active = rhythmSort.key === key;
-      button.setAttribute("aria-sort", active ? (rhythmSort.direction === "asc" ? "ascending" : "descending") : "none");
-      button.textContent = active ? `${label} ${rhythmSort.direction === "asc" ? "↑" : "↓"}` : label;
-      button.addEventListener("click", () => {
-        rhythmSort = {
-          key,
-          direction: active ? (rhythmSort.direction === "asc" ? "desc" : "asc") : "desc",
-        };
-        renderRhythms(currentDashboardData || data);
-      });
-      if (header) header.appendChild(button);
+    if (!bc.ready) {
+      const required = bc.min_required || 15;
+      const done = bc.bout_count || 0;
+      const remaining = Math.max(0, required - done);
+      container.innerHTML = `<div class="bell-curve-threshold">
+        <p class="bell-curve-threshold-count">${done} / ${required}</p>
+        <p class="bell-curve-threshold-text">${remaining} more session${remaining !== 1 ? "s" : ""} to reveal your rhythm</p>
+      </div>`;
+      if (statsEl) statsEl.innerHTML = "";
+      bellLastSize = "";
+      return;
+    }
+
+    const curve = bc.curve || [];
+    const durations = bc.durations || [];
+    const xMin = Number(bc.x_min);
+    const xMax = Number(bc.x_max);
+    const yMax = curve.reduce((m, p) => Math.max(m, p[1]), 0);
+    if (curve.length < 2 || !(xMax > xMin) || yMax <= 0) {
+      container.innerHTML = '<p class="empty-note">No rhythm data yet.</p>';
+      return;
+    }
+
+    // The SVG is drawn at real pixel size (1 unit = 1 px) so label sizes and
+    // stroke weights stay true no matter how wide the panel gets.
+    const W = Math.max(300, Math.round(container.clientWidth || 560));
+    const H = Math.max(170, Math.min(Math.round(container.clientHeight || 240), 320));
+    const sizeKey = `${W}x${H}:${bc.bout_count}:${xMin}:${xMax}`;
+    if (sizeKey === bellLastSize) return;
+    bellLastSize = sizeKey;
+
+    container.innerHTML = "";
+
+    const pad = { top: 24, right: 14, bottom: 56, left: 14 };
+    const plotW = W - pad.left - pad.right;
+    const plotH = H - pad.top - pad.bottom;
+    const baseY = pad.top + plotH;
+    const span = xMax - xMin;
+
+    const sx = (x) => pad.left + ((x - xMin) / span) * plotW;
+    const sy = (y) => baseY - (y / yMax) * plotH;
+    const clampLabel = (x, half) => Math.max(pad.left + half, Math.min(x, W - pad.right - half));
+
+    const svg = svgEl("svg", {
+      viewBox: `0 0 ${W} ${H}`,
+      width: W,
+      height: H,
+      class: "bell-curve-svg",
+      role: "img",
+      "aria-label": `Session length distribution: most common ${formatMinutes(bc.peak_min)}, typical ${formatMinutes(bc.p25_min)} to ${formatMinutes(bc.p75_min)}, best ${formatMinutes(bc.p95_min)}, from ${bc.bout_count} sessions`,
     });
 
-    const valueForSort = (rhythm) => {
-      if (rhythmSort.key === "session") return Number(rhythm.session_minutes || 0);
-      return Number(rhythm.focus_pct || 0);
-    };
-    rhythms.sort((a, b) => {
-      const av = valueForSort(a);
-      const bv = valueForSort(b);
-      const order = rhythmSort.direction === "asc" ? 1 : -1;
-      if (av < bv) return -1 * order;
-      if (av > bv) return 1 * order;
-      return String(a.name || "").localeCompare(String(b.name || ""));
+    svg.innerHTML = `
+      <defs>
+        <linearGradient id="bellGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="#9a7b4f" />
+          <stop offset="45%" stop-color="#d4bc7c" />
+          <stop offset="100%" stop-color="#9a7b4f" />
+        </linearGradient>
+        <linearGradient id="bellFillGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#d4bc7c" stop-opacity="0.2" />
+          <stop offset="100%" stop-color="#d4bc7c" stop-opacity="0.02" />
+        </linearGradient>
+      </defs>
+    `;
+
+    // Typical range band (p25–p75)
+    const p25x = sx(Math.max(xMin, bc.p25_min));
+    const p75x = sx(Math.min(xMax, bc.p75_min));
+    svg.appendChild(svgEl("rect", {
+      x: p25x, y: pad.top, width: Math.max(1, p75x - p25x), height: plotH, class: "bell-range-band",
+    }));
+
+    // Curve + fill
+    let d = `M ${sx(curve[0][0]).toFixed(2)} ${sy(curve[0][1]).toFixed(2)}`;
+    for (let i = 1; i < curve.length; i++) {
+      d += ` L ${sx(curve[i][0]).toFixed(2)} ${sy(curve[i][1]).toFixed(2)}`;
+    }
+    svg.appendChild(svgEl("path", {
+      d: `${d} L ${sx(curve[curve.length - 1][0]).toFixed(2)} ${baseY} L ${sx(curve[0][0]).toFixed(2)} ${baseY} Z`,
+      fill: "url(#bellFillGrad)",
+    }));
+    svg.appendChild(svgEl("path", { d, class: "bell-curve-line" }));
+
+    // Peak marker
+    const peakX = sx(Math.min(Math.max(bc.peak_min, xMin), xMax));
+    svg.appendChild(svgEl("line", {
+      x1: peakX, y1: sy(yMax) - 4, x2: peakX, y2: baseY, class: "bell-peak-line",
+    }));
+    const peakText = `Most often ${formatMinutes(bc.peak_min)}`;
+    const peakHalf = estimateTextWidth(peakText, 10.5) / 2;
+    const peakLabelX = clampLabel(peakX, peakHalf);
+    svg.appendChild(svgEl("text", {
+      x: peakLabelX, y: pad.top - 9, class: "bell-peak-label", "text-anchor": "middle",
+    }, peakText));
+
+    // Sessions past the right edge of the chart, when the axis was capped
+    const clipText = bc.clipped_count > 0
+      ? `${bc.clipped_count} longer, up to ${formatMinutes(bc.max_min)}`
+      : "";
+    const clipLeft = clipText ? W - pad.right - estimateTextWidth(clipText, 9.5) : W;
+
+    // Best (95th percentile) marker. Its label sits beside the peak label when
+    // there is room and drops to the row below otherwise, so the marker line is
+    // never left unexplained — and the line starts below whatever shares that row.
+    const p95x = sx(Math.min(Math.max(bc.p95_min, xMin), xMax));
+    const bestText = `Best ${formatMinutes(bc.p95_min)}`;
+    const bestHalf = estimateTextWidth(bestText, 9.5) / 2;
+    const bestLabelX = clampLabel(p95x, bestHalf);
+    const clearOfPeak = Math.abs(bestLabelX - peakLabelX) > peakHalf + bestHalf + 8;
+    const clearOfClip = bestLabelX + bestHalf < clipLeft - 8;
+    const bestBelow = !clearOfPeak && clearOfClip;
+    svg.appendChild(svgEl("line", {
+      x1: p95x,
+      y1: (bestBelow || p95x > clipLeft - 6) ? pad.top + 20 : pad.top + 4,
+      x2: p95x, y2: baseY, class: "bell-p95-line",
+    }));
+    if (clearOfPeak || bestBelow) {
+      svg.appendChild(svgEl("text", {
+        x: bestLabelX, y: clearOfPeak ? pad.top - 9 : pad.top + 11,
+        class: "bell-p95-label", "text-anchor": "middle",
+      }, bestText));
+    }
+
+    // Baseline
+    svg.appendChild(svgEl("line", {
+      x1: pad.left, y1: baseY, x2: W - pad.right, y2: baseY, class: "bell-axis",
+    }));
+
+    // X-axis ticks — spacing driven by how much room the panel actually has
+    const maxTicks = Math.max(2, Math.floor(plotW / 62));
+    const tickStep = niceTimeStep(span / maxTicks);
+    for (let t = Math.ceil(xMin / tickStep) * tickStep; t <= xMax + 1e-6; t += tickStep) {
+      const tx = sx(t);
+      svg.appendChild(svgEl("line", { x1: tx, y1: baseY, x2: tx, y2: baseY + 4, class: "bell-axis-tick" }));
+      svg.appendChild(svgEl("text", {
+        x: tx, y: baseY + 15, class: "bell-axis-label", "text-anchor": "middle",
+      }, formatAxisMinutes(t)));
+    }
+
+    // Preset zones below the axis. A name is drawn only where its slice of the
+    // axis is genuinely wide enough, and when they get tight the names stagger
+    // onto two rows rather than piling on top of each other.
+    const visibleZones = PRESET_ZONES
+      .map((zone) => {
+        const zStart = Math.max(zone.start, xMin);
+        const zEnd = Math.min(zone.end === Infinity ? xMax : zone.end, xMax);
+        return { zone, zStart, zEnd, width: sx(zEnd) - sx(zStart), mid: (sx(zStart) + sx(zEnd)) / 2 };
+      })
+      .filter((z) => z.zEnd > z.zStart);
+
+    const fitsSingleRow = visibleZones.every(
+      (z) => z.width >= estimateTextWidth(z.zone.name, 9.5) + 8
+    );
+
+    visibleZones.forEach((z, i) => {
+      if (z.zone.start > xMin && z.zone.start < xMax) {
+        svg.appendChild(svgEl("line", {
+          x1: sx(z.zone.start), y1: baseY + 21, x2: sx(z.zone.start), y2: baseY + 45, class: "bell-zone-sep",
+        }));
+      }
+      const room = fitsSingleRow ? z.width : z.width * 2;
+      if (room < estimateTextWidth(z.zone.name, 9.5) + 8) return;
+      const row = fitsSingleRow ? 0 : i % 2;
+      svg.appendChild(svgEl("text", {
+        x: z.mid, y: baseY + 30 + row * 11, class: "bell-zone-label", "text-anchor": "middle",
+      }, z.zone.name));
     });
 
-    const maxShare = Math.max(...rhythms.map((rhythm) => Number(rhythm.focus_pct || 0)), 1);
-    rhythms.forEach((rhythm) => {
-      const row = document.createElement("div");
-      row.className = "rhythm-row";
-      const pct = Math.max(0, Math.min(100, Number(rhythm.focus_pct || 0)));
-      const width = pct > 0 ? Math.max(4, (pct / maxShare) * 100) : 0;
-      const sessionText = rhythm.session_minutes ? formatSessionMinutes(rhythm.session_minutes) : "";
-      row.innerHTML = `
-        <div class="rhythm-copy">
-          <strong>${escapeHtml(rhythm.name)}</strong>
-          <span>${escapeHtml(sessionText)}</span>
-        </div>
-        <strong class="rhythm-focus">${formatMinutes(rhythm.focus_minutes)}</strong>
-        <div class="rhythm-share">
-          <div class="rhythm-track" aria-hidden="true"><span style="width: ${width}%"></span></div>
-          <strong class="rhythm-percent">${pct.toFixed(1)}%</strong>
-        </div>
+    if (clipText) {
+      svg.appendChild(svgEl("text", {
+        x: W - pad.right, y: pad.top + 11, class: "bell-clip-note", "text-anchor": "end",
+      }, clipText));
+    }
+
+    // Crosshair + read-out dot
+    const crosshair = svgEl("line", {
+      x1: 0, y1: pad.top, x2: 0, y2: baseY, class: "bell-crosshair", style: "display:none",
+    });
+    const dot = svgEl("circle", { cx: 0, cy: 0, r: 3.2, class: "bell-curve-dot", style: "display:none" });
+    svg.appendChild(crosshair);
+    svg.appendChild(dot);
+
+    container.appendChild(svg);
+
+    const tooltip = document.createElement("div");
+    tooltip.className = "bell-tooltip hidden";
+    tooltip.setAttribute("role", "status");
+    tooltip.setAttribute("aria-live", "polite");
+    container.appendChild(tooltip);
+
+    // The hover bucket scales with the axis, so it always covers a comparable
+    // slice of the chart whether the range is 20 minutes or 4 hours.
+    const bucket = Math.max(0.5, nearestTimeStep(span / 20));
+    const total = durations.length || 1;
+
+    function readAt(clientX, clientY) {
+      const rect = svg.getBoundingClientRect();
+      const ratio = (clientX - rect.left) / rect.width;
+      const px = ratio * W;
+      if (px < pad.left || px > W - pad.right) return hideRead();
+
+      const dataX = xMin + ((px - pad.left) / plotW) * span;
+      const idx = Math.max(0, Math.min(curve.length - 1,
+        Math.round(((dataX - xMin) / span) * (curve.length - 1))));
+      const cx = sx(curve[idx][0]);
+      const cy = sy(curve[idx][1]);
+
+      crosshair.setAttribute("x1", cx);
+      crosshair.setAttribute("x2", cx);
+      crosshair.setAttribute("y1", cy);
+      crosshair.style.display = "";
+      dot.setAttribute("cx", cx);
+      dot.setAttribute("cy", cy);
+      dot.style.display = "";
+
+      const lo = dataX - bucket / 2;
+      const hi = dataX + bucket / 2;
+      const count = durations.reduce((acc, v) => acc + (v >= lo && v < hi ? 1 : 0), 0);
+      const pct = (count / total) * 100;
+      const pctText = count === 0 ? "under 1%" : `~${pct < 1 ? pct.toFixed(1) : Math.round(pct)}%`;
+
+      const zone = PRESET_ZONES.find((z) => dataX >= z.start && dataX < z.end);
+      tooltip.textContent = `${formatMinutes(dataX)} · ${pctText} of sessions${zone ? ` · ${zone.name}` : ""}`;
+      tooltip.classList.remove("hidden");
+
+      const cRect = container.getBoundingClientRect();
+      const tipW = tooltip.offsetWidth;
+      const left = Math.max(4, Math.min(clientX - cRect.left + 12, cRect.width - tipW - 4));
+      tooltip.style.left = `${left}px`;
+      tooltip.style.top = `${Math.max(4, clientY - cRect.top - 34)}px`;
+    }
+
+    function hideRead() {
+      crosshair.style.display = "none";
+      dot.style.display = "none";
+      tooltip.classList.add("hidden");
+    }
+
+    svg.addEventListener("mousemove", (e) => readAt(e.clientX, e.clientY));
+    svg.addEventListener("mouseleave", hideRead);
+    svg.addEventListener("touchmove", (e) => {
+      if (e.touches.length === 1) readAt(e.touches[0].clientX, e.touches[0].clientY);
+    }, { passive: true });
+    svg.addEventListener("touchend", hideRead);
+
+    if (statsEl) {
+      statsEl.innerHTML = `
+        <span>Most often <strong>${formatMinutes(bc.peak_min)}</strong></span>
+        <span class="bell-stats-sep" aria-hidden="true">·</span>
+        <span>Typical <strong>${formatMinutes(bc.p25_min)}–${formatMinutes(bc.p75_min)}</strong></span>
+        <span class="bell-stats-sep" aria-hidden="true">·</span>
+        <span>Best <strong>${formatMinutes(bc.p95_min)}</strong></span>
+        <span class="bell-stats-sep" aria-hidden="true">·</span>
+        <span>${bc.bout_count} sessions</span>
       `;
-      list.appendChild(row);
-    });
+    }
+
+    container.classList.add("bell-curve-enter");
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      container.classList.add("bell-curve-visible");
+    }));
   }
 
   async function loadDashboard(year) {
@@ -419,7 +677,7 @@
       renderYears(data);
       renderHeatmap(data);
       renderRecent(data);
-      renderRhythms(data);
+      renderBellCurve(data);
     } catch (e) {
       setText("heatmapSubtitle", "Dashboard data could not be loaded.");
       console.error(e);

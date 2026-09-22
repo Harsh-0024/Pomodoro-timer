@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import os
 import re
 import json
+import sys
+import time
 import random
 import sqlite3
 import urllib.error
@@ -250,6 +253,57 @@ def api_quote():
     except (urllib.error.URLError, TimeoutError, ValueError, KeyError, TypeError):
         pass
     return jsonify({**fallback, "source": "fallback"})
+
+
+# Only bundled (.zip download) copies need this: git installs update themselves
+# on every launch, so nagging them about a release would be noise.
+IS_BUNDLED = getattr(sys, "frozen", False)
+RELEASES_API = "https://api.github.com/repos/Harsh-0024/Pomodoro-timer/releases/latest"
+RELEASES_PAGE = "https://github.com/Harsh-0024/Pomodoro-timer/releases/latest"
+UPDATE_CHECK_INTERVAL = 24 * 60 * 60  # once a day is plenty
+
+
+def _version_tuple(text: str):
+    return tuple(int(part) for part in re.findall(r"\d+", text)[:3])
+
+
+def _cached_latest_version() -> str | None:
+    """Latest released version string, or None. Never raises, never blocks
+    for long: offline must be completely silent."""
+    cache = db.DB_PATH.parent / "update-check.json"
+    try:
+        data = json.loads(cache.read_text())
+        if time.time() - float(data.get("checked_at", 0)) < UPDATE_CHECK_INTERVAL:
+            return data.get("latest") or None
+    except (OSError, ValueError, TypeError):
+        data = {}
+
+    latest = data.get("latest")
+    try:
+        req = urllib.request.Request(
+            RELEASES_API,
+            headers={"User-Agent": "MuhurataTimer", "Accept": "application/vnd.github+json"},
+        )
+        with urllib.request.urlopen(req, timeout=4) as res:
+            latest = str(json.loads(res.read().decode("utf-8")).get("tag_name", "")).lstrip("v") or None
+    except Exception:
+        return latest  # offline or rate-limited: keep whatever we knew before
+    try:
+        cache.write_text(json.dumps({"latest": latest, "checked_at": time.time()}))
+    except OSError:
+        pass
+    return latest
+
+
+@app.get("/api/version")
+def api_version():
+    payload = {"current": __version__, "bundled": IS_BUNDLED, "update_available": False}
+    if not IS_BUNDLED:
+        return jsonify(payload)
+    latest = _cached_latest_version()
+    if latest and _version_tuple(latest) > _version_tuple(__version__):
+        payload.update(update_available=True, latest=latest, url=RELEASES_PAGE)
+    return jsonify(payload)
 
 
 @app.put("/api/settings")

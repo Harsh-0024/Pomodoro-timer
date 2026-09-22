@@ -59,10 +59,18 @@ cat > "$LAUNCHER" <<LAUNCH
 cd "$INSTALL_DIR" && exec ".venv/bin/python" run.py "\$@"
 LAUNCH
 chmod +x "$LAUNCHER"
+
 if [[ -d "$HOME/Desktop" ]]; then
-  cp "$LAUNCHER" "$HOME/Desktop/Muhurata Timer.command"
-  chmod +x "$HOME/Desktop/Muhurata Timer.command"
-  say "Launcher placed on your Desktop: 'Muhurata Timer.command' (double-click it next time)"
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    # A real .app bundle: proper name and icon in Finder and the Dock.
+    bash "$INSTALL_DIR/packaging/make_macos_app.sh" "$INSTALL_DIR" "$HOME/Desktop"
+    rm -f "$HOME/Desktop/Muhurata Timer.command"   # tidy up pre-.app installs
+    say "App placed on your Desktop: 'Muhurata Timer' (double-click it next time)"
+  else
+    cp "$LAUNCHER" "$HOME/Desktop/Muhurata Timer.command"
+    chmod +x "$HOME/Desktop/Muhurata Timer.command"
+    say "Launcher placed on your Desktop: 'Muhurata Timer.command' (double-click it next time)"
+  fi
 fi
 
 # ---------------------------------------------------------------- run

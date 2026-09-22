@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Muhurata Timer</title>
+<link rel="icon" href="icon.svg" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0d0b08; --card: #17130e; --ink: #f7f3ec;
+    --muted: rgba(247,243,236,.55); --gold: #c9a962; --line: rgba(255,255,255,.1);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 3rem 1rem 4rem; background: var(--bg); color: var(--ink);
+    font-family: "DM Sans", system-ui, sans-serif; font-weight: 300; line-height: 1.6;
+  }
+  .wrap { max-width: 620px; margin: 0 auto; }
+  header { text-align: center; margin-bottom: 2.5rem; }
+  header img { width: 84px; height: 84px; }
+  h1 {
+    font-family: "Cormorant Garamond", serif; font-weight: 500;
+    font-size: clamp(2rem, 6vw, 2.8rem); margin: 1rem 0 .3rem; letter-spacing: .01em;
+  }
+  .tag { color: var(--muted); font-size: .95rem; margin: 0; }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 16px;
+    padding: 1.5rem; margin-bottom: 1.25rem;
+  }
+  .card h2 {
+    font-family: "Cormorant Garamond", serif; font-weight: 500; font-size: 1.5rem;
+    margin: 0 0 .2rem;
+  }
+  .card p { margin: 0 0 1rem; color: var(--muted); font-size: .92rem; }
+  .tabs { display: flex; gap: .5rem; margin-bottom: 1rem; }
+  .tab {
+    flex: 1; padding: .55rem; border-radius: 9px; border: 1px solid var(--line);
+    background: transparent; color: var(--muted); font: inherit; font-size: .9rem;
+    cursor: pointer;
+  }
+  .tab[aria-selected="true"] { border-color: var(--gold); color: var(--gold); }
+  .cmd {
+    display: flex; align-items: center; gap: .75rem; background: #000;
+    border: 1px solid var(--line); border-radius: 10px; padding: .8rem .9rem;
+  }
+  .cmd code {
+    flex: 1; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: .78rem; color: var(--gold); overflow-x: auto; white-space: nowrap;
+  }
+  button.copy {
+    flex: none; padding: .5rem .9rem; border-radius: 8px; border: 0;
+    background: var(--gold); color: #17130e; font: inherit; font-weight: 500;
+    font-size: .85rem; cursor: pointer;
+  }
+  button.copy.done { background: #7fae6d; }
+  .steps { margin: 1rem 0 0; padding-left: 1.1rem; font-size: .88rem; color: var(--muted); }
+  .steps li { margin-bottom: .3rem; }
+  .dl { display: flex; flex-wrap: wrap; gap: .6rem; }
+  .dl a {
+    flex: 1 1 180px; text-align: center; padding: .7rem; border-radius: 9px;
+    border: 1px solid var(--gold); color: var(--gold); text-decoration: none; font-size: .9rem;
+  }
+  .note {
+    margin-top: 1rem; padding: .8rem .9rem; border-left: 2px solid var(--gold);
+    background: rgba(201,169,98,.07); font-size: .84rem; color: var(--muted);
+  }
+  footer { text-align: center; color: var(--muted); font-size: .8rem; margin-top: 2rem; }
+  footer a { color: var(--muted); }
+  @media (prefers-color-scheme: light) {
+    :root { --bg: #faf7f1; --card: #fff; --ink: #211d18; --muted: rgba(33,29,24,.6);
+            --gold: #8a6a24; --line: rgba(0,0,0,.1); }
+    .cmd { background: #1b1712; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <img src="icon.svg" alt="" />
+    <h1>Muhurata Timer</h1>
+    <p class="tag">A focus timer that runs on your own computer. Nothing is uploaded anywhere.</p>
+  </header>
+
+  <div class="card">
+    <h2>Install</h2>
+    <p>Copy this, paste it into your terminal, press Enter. You only do this once.</p>
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" data-os="mac" aria-selected="true">Mac</button>
+      <button class="tab" role="tab" data-os="win" aria-selected="false">Windows</button>
+      <button class="tab" role="tab" data-os="linux" aria-selected="false">Linux</button>
+    </div>
+    <div class="cmd">
+      <code id="cmd"></code>
+      <button class="copy" id="copyBtn" type="button">Copy</button>
+    </div>
+    <ol class="steps" id="steps"></ol>
+  </div>
+
+  <div class="card">
+    <h2>No Python? Download instead</h2>
+    <p>A ready-made app. Nothing else to install.</p>
+    <div class="dl">
+      <a href="https://github.com/Harsh-0024/Pomodoro-timer/releases/latest" id="dlMac">Download for Mac</a>
+      <a href="https://github.com/Harsh-0024/Pomodoro-timer/releases/latest" id="dlWin">Download for Windows</a>
+    </div>
+    <div class="note">
+      Your computer will warn you that the app is from an unknown developer — it is
+      just unsigned, not unsafe.<br />
+      <strong>Windows:</strong> click <em>More info → Run anyway</em>.<br />
+      <strong>Mac:</strong> right-click the app → <em>Open</em> → <em>Open</em>.
+    </div>
+  </div>
+
+  <footer>
+    Made by Harsh · <a href="https://github.com/Harsh-0024/Pomodoro-timer">source on GitHub</a>
+  </footer>
+</div>
+
+<script>
+  const RAW = "https://raw.githubusercontent.com/Harsh-0024/Pomodoro-timer/main";
+  const DATA = {
+    mac: {
+      cmd: `curl -fsSL ${RAW}/install.sh | bash`,
+      steps: ["Press ⌘ + Space, type <b>Terminal</b>, press Enter.",
+              "Paste the command above, press Enter.",
+              "Wait about a minute. The timer opens by itself.",
+              "Afterwards: double-click <b>Muhurata Timer</b> on your Desktop."],
+    },
+    win: {
+      cmd: `irm ${RAW}/install.ps1 | iex`,
+      steps: ["Press the Windows key, type <b>PowerShell</b>, press Enter.",
+              "Paste the command above, press Enter.",
+              "Wait about a minute. The timer opens by itself.",
+              "Afterwards: double-click <b>Muhurata Timer</b> on your Desktop."],
+    },
+    linux: {
+      cmd: `curl -fsSL ${RAW}/install.sh | bash`,
+      steps: ["Open your terminal.",
+              "Paste the command above, press Enter.",
+              "Wait about a minute. The timer opens by itself.",
+              "Afterwards: double-click <b>Muhurata Timer.command</b> on your Desktop."],
+    },
+  };
+
+  const cmdEl = document.getElementById("cmd");
+  const stepsEl = document.getElementById("steps");
+  const copyBtn = document.getElementById("copyBtn");
+  const tabs = [...document.querySelectorAll(".tab")];
+
+  function show(os) {
+    tabs.forEach((t) => t.setAttribute("aria-selected", String(t.dataset.os === os)));
+    cmdEl.textContent = DATA[os].cmd;
+    stepsEl.innerHTML = DATA[os].steps.map((s) => `<li>${s}</li>`).join("");
+  }
+  tabs.forEach((t) => t.addEventListener("click", () => show(t.dataset.os)));
+
+  copyBtn.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(cmdEl.textContent);
+    } catch {
+      const r = document.createRange();
+      r.selectNode(cmdEl);
+      getSelection().removeAllRanges();
+      getSelection().addRange(r);
+      document.execCommand("copy");
+      getSelection().removeAllRanges();
+    }
+    copyBtn.textContent = "Copied!";
+    copyBtn.classList.add("done");
+    setTimeout(() => { copyBtn.textContent = "Copy"; copyBtn.classList.remove("done"); }, 1800);
+  });
+
+  // Guess the visitor's system so the right tab is already open.
+  const ua = navigator.userAgent;
+  show(/Win/i.test(ua) ? "win" : /Mac/i.test(ua) ? "mac" : /Linux|Android/i.test(ua) ? "linux" : "mac");
+</script>
+</body>
+</html>

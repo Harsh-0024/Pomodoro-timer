@@ -5,6 +5,10 @@ A focus/pomodoro timer with a history dashboard. It runs on your own computer
 
 > 1 Muhurat = 48 min · 1 Ghadi = 24 min
 
+**Sharing it with someone?** Send them one link:
+**https://harsh-0024.github.io/Pomodoro-timer/** — it has a copy button for the
+right command and the downloads.
+
 ## Install
 
 Pick **one** of the two options. Both put your data in a private folder outside
@@ -26,8 +30,9 @@ irm https://raw.githubusercontent.com/Harsh-0024/Pomodoro-timer/main/install.ps1
 
 What it does: downloads the app into `~/MuhurataTimer`, sets up Python
 packages, puts a **Muhurata Timer** launcher on your Desktop, and starts the
-app. From then on just double-click the launcher — it checks for updates
-every time it starts, so you never need to update by hand.
+app. From then on just double-click **Muhurata Timer** on your Desktop (a real
+app icon on macOS) — it checks for updates every time it starts, so you never
+need to update by hand.
 
 Missing git or Python? macOS: run `xcode-select --install` (that gives you
 both). Windows: [git](https://git-scm.com/download/win) and
@@ -49,6 +54,7 @@ unzip it, and open the `Muhurata Timer` folder.
   smoother on a Mac.
 
 To update, download the newer zip and replace the folder. Your data is kept.
+The app shows a small note in its footer when a newer version exists.
 
 ## Using it
 

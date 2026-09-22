@@ -2,11 +2,18 @@ import json
 import math
 import shutil
 import sqlite3
+import sys
+import threading
 from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from alembic import command as alembic_command
+from alembic.config import Config as AlembicConfig
+from alembic.runtime.migration import MigrationContext
+from alembic.script import ScriptDirectory
 from platformdirs import user_data_dir
+from sqlalchemy import create_engine
 
 from presets import BUILTINS
 
@@ -37,8 +44,16 @@ DEFAULT_SETTINGS = {
     "theme": "system",
 }
 
-LEGACY_DB_PATH = Path(__file__).resolve().parent / "data" / "focus_timer.db"
+PROJECT_ROOT = Path(__file__).resolve().parent
+LEGACY_DB_PATH = PROJECT_ROOT / "data" / "focus_timer.db"
 DB_PATH = Path(user_data_dir("MuhurataTimer", appauthor=False)) / "focus_timer.db"
+BACKUP_DIR = DB_PATH.parent / "backups"
+BACKUPS_TO_KEEP = 3
+MIGRATIONS_DIR = PROJECT_ROOT / "migrations"
+
+# Schema setup runs once per process; the lock covers concurrent first requests.
+_schema_ready = False
+_schema_lock = threading.Lock()
 
 
 def _migrate_legacy_db():
@@ -48,56 +63,85 @@ def _migrate_legacy_db():
         shutil.copy2(LEGACY_DB_PATH, DB_PATH)
 
 
-def init_db():
-    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    _migrate_legacy_db()
-    conn = sqlite3.connect(DB_PATH)
+def _log(msg: str):
+    print(f"[muhurata] {msg}", file=sys.stderr)
+
+
+def _alembic_config() -> AlembicConfig:
+    # Built in code rather than read from alembic.ini so the app never depends
+    # on the CWD, and so alembic's fileConfig() doesn't clobber Flask logging.
+    cfg = AlembicConfig()
+    cfg.set_main_option("script_location", str(MIGRATIONS_DIR))
+    cfg.set_main_option("sqlalchemy.url", f"sqlite:///{DB_PATH}")
+    return cfg
+
+
+def _backup_db(tag: str):
+    """Copy the db via SQLite's online backup API (safe even mid-write) and
+    keep only the newest BACKUPS_TO_KEEP files."""
+    BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    dest = BACKUP_DIR / f"focus_timer-{stamp}-{tag}.db"
+    src = sqlite3.connect(DB_PATH)
+    dst = sqlite3.connect(dest)
     try:
-        conn.executescript(
-            """
-            CREATE TABLE IF NOT EXISTS app_settings (
-                id INTEGER PRIMARY KEY CHECK (id = 1),
-                json TEXT NOT NULL DEFAULT '{}'
-            );
-            INSERT OR IGNORE INTO app_settings (id, json) VALUES (1, '{}');
-
-            CREATE TABLE IF NOT EXISTS custom_presets (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL,
-                work_min INTEGER NOT NULL,
-                short_rest_min INTEGER NOT NULL,
-                long_rest_min INTEGER NOT NULL,
-                created_at TEXT NOT NULL DEFAULT (datetime('now'))
-            );
-
-            CREATE TABLE IF NOT EXISTS daily_focus (
-                day TEXT PRIMARY KEY,
-                minutes INTEGER NOT NULL DEFAULT 0
-            );
-
-            CREATE TABLE IF NOT EXISTS activity_segments (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                day TEXT NOT NULL,
-                kind TEXT NOT NULL,
-                started_at TEXT NOT NULL,
-                ended_at TEXT NOT NULL,
-                duration_sec REAL NOT NULL,
-                productive_sec REAL NOT NULL DEFAULT 0,
-                rest_sec REAL NOT NULL DEFAULT 0,
-                preset_id TEXT,
-                preset_name TEXT,
-                phase_index INTEGER,
-                details_json TEXT NOT NULL DEFAULT '{}',
-                created_at TEXT NOT NULL DEFAULT (datetime('now'))
-            );
-
-            CREATE INDEX IF NOT EXISTS idx_activity_segments_day
-            ON activity_segments(day, started_at);
-            """
-        )
-        conn.commit()
+        src.backup(dst)
     finally:
-        conn.close()
+        dst.close()
+        src.close()
+    _log(f"backed up db to {dest}")
+    backups = sorted(BACKUP_DIR.glob("focus_timer-*.db"))
+    for old in backups[:-BACKUPS_TO_KEEP]:
+        old.unlink(missing_ok=True)
+
+
+def _run_migrations():
+    cfg = _alembic_config()
+    head = ScriptDirectory.from_config(cfg).get_current_head()
+
+    engine = create_engine(f"sqlite:///{DB_PATH}")
+    try:
+        with engine.connect() as conn:
+            current = MigrationContext.configure(conn).get_current_revision()
+            table_names = set(conn.exec_driver_sql(
+                "SELECT name FROM sqlite_master WHERE type = 'table'"
+            ).scalars())
+    finally:
+        engine.dispose()
+
+    if current == head:
+        return
+
+    if current is None and "activity_segments" in table_names:
+        # A db created by the pre-alembic executescript() setup: the tables
+        # already match the baseline, so just mark it as such.
+        alembic_command.stamp(cfg, "head")
+        _log(f"stamped existing db at revision {head}")
+        return
+
+    if current is not None:
+        _backup_db(f"pre-{head}")
+    alembic_command.upgrade(cfg, "head")
+    _log(f"migrated db {current or '<empty>'} -> {head}")
+
+
+def init_db():
+    global _schema_ready
+    if _schema_ready:
+        return
+    with _schema_lock:
+        if _schema_ready:
+            return
+        DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+        _migrate_legacy_db()
+        _run_migrations()
+        conn = sqlite3.connect(DB_PATH)
+        try:
+            conn.execute("INSERT OR IGNORE INTO app_settings (id, json) VALUES (1, '{}')")
+            conn.commit()
+        finally:
+            conn.close()
+        _schema_ready = True
 
 
 def load_settings() -> dict:

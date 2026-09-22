@@ -64,17 +64,20 @@ jobs:
           kill $pid || true
           echo "Smoke test passed on $port"
 
+      # Asset names deliberately carry no version number, so that
+      # /releases/latest/download/<name> is a permanent direct-download link
+      # the website can use without being updated each release.
       - name: Zip (macOS)
         if: runner.os == 'macOS'
         run: |
           cd dist
-          ditto -c -k --sequesterRsrc --keepParent "Muhurata Timer" "../Muhurata-Timer-${{ github.ref_name }}-${{ matrix.label }}.zip"
+          ditto -c -k --sequesterRsrc --keepParent "Muhurata Timer" "../Muhurata-Timer-${{ matrix.label }}.zip"
 
       - name: Zip (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          Compress-Archive -Path "dist/Muhurata Timer" -DestinationPath "Muhurata-Timer-${{ github.ref_name }}-${{ matrix.label }}.zip"
+          Compress-Archive -Path "dist/Muhurata Timer" -DestinationPath "Muhurata-Timer-${{ matrix.label }}.zip"
 
       - uses: actions/upload-artifact@v4
         with:
@@ -95,14 +98,19 @@ jobs:
           files: artifacts/*.zip
           generate_release_notes: true
           body: |
-            Standalone builds — no Python needed. Unzip, then:
+            **Easiest way to install:** https://harsh-0024.github.io/Pomodoro-timer/
 
-            **Windows:** open the folder and double-click `Muhurata Timer.exe`.
-            SmartScreen will warn about an unknown publisher: click **More info → Run anyway** (first time only).
+            The files below are the standalone app — no Python needed. The website
+            walks you through unzipping and the first launch, and it picks the right
+            file for your computer automatically.
 
-            **macOS (Apple Silicon):** the app is not notarized, so macOS will refuse to open it at first.
-            Open Terminal, type `xattr -dr com.apple.quarantine ` (with the trailing space), drag the unzipped
-            `Muhurata Timer` folder into the Terminal window, press Enter. Then double-click `Muhurata Timer` inside the folder.
-            If you have Python already, the one-line installer in the README is the smoother option on a Mac.
+            | | |
+            |---|---|
+            | `Muhurata-Timer-macos-arm64.zip` | Mac with Apple Silicon |
+            | `Muhurata-Timer-windows-x64.zip` | Windows, 64-bit |
+
+            Both are unsigned, so your computer shows a warning the first time —
+            **Windows:** More info → Run anyway. **Mac:** see the website, Apple needs
+            one Terminal command.
 
             Your data lives outside the app folder, so replacing the folder with a newer version keeps your history.

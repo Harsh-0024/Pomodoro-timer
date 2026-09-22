@@ -24,6 +24,7 @@ import webbrowser
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent
+FROZEN = getattr(sys, "frozen", False)  # running from a PyInstaller bundle
 REMOTE_BRANCH = "origin/main"
 FIRST_PORT = 8000
 HOST = "127.0.0.1"
@@ -88,7 +89,7 @@ def self_update() -> bool:
     end up in a merge conflict. Skipped when the tree has local edits or
     unpushed commits, which protects a developer checkout from being wiped.
     """
-    if not (PROJECT_ROOT / ".git").is_dir():
+    if FROZEN or not (PROJECT_ROOT / ".git").is_dir():
         log.info("Not a git checkout; skipping update.")
         return False
     if _run(["git", "--version"]).returncode != 0:
@@ -122,6 +123,8 @@ def self_update() -> bool:
 
 
 def install_requirements(data_dir: Path):
+    if FROZEN:
+        return  # everything is baked into the bundle
     req = PROJECT_ROOT / "requirements.txt"
     digest = hashlib.sha256(req.read_bytes()).hexdigest()
     marker = data_dir / "requirements.sha256"
@@ -172,7 +175,9 @@ def main(argv: list[str]) -> int:
 
     data_dir = _data_dir()
     _setup_logging(data_dir)
-    log.info("---- launcher start (python %s) ----", sys.version.split()[0])
+    from version import __version__  # noqa: E402
+
+    log.info("---- Muhurata %s start (python %s%s) ----", __version__, sys.version.split()[0], ", bundled" if FROZEN else "")
 
     if not no_update and self_update():
         # Re-exec so the freshly pulled launcher/app code is what actually runs.

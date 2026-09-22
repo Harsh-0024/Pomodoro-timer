@@ -1,0 +1,108 @@
+# Build standalone one-folder bundles on every version tag and attach them
+# to a GitHub Release. Trigger:  git tag v1.0.0 && git push origin v1.0.0
+name: Release builds
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write  # needed to create the release / upload assets
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest      # Apple Silicon
+            label: macos-arm64
+          - os: windows-latest
+            label: windows-x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Check version.py matches the tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          file_v=$(python -c "from version import __version__; print(__version__)")
+          tag_v="${GITHUB_REF_NAME#v}"
+          if [ "$file_v" != "$tag_v" ]; then
+            echo "version.py says $file_v but tag is $tag_v" >&2; exit 1
+          fi
+
+      - name: Build
+        run: python -m PyInstaller --noconfirm muhurata.spec
+
+      - name: Smoke test the bundle
+        shell: bash
+        run: |
+          cd dist
+          if [ "$RUNNER_OS" = "Windows" ]; then exe="Muhurata Timer/Muhurata Timer.exe"; else exe="Muhurata Timer/Muhurata Timer"; fi
+          "$exe" --no-browser > smoke.log 2>&1 &
+          pid=$!
+          for i in $(seq 1 40); do
+            sleep 1
+            if grep -q "running at" smoke.log; then break; fi
+          done
+          port=$(grep -o 'http://127.0.0.1:[0-9]*' smoke.log | head -1)
+          [ -n "$port" ] || { cat smoke.log; exit 1; }
+          curl -fsS "$port/api/dashboard" > /dev/null
+          curl -fsS "$port/dashboard" > /dev/null
+          kill $pid || true
+          echo "Smoke test passed on $port"
+
+      - name: Zip (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          cd dist
+          ditto -c -k --sequesterRsrc --keepParent "Muhurata Timer" "../Muhurata-Timer-${{ github.ref_name }}-${{ matrix.label }}.zip"
+
+      - name: Zip (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Compress-Archive -Path "dist/Muhurata Timer" -DestinationPath "Muhurata-Timer-${{ github.ref_name }}-${{ matrix.label }}.zip"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Muhurata-Timer-${{ matrix.label }}
+          path: Muhurata-Timer-*.zip
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*.zip
+          generate_release_notes: true
+          body: |
+            Standalone builds — no Python needed. Unzip, then:
+
+            **Windows:** open the folder and double-click `Muhurata Timer.exe`.
+            SmartScreen will warn about an unknown publisher: click **More info → Run anyway** (first time only).
+
+            **macOS (Apple Silicon):** the app is not notarized, so macOS will refuse to open it at first.
+            Open Terminal, type `xattr -dr com.apple.quarantine ` (with the trailing space), drag the unzipped
+            `Muhurata Timer` folder into the Terminal window, press Enter. Then double-click `Muhurata Timer` inside the folder.
+            If you have Python already, the one-line installer in the README is the smoother option on a Mac.
+
+            Your data lives outside the app folder, so replacing the folder with a newer version keeps your history.

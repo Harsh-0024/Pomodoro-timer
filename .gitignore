@@ -1,6 +1,12 @@
 venv/
 *.db
 
+# Personal / working files - kept locally, never shared with the repo
+.idea/
+Claude outputs/
+bell_curve_conversation.txt
+focus_timer_levels.pdf
+
 # Created by https://www.toptal.com/developers/gitignore/api/python
 # Edit at https://www.toptal.com/developers/gitignore?templates=python
 

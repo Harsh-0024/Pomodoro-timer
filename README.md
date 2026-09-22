@@ -14,7 +14,7 @@ right command and the downloads.
 Pick **one** of the two options. Both put your data in a private folder outside
 the app, so updating never touches your history.
 
-### Option A — one line in a terminal (needs git + Python 3.9+)
+### Option A — one line in a terminal (needs git)
 
 **macOS / Linux** — open *Terminal*, paste, press Enter:
 
@@ -34,11 +34,15 @@ app. From then on just double-click **Muhurata Timer** on your Desktop (a real
 app icon on macOS) — it checks for updates every time it starts, so you never
 need to update by hand.
 
-Missing git or Python? macOS: run `xcode-select --install` (that gives you
-both). Windows: [git](https://git-scm.com/download/win) and
-[Python](https://python.org/downloads) (tick *Add python.exe to PATH*).
+You do **not** need Python — the installer downloads the exact version the app
+needs (pinned in `.python-version`) and keeps it in its own folder, so it never
+touches or conflicts with any Python you already have. If a later version of the
+app needs a newer Python, each install picks it up on its next launch.
 
-### Option B — download a ready-made app (no Python needed)
+Missing git? macOS: run `xcode-select --install`.
+Windows: [git for Windows](https://git-scm.com/download/win), or `winget install Git.Git`.
+
+### Option B — download a ready-made app (no terminal needed)
 
 Grab the zip for your system from the
 [latest release](https://github.com/Harsh-0024/Pomodoro-timer/releases/latest),
@@ -104,6 +108,10 @@ before committing (autogenerate can turn a rename into drop + add):
 ```
 
 Migrations apply automatically on the next start (a backup is taken first).
+
+**Changing the Python version** — edit `.python-version`, commit, push. Every
+install switches over on its next launch (the venv is rebuilt and packages
+reinstalled automatically); CI builds against the same file.
 
 **Releases** — bump `version.py`, then:
 

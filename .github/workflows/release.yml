@@ -26,7 +26,9 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          # Same interpreter the installers provision, so the bundled app and
+          # a git install behave identically.
+          python-version-file: ".python-version"
 
       - name: Install dependencies
         run: |

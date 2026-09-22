@@ -15,6 +15,7 @@ import hashlib
 import logging
 import logging.handlers
 import os
+import shutil
 import socket
 import subprocess
 import sys
@@ -31,6 +32,7 @@ REMOTE_BRANCH = "origin/main"
 # half-dead connection: past it we give up and start the app, and the update
 # lands on the next launch instead. Waiting is never the user's problem.
 UPDATE_BUDGET = 6.0
+UV_DIR = Path.home() / ".muhurata" / "bin"
 FIRST_PORT = 8000
 HOST = "127.0.0.1"
 
@@ -137,6 +139,68 @@ def self_update() -> bool:
     return True
 
 
+def _uv() -> str | None:
+    local = UV_DIR / ("uv.exe" if sys.platform == "win32" else "uv")
+    if local.exists():
+        return str(local)
+    return shutil.which("uv")
+
+
+def _wanted_python() -> str | None:
+    pin = PROJECT_ROOT / ".python-version"
+    try:
+        return pin.read_text().strip() or None
+    except OSError:
+        return None
+
+
+def ensure_python_version() -> bool:
+    """Rebuild the virtualenv when the pinned Python version has changed.
+
+    Lets a new Python version ship like any other change: bump
+    .python-version, and each install fetches it on the next launch.
+    Returns True if the venv was rebuilt (the caller must then re-exec).
+    """
+    if FROZEN:
+        return False
+    want = _wanted_python()
+    if not want:
+        return False
+    have = "%d.%d" % sys.version_info[:2]
+    if have == want:
+        return False
+
+    uv = _uv()
+    if not uv:
+        log.warning("This copy needs Python %s (running %s), but the toolchain is missing. "
+                    "Re-run the install command to fix it.", want, have)
+        return False
+
+    venv = PROJECT_ROOT / ".venv"
+    if not venv.exists():
+        return False
+    log.info("Switching to Python %s - one moment...", want)
+    try:
+        subprocess.run([uv, "python", "install", want], cwd=PROJECT_ROOT,
+                       capture_output=True, timeout=600)
+        # --clear replaces the existing venv; --seed keeps pip inside it for
+        # install_requirements(). We re-exec immediately afterwards, so pulling
+        # the environment out from under this process is safe.
+        done = subprocess.run([uv, "venv", "--clear", "--seed", "--python", want, str(venv)],
+                              cwd=PROJECT_ROOT, capture_output=True, text=True, timeout=600)
+    except (subprocess.TimeoutExpired, OSError) as exc:
+        log.warning("Could not switch Python version (%s); continuing on %s.", exc, have)
+        return False
+    if done.returncode != 0:
+        log.warning("Could not switch Python version; continuing on %s.", have)
+        log.debug(done.stderr)
+        return False
+    # The new venv is empty, so the packages must be installed again.
+    (_data_dir() / "requirements.sha256").unlink(missing_ok=True)
+    log.info("Now on Python %s.", want)
+    return True
+
+
 def install_requirements(data_dir: Path):
     if FROZEN:
         return  # everything is baked into the bundle
@@ -146,12 +210,17 @@ def install_requirements(data_dir: Path):
     if marker.exists() and marker.read_text().strip() == digest:
         return
     log.info("Installing new components - this can take a minute, only this once...")
-    proc = subprocess.run(
-        [sys.executable, "-m", "pip", "install", "--quiet", "--disable-pip-version-check", "-r", str(req)],
-        cwd=PROJECT_ROOT,
-    )
-    if proc.returncode != 0:
-        raise RuntimeError("pip install failed; see output above.")
+    uv = _uv()
+    cmds = []
+    if uv:
+        cmds.append([uv, "pip", "install", "--python", sys.executable, "-q", "-r", str(req)])
+    cmds.append([sys.executable, "-m", "pip", "install", "--quiet",
+                 "--disable-pip-version-check", "-r", str(req)])
+    for cmd in cmds:
+        if subprocess.run(cmd, cwd=PROJECT_ROOT).returncode == 0:
+            break
+    else:
+        raise RuntimeError("Could not install the required components; see output above.")
     marker.write_text(digest)
     log.info("Done.")
 
@@ -245,6 +314,10 @@ def main(argv: list[str]) -> int:
     if not no_update and self_update():
         # Re-exec so the freshly pulled launcher/app code is what actually runs.
         os.execv(sys.executable, [sys.executable, str(PROJECT_ROOT / "run.py"), "--no-update", *argv[1:]])
+
+    if ensure_python_version():
+        new_python = PROJECT_ROOT / ".venv" / ("Scripts" if sys.platform == "win32" else "bin") / "python"
+        os.execv(str(new_python), [str(new_python), str(PROJECT_ROOT / "run.py"), "--no-update", *argv[1:]])
 
     install_requirements(data_dir)
 

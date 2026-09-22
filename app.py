@@ -13,6 +13,7 @@ from flask import Flask, jsonify, render_template, request
 
 import db
 from presets import BUILTINS
+from version import __version__
 
 app = Flask(__name__)
 app.config["JSON_SORT_KEYS"] = False
@@ -47,7 +48,7 @@ def inject_asset_version():
         version = int(max(path.stat().st_mtime for path in ASSET_VERSION_PATHS if path.exists()))
     except ValueError:
         version = 1
-    return {"asset_version": version}
+    return {"asset_version": version, "app_version": __version__}
 
 
 def _normalize_quote(item: dict) -> dict | None:

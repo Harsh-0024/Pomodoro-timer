@@ -368,6 +368,11 @@ body[data-theme="light"] .ambient {
   border-top: 1px solid var(--line);
 }
 
+.foot-version {
+  margin-left: 0.75rem;
+  opacity: 0.6;
+}
+
 .hero {
   display: flex;
   flex-direction: column;

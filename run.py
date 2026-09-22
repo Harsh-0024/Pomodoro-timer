@@ -7,6 +7,7 @@ directly with ``python run.py``. Everything is logged to
 Flags:
   --no-update   skip the git self-update (used after re-exec, and handy in dev)
   --no-browser  don't open a browser tab
+  --doctor      print environment / database diagnostics and exit
 """
 from __future__ import annotations
 
@@ -168,12 +169,60 @@ def _open_when_ready(url: str, open_browser: bool):
         webbrowser.open(url)
 
 
+def doctor(data_dir: Path) -> int:
+    """Print what a friend would need to paste into a bug report."""
+    import platform
+    import sqlite3
+
+    from version import __version__
+
+    print(f"Muhurata {__version__}{' (bundled)' if FROZEN else ''}")
+    print(f"Python    : {sys.version.split()[0]}  ({sys.executable})")
+    print(f"OS        : {platform.platform()}")
+    print(f"Code dir  : {PROJECT_ROOT}")
+    if not FROZEN and (PROJECT_ROOT / ".git").is_dir():
+        print(f"Git       : {_run(['git', 'rev-parse', '--short', 'HEAD']).stdout.strip() or '?'}"
+              f"{'  (local changes)' if _run(['git', 'status', '--porcelain', '-uno']).stdout.strip() else ''}")
+    print(f"Data dir  : {data_dir}")
+    print(f"Log file  : {data_dir / 'launcher.log'}")
+    print(f"Internet  : {'yes' if _online() else 'no'}")
+
+    db_path = data_dir / "focus_timer.db"
+    print(f"Database  : {db_path}")
+    if not db_path.exists():
+        print("            (not created yet - run the app once)")
+        return 0
+    print(f"            {db_path.stat().st_size / 1024:.0f} KB")
+    conn = sqlite3.connect(db_path)
+    try:
+        tables = [r[0] for r in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name")]
+        for t in tables:
+            n = conn.execute(f'SELECT COUNT(*) FROM "{t}"').fetchone()[0]
+            extra = ""
+            if t == "alembic_version":
+                extra = "  rev " + (conn.execute("SELECT version_num FROM alembic_version").fetchone() or ["?"])[0]
+            elif t == "activity_segments" and n:
+                lo, hi = conn.execute("SELECT MIN(day), MAX(day) FROM activity_segments").fetchone()
+                extra = f"  {lo} .. {hi}"
+            print(f"            {t:<20}{n:>7} rows{extra}")
+        print(f"            integrity: {conn.execute('PRAGMA integrity_check').fetchone()[0]}")
+    finally:
+        conn.close()
+    backups = sorted((data_dir / "backups").glob("focus_timer-*.db")) if (data_dir / "backups").exists() else []
+    print(f"Backups   : {len(backups)}" + (f"  (latest {backups[-1].name})" if backups else ""))
+    print("Last sync : n/a (cloud sync not set up)")
+    return 0
+
+
 # --------------------------------------------------------------------------- #
 def main(argv: list[str]) -> int:
     no_update = "--no-update" in argv
     open_browser = "--no-browser" not in argv
 
     data_dir = _data_dir()
+    if "--doctor" in argv:
+        return doctor(data_dir)
     _setup_logging(data_dir)
     from version import __version__  # noqa: E402
 

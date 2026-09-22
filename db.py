@@ -1,9 +1,12 @@
 import json
 import math
+import shutil
 import sqlite3
 from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+from platformdirs import user_data_dir
 
 from presets import BUILTINS
 
@@ -34,11 +37,20 @@ DEFAULT_SETTINGS = {
     "theme": "system",
 }
 
-DB_PATH = Path(__file__).resolve().parent / "data" / "focus_timer.db"
+LEGACY_DB_PATH = Path(__file__).resolve().parent / "data" / "focus_timer.db"
+DB_PATH = Path(user_data_dir("MuhurataTimer", appauthor=False)) / "focus_timer.db"
+
+
+def _migrate_legacy_db():
+    if not DB_PATH.exists() and LEGACY_DB_PATH.exists():
+        DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+        # copy2, not move: leave the old file in place in case migration needs re-running
+        shutil.copy2(LEGACY_DB_PATH, DB_PATH)
 
 
 def init_db():
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    _migrate_legacy_db()
     conn = sqlite3.connect(DB_PATH)
     try:
         conn.executescript(

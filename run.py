@@ -27,6 +27,10 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent
 FROZEN = getattr(sys, "frozen", False)  # running from a PyInstaller bundle
 REMOTE_BRANCH = "origin/main"
+# A normal update takes under a second. This is the ceiling for a slow or
+# half-dead connection: past it we give up and start the app, and the update
+# lands on the next launch instead. Waiting is never the user's problem.
+UPDATE_BUDGET = 6.0
 FIRST_PORT = 8000
 HOST = "127.0.0.1"
 
@@ -89,37 +93,47 @@ def self_update() -> bool:
     Uses fetch + reset --hard rather than pull so a friend's copy can never
     end up in a merge conflict. Skipped when the tree has local edits or
     unpushed commits, which protects a developer checkout from being wiped.
+    Every step is time-boxed: a slow connection must not delay startup.
     """
     if FROZEN or not (PROJECT_ROOT / ".git").is_dir():
-        log.info("Not a git checkout; skipping update.")
+        log.debug("Not a git checkout; skipping update.")
         return False
     if _run(["git", "--version"]).returncode != 0:
-        log.warning("git not found; skipping update.")
+        log.warning("git not found; skipping update check.")
         return False
     if _run(["git", "status", "--porcelain", "--untracked-files=no"]).stdout.strip():
-        log.warning("Local changes present; skipping update.")
-        return False
-    if not _online():
-        log.info("Offline; running the installed version.")
+        log.warning("This copy has local changes; skipping update.")
         return False
 
-    before = _run(["git", "rev-parse", "HEAD"]).stdout.strip()
-    fetch = _run(["git", "fetch", "--quiet", "origin"], timeout=60)
-    if fetch.returncode != 0:
-        log.warning("git fetch failed: %s", fetch.stderr.strip())
+    deadline = time.monotonic() + UPDATE_BUDGET
+    if not _online(timeout=2.0):
+        log.info("No internet just now - starting your installed version.")
         return False
+
+    log.info("Checking for updates...")
+    before = _run(["git", "rev-parse", "HEAD"]).stdout.strip()
+    try:
+        fetch = _run(["git", "fetch", "--quiet", "origin"],
+                     timeout=max(1.0, deadline - time.monotonic()))
+    except subprocess.TimeoutExpired:
+        log.info("Slow connection - starting now, I will update next time.")
+        return False
+    if fetch.returncode != 0:
+        log.info("Could not reach GitHub - starting now, I will update next time.")
+        return False
+
     remote = _run(["git", "rev-parse", REMOTE_BRANCH]).stdout.strip()
     if _run(["git", "rev-list", "--count", f"{REMOTE_BRANCH}..HEAD"]).stdout.strip() not in ("", "0"):
-        log.warning("Local commits ahead of %s; skipping update.", REMOTE_BRANCH)
+        log.warning("This copy is ahead of %s; skipping update.", REMOTE_BRANCH)
         return False
     if before == remote:
-        log.info("Already up to date (%s).", before[:7])
+        log.info("Already the newest version.")
         return False
-    reset = _run(["git", "reset", "--hard", "--quiet", REMOTE_BRANCH])
-    if reset.returncode != 0:
-        log.warning("git reset failed: %s", reset.stderr.strip())
+    if _run(["git", "reset", "--hard", "--quiet", REMOTE_BRANCH]).returncode != 0:
+        log.info("Update did not apply - starting your installed version.")
         return False
-    log.info("Updated %s -> %s", before[:7], remote[:7])
+    log.info("Updated to the newest version. Restarting...")
+    log.debug("%s -> %s", before[:7], remote[:7])
     return True
 
 
@@ -131,7 +145,7 @@ def install_requirements(data_dir: Path):
     marker = data_dir / "requirements.sha256"
     if marker.exists() and marker.read_text().strip() == digest:
         return
-    log.info("Installing Python packages (first run or requirements changed)...")
+    log.info("Installing new components - this can take a minute, only this once...")
     proc = subprocess.run(
         [sys.executable, "-m", "pip", "install", "--quiet", "--disable-pip-version-check", "-r", str(req)],
         cwd=PROJECT_ROOT,
@@ -139,7 +153,7 @@ def install_requirements(data_dir: Path):
     if proc.returncode != 0:
         raise RuntimeError("pip install failed; see output above.")
     marker.write_text(digest)
-    log.info("Packages installed.")
+    log.info("Done.")
 
 
 def free_port(start: int = FIRST_PORT, attempts: int = 50) -> int:
@@ -230,7 +244,6 @@ def main(argv: list[str]) -> int:
 
     if not no_update and self_update():
         # Re-exec so the freshly pulled launcher/app code is what actually runs.
-        log.info("Restarting with updated code...")
         os.execv(sys.executable, [sys.executable, str(PROJECT_ROOT / "run.py"), "--no-update", *argv[1:]])
 
     install_requirements(data_dir)

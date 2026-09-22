@@ -4,98 +4,334 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Muhurata Timer</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%201024%201024%22%3E%0A%20%20%3Crect%20width%3D%221024%22%20height%3D%221024%22%20rx%3D%22230%22%20fill%3D%22%230d0b08%22%2F%3E%0A%20%20%3Ccircle%20cx%3D%22512%22%20cy%3D%22512%22%20r%3D%22470%22%20fill%3D%22none%22%20stroke%3D%22%231d1813%22%20stroke-width%3D%2218%22%2F%3E%0A%20%20%3Cg%20fill%3D%22none%22%20stroke%3D%22%23c9a962%22%20stroke-width%3D%2234%22%20stroke-linecap%3D%22round%22%3E%0A%20%20%20%20%3Ccircle%20cx%3D%22512%22%20cy%3D%22512%22%20r%3D%22300%22%2F%3E%0A%20%20%20%20%3Ccircle%20cx%3D%22512%22%20cy%3D%22512%22%20r%3D%2282%22%2F%3E%0A%20%20%20%20%3Cpath%20d%3D%22M512%20130v170M512%20724v170M130%20512h170M724%20512h170%22%2F%3E%0A%20%20%20%20%3Cpath%20d%3D%22M242%20242l120%20120M662%20662l120%20120M782%20242L662%20362M362%20662L242%20782%22%2F%3E%0A%20%20%3C%2Fg%3E%0A%3C%2Fsvg%3E" />
+<meta name="description" content="A focus timer that runs on your own computer. Nothing is uploaded anywhere." />
+<meta property="og:title" content="Muhurata Timer" />
+<meta property="og:description" content="A focus timer that runs on your own computer. Nothing is uploaded anywhere." />
+<meta property="og:type" content="website" />
+<meta name="theme-color" content="#070605" media="(prefers-color-scheme: dark)" />
+<meta name="theme-color" content="#f2f0ea" media="(prefers-color-scheme: light)" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23040302'/%3E%3Cg fill='none' stroke='%23d8bd79' stroke-width='4' stroke-linecap='round'%3E%3Ccircle cx='32' cy='32' r='22'/%3E%3Ccircle cx='32' cy='32' r='6'/%3E%3Cpath d='M32 6v14M32 44v14M6 32h14M44 32h14M13.6 13.6l10 10M40.4 40.4l10 10M50.4 13.6l-10 10M23.6 40.4l-10 10'/%3E%3C/g%3E%3C/svg%3E" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet" />
 <style>
+  /* Tokens mirror the app's own palette so the page and the app feel like one
+     thing. Note --gold-strong flips from pale gold (dark) to deep brown-gold
+     (light) — that is how the app keeps gold-toned text readable on cream. */
   :root {
-    --bg: #0d0b08; --card: #17130e; --ink: #f7f3ec;
-    --muted: rgba(247,243,236,.55); --gold: #c9a962; --line: rgba(255,255,255,.1);
+    color-scheme: dark;
+    --bg0: #070605;
+    --ink: #f7f3ec;
+    --muted: rgba(247, 243, 236, .55);
+    --faint: rgba(247, 243, 236, .12);
+    --gold: #c9a962;
+    --gold-strong: #e8d9b4;
+    --line: rgba(255, 255, 255, .08);
+    --card: rgba(255, 255, 255, .045);
+    --card-line: rgba(255, 255, 255, .08);
+    --shadow: 0 24px 80px rgba(0, 0, 0, .55);
+    --code-bg: rgba(0, 0, 0, .42);
+    --code-ink: #efe6d2;
+    --chip: rgba(255, 255, 255, .04);
+    --glow-a: #1a1510;
+    --glow-b: #14110d;
+    --radius: 18px;
+    --serif: "Cormorant Garamond", Georgia, serif;
+    --sans: "DM Sans", system-ui, -apple-system, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
   }
+  @media (prefers-color-scheme: light) {
+    :root {
+      color-scheme: light;
+      --bg0: #f2f0ea;
+      --ink: #211d18;
+      --muted: rgba(33, 29, 24, .58);
+      --faint: rgba(33, 29, 24, .1);
+      --gold: #a98237;
+      --gold-strong: #5f4721;
+      --line: rgba(43, 35, 24, .13);
+      --card: rgba(255, 255, 255, .86);
+      --card-line: rgba(43, 35, 24, .06);
+      --shadow: 0 24px 72px rgba(71, 58, 39, .15);
+      --code-bg: #ece5d5;
+      --code-ink: #38301f;
+      --chip: rgba(255, 255, 255, .65);
+      --glow-a: #fffdf6;
+      --glow-b: #f8f3e6;
+    }
+  }
+
   * { box-sizing: border-box; }
+
   body {
-    margin: 0; padding: 3rem 1rem 4rem; background: var(--bg); color: var(--ink);
-    font-family: "DM Sans", system-ui, sans-serif; font-weight: 300; line-height: 1.6;
+    margin: 0;
+    min-height: 100vh;
+    padding: clamp(2.5rem, 7vw, 4.5rem) 1rem clamp(3rem, 8vw, 5rem);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-weight: 400;
+    line-height: 1.6;
+    letter-spacing: .01em;
+    background:
+      radial-gradient(1200px 800px at 10% -10%, var(--glow-a) 0%, transparent 55%),
+      radial-gradient(900px 700px at 90% 8%, var(--glow-b) 0%, transparent 50%),
+      var(--bg0);
+    background-attachment: fixed;
   }
-  .wrap { max-width: 620px; margin: 0 auto; }
-  header { text-align: center; margin-bottom: 2.5rem; }
-  header img { width: 84px; height: 84px; }
+
+  .wrap { max-width: 640px; margin: 0 auto; }
+
+  /* ---------- hero ---------- */
+  header { text-align: center; margin-bottom: clamp(1.5rem, 4vw, 2rem); }
+
+  .mark { width: 76px; height: 76px; display: inline-block; }
+  .mark .disc { fill: var(--card); stroke: var(--card-line); stroke-width: 1; }
+  .mark .wheel { fill: none; stroke: var(--gold); stroke-width: 3.2; stroke-linecap: round; }
+
   h1 {
-    font-family: "Cormorant Garamond", serif; font-weight: 500;
-    font-size: clamp(2rem, 6vw, 2.8rem); margin: 1rem 0 .3rem; letter-spacing: .01em;
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: clamp(2.2rem, 7vw, 3.1rem);
+    line-height: 1.1;
+    margin: 1.1rem 0 .55rem;
+    letter-spacing: .015em;
   }
-  .tag { color: var(--muted); font-size: .95rem; margin: 0; }
+  .tagline {
+    margin: 0 auto;
+    max-width: 30rem;
+    color: var(--muted);
+    font-weight: 300;
+    font-size: clamp(.95rem, 2.4vw, 1.02rem);
+  }
+
+  /* ---------- app preview ---------- */
+  .preview {
+    display: block;
+    width: 100%;
+    height: auto;
+    margin: clamp(1.75rem, 4vw, 2.5rem) 0;
+    filter: drop-shadow(0 20px 50px rgba(0, 0, 0, .45));
+  }
+  @media (prefers-color-scheme: light) {
+    .preview { filter: drop-shadow(0 20px 46px rgba(71, 58, 39, .14)); }
+  }
+  .preview .frame { fill: var(--card); stroke: var(--card-line); stroke-width: 1; }
+  .preview .track { fill: none; stroke: var(--faint); stroke-width: 6; }
+  .preview .prog  { fill: none; stroke: var(--gold); stroke-width: 6; stroke-linecap: round; }
+  .preview .knob  { fill: var(--gold); }
+  .preview .kicker {
+    fill: var(--muted); font-family: var(--sans); font-size: 10.5px;
+    font-weight: 400; letter-spacing: .24em;
+  }
+  .preview .time { fill: var(--ink); font-family: var(--serif); font-size: 48px; font-weight: 500; }
+  .preview .sub  { fill: var(--muted); font-family: var(--sans); font-size: 11.5px; font-weight: 300; }
+  .preview .pill-label { fill: #1a1208; font-family: var(--sans); font-size: 13px; font-weight: 500; }
+
+  /* ---------- cards ---------- */
   .card {
-    background: var(--card); border: 1px solid var(--line); border-radius: 16px;
-    padding: 1.5rem; margin-bottom: 1.25rem;
+    background: var(--card);
+    border: 1px solid var(--card-line);
+    border-radius: var(--radius);
+    padding: clamp(1.25rem, 4vw, 1.75rem);
+    margin-bottom: 1.15rem;
+    box-shadow: var(--shadow);
   }
   .card h2 {
-    font-family: "Cormorant Garamond", serif; font-weight: 500; font-size: 1.5rem;
-    margin: 0 0 .2rem;
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: 1.65rem;
+    line-height: 1.2;
+    margin: 0 0 .3rem;
   }
-  .card p { margin: 0 0 1rem; color: var(--muted); font-size: .92rem; }
-  .tabs { display: flex; gap: .5rem; margin-bottom: 1rem; }
+  .card > p {
+    margin: 0 0 1.15rem;
+    color: var(--muted);
+    font-weight: 300;
+    font-size: .93rem;
+  }
+
+  .phone-note {
+    margin: -.35rem 0 1.05rem;
+    padding: .75rem .9rem;
+    border-radius: 12px;
+    background: var(--chip);
+    border: 1px solid var(--card-line);
+    color: var(--gold-strong);
+    font-size: .84rem;
+    font-weight: 400;
+  }
+
+  /* ---------- os tabs ---------- */
+  .tabs { display: flex; gap: .45rem; margin-bottom: 1rem; }
   .tab {
-    flex: 1; padding: .55rem; border-radius: 9px; border: 1px solid var(--line);
-    background: transparent; color: var(--muted); font: inherit; font-size: .9rem;
+    flex: 1;
+    min-height: 2.3rem;
+    padding: 0 .7rem;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: var(--chip);
+    color: var(--muted);
+    font: inherit;
+    font-size: .88rem;
+    font-weight: 400;
     cursor: pointer;
+    transition: color .2s, background .2s, border-color .2s, box-shadow .2s;
   }
-  .tab[aria-selected="true"] { border-color: var(--gold); color: var(--gold); }
+  .tab:hover { color: var(--ink); }
+  .tab[aria-selected="true"] {
+    color: #1a1208;
+    background: linear-gradient(135deg, #f3e8cf, #c9a962);
+    border-color: rgba(255, 255, 255, .2);
+    box-shadow: 0 10px 28px rgba(201, 169, 98, .25);
+    font-weight: 500;
+  }
+
+  /* ---------- command ---------- */
   .cmd {
-    display: flex; align-items: center; gap: .75rem; background: #000;
-    border: 1px solid var(--line); border-radius: 10px; padding: .8rem .9rem;
+    background: var(--code-bg);
+    border: 1px solid var(--card-line);
+    border-radius: 13px;
+    padding: .95rem 1rem .8rem;
   }
   .cmd code {
-    flex: 1; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: .78rem; color: var(--gold); overflow-x: auto; white-space: nowrap;
+    display: block;
+    font-family: var(--mono);
+    font-size: .76rem;
+    line-height: 1.75;
+    color: var(--code-ink);
+    overflow-wrap: anywhere;   /* wrap, never truncate: a cut-off command looks broken */
   }
-  button.copy {
-    flex: none; padding: .5rem .9rem; border-radius: 8px; border: 0;
-    background: var(--gold); color: #17130e; font: inherit; font-weight: 500;
-    font-size: .85rem; cursor: pointer;
+  .cmd-foot {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 1rem; margin-top: .7rem;
   }
-  button.copy.done { background: #7fae6d; }
-  .steps { margin: 1rem 0 0; padding-left: 1.1rem; font-size: .88rem; color: var(--muted); }
-  .steps li { margin-bottom: .3rem; }
-  .dl { display: flex; flex-wrap: wrap; gap: .6rem; }
+  .cmd-hint {
+    font-size: .68rem; letter-spacing: .18em; text-transform: uppercase;
+    color: var(--muted); opacity: .8;
+  }
+  .copy {
+    flex: none;
+    min-height: 2.1rem;
+    padding: 0 1.15rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, .2);
+    background: linear-gradient(135deg, #f3e8cf, #c9a962);
+    color: #1a1208;
+    font: inherit; font-size: .85rem; font-weight: 500;
+    cursor: pointer;
+    box-shadow: 0 12px 34px rgba(201, 169, 98, .24);
+    transition: transform .2s, box-shadow .2s, background .2s;
+  }
+  .copy:hover { transform: translateY(-1px); box-shadow: 0 16px 42px rgba(201, 169, 98, .34); }
+  .copy.done { background: linear-gradient(135deg, #dcebd2, #8fb87a); box-shadow: none; }
+
+  .steps { margin: 1.15rem 0 0; padding-left: 1.15rem; color: var(--muted); font-size: .89rem; font-weight: 300; }
+  .steps li { margin-bottom: .35rem; }
+  .steps b { color: var(--ink); font-weight: 500; }
+
+  /* ---------- downloads ---------- */
+  .dl { display: flex; flex-wrap: wrap; gap: .65rem; }
   .dl a {
-    flex: 1 1 180px; text-align: center; padding: .7rem; border-radius: 9px;
-    border: 1px solid var(--gold); color: var(--gold); text-decoration: none; font-size: .9rem;
+    flex: 1 1 190px;
+    padding: .8rem 1rem;
+    border-radius: 13px;
+    border: 1px solid var(--line);
+    background: var(--chip);
+    color: var(--ink);
+    text-decoration: none;
+    transition: border-color .2s, background .2s, transform .2s, box-shadow .2s;
   }
+  .dl a:hover {
+    transform: translateY(-1px);
+    border-color: var(--gold);
+    box-shadow: 0 14px 34px rgba(201, 169, 98, .16);
+  }
+  .dl strong { display: block; font-weight: 500; font-size: .95rem; }
+  .dl span { display: block; color: var(--muted); font-size: .76rem; font-weight: 300; letter-spacing: .04em; }
+
   .note {
-    margin-top: 1rem; padding: .8rem .9rem; border-left: 2px solid var(--gold);
-    background: rgba(201,169,98,.07); font-size: .84rem; color: var(--muted);
+    margin-top: 1.1rem;
+    padding: .95rem 1.05rem;
+    border-radius: 13px;
+    background: var(--chip);
+    border: 1px solid var(--card-line);
+    font-size: .84rem; font-weight: 300; color: var(--muted);
   }
-  footer { text-align: center; color: var(--muted); font-size: .8rem; margin-top: 2rem; }
-  footer a { color: var(--muted); }
-  @media (prefers-color-scheme: light) {
-    :root { --bg: #faf7f1; --card: #fff; --ink: #211d18; --muted: rgba(33,29,24,.6);
-            --gold: #8a6a24; --line: rgba(0,0,0,.1); }
-    .cmd { background: #1b1712; }
+  .note b { color: var(--gold-strong); font-weight: 500; }
+  .note em { font-style: normal; color: var(--ink); }
+
+  footer {
+    text-align: center; margin-top: 2.25rem;
+    color: var(--muted); font-size: .8rem; font-weight: 300;
   }
+  footer a { color: var(--gold-strong); text-decoration: none; border-bottom: 1px solid var(--faint); }
+  footer a:hover { border-bottom-color: var(--gold); }
+
+  :focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; border-radius: 6px; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 </head>
 <body>
 <div class="wrap">
+
   <header>
-    <img src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%201024%201024%22%3E%0A%20%20%3Crect%20width%3D%221024%22%20height%3D%221024%22%20rx%3D%22230%22%20fill%3D%22%230d0b08%22%2F%3E%0A%20%20%3Ccircle%20cx%3D%22512%22%20cy%3D%22512%22%20r%3D%22470%22%20fill%3D%22none%22%20stroke%3D%22%231d1813%22%20stroke-width%3D%2218%22%2F%3E%0A%20%20%3Cg%20fill%3D%22none%22%20stroke%3D%22%23c9a962%22%20stroke-width%3D%2234%22%20stroke-linecap%3D%22round%22%3E%0A%20%20%20%20%3Ccircle%20cx%3D%22512%22%20cy%3D%22512%22%20r%3D%22300%22%2F%3E%0A%20%20%20%20%3Ccircle%20cx%3D%22512%22%20cy%3D%22512%22%20r%3D%2282%22%2F%3E%0A%20%20%20%20%3Cpath%20d%3D%22M512%20130v170M512%20724v170M130%20512h170M724%20512h170%22%2F%3E%0A%20%20%20%20%3Cpath%20d%3D%22M242%20242l120%20120M662%20662l120%20120M782%20242L662%20362M362%20662L242%20782%22%2F%3E%0A%20%20%3C%2Fg%3E%0A%3C%2Fsvg%3E" alt="" width="84" height="84" />
+    <svg class="mark" viewBox="0 0 80 80" aria-hidden="true">
+      <circle class="disc" cx="40" cy="40" r="39" />
+      <g class="wheel">
+        <circle cx="40" cy="40" r="23" />
+        <circle cx="40" cy="40" r="6.2" />
+        <path d="M40 10v13M40 57v13M10 40h13M57 40h13" />
+        <path d="M18.8 18.8l9.2 9.2M52 52l9.2 9.2M61.2 18.8L52 28M28 52l-9.2 9.2" />
+      </g>
+    </svg>
     <h1>Muhurata Timer</h1>
-    <p class="tag">A focus timer that runs on your own computer. Nothing is uploaded anywhere.</p>
+    <p class="tagline">A focus timer that runs on your own computer.<br />Nothing is uploaded anywhere.</p>
   </header>
+
+  <svg class="preview" viewBox="0 0 560 360" role="img" aria-label="The timer showing a 36 minute deep work session">
+    <defs>
+      <linearGradient id="goldPill" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#f3e8cf" /><stop offset="1" stop-color="#c9a962" />
+      </linearGradient>
+    </defs>
+    <rect class="frame" x="1" y="1" width="558" height="358" rx="24" />
+    <circle class="track" cx="280" cy="158" r="98" />
+    <!-- ~30% of the ring (circumference ≈ 616), drawn from the top -->
+    <circle class="prog" cx="280" cy="158" r="98"
+            stroke-dasharray="185 616" transform="rotate(-90 280 158)" />
+    <circle class="knob" cx="280" cy="60" r="4.5" />
+    <text class="kicker" x="280" y="142" text-anchor="middle">DEEP WORK</text>
+    <text class="time" x="280" y="188" text-anchor="middle">36:00</text>
+    <text class="sub" x="280" y="211" text-anchor="middle">Session 1 of 4 · Sthiti</text>
+    <rect x="234" y="274" width="92" height="36" rx="18" fill="url(#goldPill)" />
+    <text class="pill-label" x="280" y="297" text-anchor="middle">Start</text>
+  </svg>
 
   <div class="card">
     <h2>Install</h2>
     <p>Copy this, paste it into your terminal, press Enter. You only do this once.</p>
+
+    <!-- Most people will open this link on their phone, where none of it can be
+         done. Say so kindly instead of letting them get stuck. -->
+    <p class="phone-note" id="phoneNote" hidden>
+      You are on a phone — the timer runs on a computer. Send yourself this link
+      and open it there.
+    </p>
+
     <div class="tabs" role="tablist">
       <button class="tab" role="tab" data-os="mac" aria-selected="true">Mac</button>
       <button class="tab" role="tab" data-os="win" aria-selected="false">Windows</button>
       <button class="tab" role="tab" data-os="linux" aria-selected="false">Linux</button>
     </div>
+
     <div class="cmd">
       <code id="cmd"></code>
-      <button class="copy" id="copyBtn" type="button">Copy</button>
+      <div class="cmd-foot">
+        <span class="cmd-hint" id="cmdHint">Terminal</span>
+        <button class="copy" id="copyBtn" type="button">Copy</button>
+      </div>
     </div>
+
     <ol class="steps" id="steps"></ol>
   </div>
 
@@ -103,14 +339,18 @@
     <h2>No Python? Download instead</h2>
     <p>A ready-made app. Nothing else to install.</p>
     <div class="dl">
-      <a href="https://github.com/Harsh-0024/Pomodoro-timer/releases/latest" id="dlMac">Download for Mac</a>
-      <a href="https://github.com/Harsh-0024/Pomodoro-timer/releases/latest" id="dlWin">Download for Windows</a>
+      <a href="https://github.com/Harsh-0024/Pomodoro-timer/releases/latest">
+        <strong>Download for Mac</strong><span>Apple Silicon · .zip</span>
+      </a>
+      <a href="https://github.com/Harsh-0024/Pomodoro-timer/releases/latest">
+        <strong>Download for Windows</strong><span>64-bit · .zip</span>
+      </a>
     </div>
     <div class="note">
-      Your computer will warn you that the app is from an unknown developer — it is
-      just unsigned, not unsafe.<br />
-      <strong>Windows:</strong> click <em>More info → Run anyway</em>.<br />
-      <strong>Mac:</strong> right-click the app → <em>Open</em> → <em>Open</em>.
+      Your computer will warn you that the app comes from an unknown developer — it is
+      unsigned, not unsafe.<br />
+      <b>Windows:</b> click <em>More info → Run anyway</em>.<br />
+      <b>Mac:</b> right-click the app → <em>Open</em> → <em>Open</em>.
     </div>
   </div>
 
@@ -123,20 +363,23 @@
   const RAW = "https://raw.githubusercontent.com/Harsh-0024/Pomodoro-timer/main";
   const DATA = {
     mac: {
+      hint: "Terminal",
       cmd: `curl -fsSL ${RAW}/install.sh | bash`,
-      steps: ["Press ⌘ + Space, type <b>Terminal</b>, press Enter.",
+      steps: ["Press <b>⌘ + Space</b>, type <b>Terminal</b>, press Enter.",
               "Paste the command above, press Enter.",
               "Wait about a minute. The timer opens by itself.",
               "Afterwards: double-click <b>Muhurata Timer</b> on your Desktop."],
     },
     win: {
+      hint: "PowerShell",
       cmd: `irm ${RAW}/install.ps1 | iex`,
-      steps: ["Press the Windows key, type <b>PowerShell</b>, press Enter.",
+      steps: ["Press the <b>Windows key</b>, type <b>PowerShell</b>, press Enter.",
               "Paste the command above, press Enter.",
               "Wait about a minute. The timer opens by itself.",
               "Afterwards: double-click <b>Muhurata Timer</b> on your Desktop."],
     },
     linux: {
+      hint: "Terminal",
       cmd: `curl -fsSL ${RAW}/install.sh | bash`,
       steps: ["Open your terminal.",
               "Paste the command above, press Enter.",
@@ -146,6 +389,7 @@
   };
 
   const cmdEl = document.getElementById("cmd");
+  const hintEl = document.getElementById("cmdHint");
   const stepsEl = document.getElementById("steps");
   const copyBtn = document.getElementById("copyBtn");
   const tabs = [...document.querySelectorAll(".tab")];
@@ -153,6 +397,7 @@
   function show(os) {
     tabs.forEach((t) => t.setAttribute("aria-selected", String(t.dataset.os === os)));
     cmdEl.textContent = DATA[os].cmd;
+    hintEl.textContent = DATA[os].hint;
     stepsEl.innerHTML = DATA[os].steps.map((s) => `<li>${s}</li>`).join("");
   }
   tabs.forEach((t) => t.addEventListener("click", () => show(t.dataset.os)));
@@ -168,14 +413,21 @@
       document.execCommand("copy");
       getSelection().removeAllRanges();
     }
-    copyBtn.textContent = "Copied!";
+    copyBtn.textContent = "Copied";
     copyBtn.classList.add("done");
     setTimeout(() => { copyBtn.textContent = "Copy"; copyBtn.classList.remove("done"); }, 1800);
   });
 
-  // Guess the visitor's system so the right tab is already open.
   const ua = navigator.userAgent;
-  show(/Win/i.test(ua) ? "win" : /Mac/i.test(ua) ? "mac" : /Linux|Android/i.test(ua) ? "linux" : "mac");
+  const onPhone = /Android|iPhone|iPad|iPod/i.test(ua);
+  if (onPhone) document.getElementById("phoneNote").hidden = false;
+  // An iPhone's UA says "like Mac OS X", so check for a phone before Mac.
+  show(
+    /Win/i.test(ua) ? "win"
+    : /iPhone|iPad|iPod|Mac/i.test(ua) ? "mac"
+    : /Linux|Android/i.test(ua) ? "linux"
+    : "mac"
+  );
 </script>
 </body>
 </html>

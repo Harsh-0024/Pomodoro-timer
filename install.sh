@@ -56,7 +56,7 @@ fi
 LAUNCHER="$INSTALL_DIR/Muhurata Timer.command"
 cat > "$LAUNCHER" <<LAUNCH
 #!/usr/bin/env bash
-cd "$INSTALL_DIR" && exec ".venv/bin/python" run.py
+cd "$INSTALL_DIR" && exec ".venv/bin/python" run.py "\$@"
 LAUNCH
 chmod +x "$LAUNCHER"
 if [[ -d "$HOME/Desktop" ]]; then

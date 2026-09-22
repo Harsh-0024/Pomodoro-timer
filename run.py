@@ -35,13 +35,16 @@ log = logging.getLogger("muhurata.launcher")
 # setup
 # --------------------------------------------------------------------------- #
 def _data_dir() -> Path:
-    # Import lazily: platformdirs may not be installed until after pip runs.
-    try:
-        from platformdirs import user_data_dir
-
-        return Path(user_data_dir("MuhurataTimer", appauthor=False))
-    except ImportError:
-        return Path.home() / ".muhurata"
+    # Same locations platformdirs.user_data_dir("MuhurataTimer", appauthor=False)
+    # resolves to, computed by hand because platformdirs isn't installed yet on
+    # the very first run.
+    if sys.platform == "darwin":
+        return Path.home() / "Library" / "Application Support" / "MuhurataTimer"
+    if sys.platform == "win32":
+        base = os.environ.get("LOCALAPPDATA") or str(Path.home() / "AppData" / "Local")
+        return Path(base) / "MuhurataTimer"
+    base = os.environ.get("XDG_DATA_HOME") or str(Path.home() / ".local" / "share")
+    return Path(base) / "MuhurataTimer"
 
 
 def _setup_logging(data_dir: Path):
@@ -53,10 +56,13 @@ def _setup_logging(data_dir: Path):
     file_h.setFormatter(fmt)
     console = logging.StreamHandler(sys.stderr)
     console.setFormatter(logging.Formatter("%(message)s"))
+    # Per-request lines go to the file only; the console stays readable.
+    console.addFilter(lambda r: not r.name.startswith("werkzeug"))
     root = logging.getLogger()
     root.setLevel(logging.INFO)
     root.addHandler(file_h)
     root.addHandler(console)
+    logging.getLogger("alembic").setLevel(logging.WARNING)
 
 
 def _run(cmd: list[str], **kw) -> subprocess.CompletedProcess:
@@ -88,7 +94,7 @@ def self_update() -> bool:
     if _run(["git", "--version"]).returncode != 0:
         log.warning("git not found; skipping update.")
         return False
-    if _run(["git", "status", "--porcelain"]).stdout.strip():
+    if _run(["git", "status", "--porcelain", "--untracked-files=no"]).stdout.strip():
         log.warning("Local changes present; skipping update.")
         return False
     if not _online():
@@ -182,13 +188,20 @@ def main(argv: list[str]) -> int:
 
     from app import app  # noqa: E402
 
+    from werkzeug.serving import make_server  # noqa: E402
+
     port = free_port()
     url = f"http://{HOST}:{port}/"
+    # make_server rather than app.run: no "development server" banner, and
+    # the request log goes through logging (file) instead of raw stderr.
+    server = make_server(HOST, port, app, threaded=True)
     threading.Thread(target=_open_when_ready, args=(url, open_browser), daemon=True).start()
     try:
-        app.run(host=HOST, port=port, debug=False, use_reloader=False)
+        server.serve_forever()
     except KeyboardInterrupt:
         pass
+    finally:
+        server.server_close()
     log.info("Stopped.")
     return 0
 

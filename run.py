@@ -241,11 +241,19 @@ def install_requirements(data_dir: Path, force: bool = False):
     cmds.append([sys.executable, "-m", "pip", "install", "--quiet",
                  "--disable-pip-version-check"]
                 + (["--force-reinstall"] if force else []) + ["-r", str(req)])
+    last = None
     for cmd in cmds:
-        if subprocess.run(cmd, cwd=PROJECT_ROOT).returncode == 0:
+        # Captured, not streamed: pip's failure output is frightening and
+        # useless to a friend. It goes to launcher.log, which is what gets
+        # sent back when something really is wrong.
+        last = subprocess.run(cmd, cwd=PROJECT_ROOT, capture_output=True, text=True)
+        if last.returncode == 0:
             break
+        log.debug("%s failed:\n%s\n%s", cmd[0], last.stdout, last.stderr)
     else:
-        raise RuntimeError("Could not install the required components; see output above.")
+        log.error("Could not install components. Installer said:\n%s\n%s",
+                  (last.stdout or "").strip(), (last.stderr or "").strip())
+        raise RuntimeError("Could not install the required components.")
     try:
         marker.write_text(digest)
     except OSError:

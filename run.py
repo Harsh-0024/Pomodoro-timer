@@ -64,16 +64,19 @@ def _setup_logging(data_dir: Path):
         data_dir / "launcher.log", maxBytes=512_000, backupCount=2, encoding="utf-8"
     )
     file_h.setFormatter(fmt)
+    file_h.setLevel(logging.DEBUG)      # the log keeps everything
     console = logging.StreamHandler(sys.stderr)
     console.setFormatter(logging.Formatter("%(message)s"))
-    # Per-request lines and tracebacks go to the file only; the console stays
-    # readable for someone who is not a programmer.
+    console.setLevel(logging.INFO)      # the screen keeps only plain sentences
+    # Per-request lines and tracebacks belong in the file, not in front of
+    # someone who is not a programmer.
     console.addFilter(lambda r: not r.name.startswith("werkzeug") and not r.exc_info)
     root = logging.getLogger()
-    root.setLevel(logging.INFO)
+    root.setLevel(logging.DEBUG)
     root.addHandler(file_h)
     root.addHandler(console)
     logging.getLogger("alembic").setLevel(logging.WARNING)
+    logging.getLogger("werkzeug").setLevel(logging.INFO)
 
 
 def _run(cmd: list[str], **kw) -> subprocess.CompletedProcess:
@@ -251,7 +254,7 @@ def install_requirements(data_dir: Path, force: bool = False):
             break
         log.debug("%s failed:\n%s\n%s", cmd[0], last.stdout, last.stderr)
     else:
-        log.error("Could not install components. Installer said:\n%s\n%s",
+        log.debug("Could not install components. Installer said:\n%s\n%s",
                   (last.stdout or "").strip(), (last.stderr or "").strip())
         raise RuntimeError("Could not install the required components.")
     try:

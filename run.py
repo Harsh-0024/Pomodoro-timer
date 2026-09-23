@@ -12,6 +12,7 @@ Flags:
 from __future__ import annotations
 
 import hashlib
+import importlib
 import logging
 import logging.handlers
 import os
@@ -33,6 +34,7 @@ REMOTE_BRANCH = "origin/main"
 # lands on the next launch instead. Waiting is never the user's problem.
 UPDATE_BUDGET = 6.0
 UV_DIR = Path.home() / ".muhurata" / "bin"
+REPAIR_FLAG = "MUHURATA_REPAIRED"  # set across a repair restart, so it happens once
 FIRST_PORT = 8000
 HOST = "127.0.0.1"
 
@@ -277,6 +279,7 @@ def _load_app():
     """Import the app, leaving nothing half-imported if a package is missing."""
     for name in ("db", "app", "schema", "presets"):
         sys.modules.pop(name, None)
+    importlib.invalidate_caches()
     import db  # noqa: E402
     from app import app  # noqa: E402
     from werkzeug.serving import make_server  # noqa: E402
@@ -359,9 +362,18 @@ def main(argv: list[str]) -> int:
     except ModuleNotFoundError as missing:
         # The environment is not in the state the marker claimed. Rather than
         # dying with a traceback nobody can act on, put it right and carry on.
+        # REPAIR_FLAG stops this becoming a loop if the repair cannot help.
+        if os.environ.get(REPAIR_FLAG):
+            raise
         log.info("Some components are missing (%s) - repairing...", missing.name)
         install_requirements(data_dir, force=True)
-        db, app, make_server = _load_app()
+        # Restart rather than re-import: this interpreter built its view of the
+        # installed packages at startup and will not see the new ones.
+        os.execve(
+            sys.executable,
+            [sys.executable, str(PROJECT_ROOT / "run.py"), "--no-update", *argv[1:]],
+            {**os.environ, REPAIR_FLAG: "1"},
+        )
 
     db.init_db()  # applies any pending migrations (with backup)
 

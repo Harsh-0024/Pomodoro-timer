@@ -231,11 +231,16 @@ def install_requirements(data_dir: Path, force: bool = False):
         return
     log.info("Installing new components - this can take a minute, only this once...")
     uv = _uv()
+    # A repair must not trust the existing install: a package whose files are
+    # damaged still leaves its metadata behind, and a plain install would call
+    # that "already satisfied" and change nothing.
     cmds = []
     if uv:
-        cmds.append([uv, "pip", "install", "--python", sys.executable, "-q", "-r", str(req)])
+        cmds.append([uv, "pip", "install", "--python", sys.executable, "-q"]
+                    + (["--reinstall"] if force else []) + ["-r", str(req)])
     cmds.append([sys.executable, "-m", "pip", "install", "--quiet",
-                 "--disable-pip-version-check", "-r", str(req)])
+                 "--disable-pip-version-check"]
+                + (["--force-reinstall"] if force else []) + ["-r", str(req)])
     for cmd in cmds:
         if subprocess.run(cmd, cwd=PROJECT_ROOT).returncode == 0:
             break

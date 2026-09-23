@@ -64,8 +64,9 @@ def _setup_logging(data_dir: Path):
     file_h.setFormatter(fmt)
     console = logging.StreamHandler(sys.stderr)
     console.setFormatter(logging.Formatter("%(message)s"))
-    # Per-request lines go to the file only; the console stays readable.
-    console.addFilter(lambda r: not r.name.startswith("werkzeug"))
+    # Per-request lines and tracebacks go to the file only; the console stays
+    # readable for someone who is not a programmer.
+    console.addFilter(lambda r: not r.name.startswith("werkzeug") and not r.exc_info)
     root = logging.getLogger()
     root.setLevel(logging.INFO)
     root.addHandler(file_h)
@@ -201,13 +202,30 @@ def ensure_python_version() -> bool:
     return True
 
 
-def install_requirements(data_dir: Path):
+def _requirements_marker(data_dir: Path) -> Path:
+    """Where we record which requirements this environment has.
+
+    It lives *inside* the virtualenv on purpose. A marker in the data dir
+    outlives the environment it describes, so rebuilding the venv (a new
+    Python version, a repair) left a stale "already installed" note behind
+    and the app started with no packages at all.
+    """
+    try:
+        venv = Path(sys.prefix)
+        if os.access(venv, os.W_OK):
+            return venv / ".muhurata-requirements"
+    except OSError:
+        pass
+    return data_dir / "requirements.sha256"
+
+
+def install_requirements(data_dir: Path, force: bool = False):
     if FROZEN:
         return  # everything is baked into the bundle
     req = PROJECT_ROOT / "requirements.txt"
     digest = hashlib.sha256(req.read_bytes()).hexdigest()
-    marker = data_dir / "requirements.sha256"
-    if marker.exists() and marker.read_text().strip() == digest:
+    marker = _requirements_marker(data_dir)
+    if not force and marker.exists() and marker.read_text().strip() == digest:
         return
     log.info("Installing new components - this can take a minute, only this once...")
     uv = _uv()
@@ -221,7 +239,10 @@ def install_requirements(data_dir: Path):
             break
     else:
         raise RuntimeError("Could not install the required components; see output above.")
-    marker.write_text(digest)
+    try:
+        marker.write_text(digest)
+    except OSError:
+        pass  # worst case we reinstall next time; not worth failing over
     log.info("Done.")
 
 
@@ -250,6 +271,17 @@ def _open_when_ready(url: str, open_browser: bool):
     log.info("Muhurata is running at %s  (Ctrl+C or close this window to stop)", url)
     if open_browser:
         webbrowser.open(url)
+
+
+def _load_app():
+    """Import the app, leaving nothing half-imported if a package is missing."""
+    for name in ("db", "app", "schema", "presets"):
+        sys.modules.pop(name, None)
+    import db  # noqa: E402
+    from app import app  # noqa: E402
+    from werkzeug.serving import make_server  # noqa: E402
+
+    return db, app, make_server
 
 
 def doctor(data_dir: Path) -> int:
@@ -322,13 +354,16 @@ def main(argv: list[str]) -> int:
     install_requirements(data_dir)
 
     sys.path.insert(0, str(PROJECT_ROOT))
-    import db  # noqa: E402
+    try:
+        db, app, make_server = _load_app()
+    except ModuleNotFoundError as missing:
+        # The environment is not in the state the marker claimed. Rather than
+        # dying with a traceback nobody can act on, put it right and carry on.
+        log.info("Some components are missing (%s) - repairing...", missing.name)
+        install_requirements(data_dir, force=True)
+        db, app, make_server = _load_app()
 
     db.init_db()  # applies any pending migrations (with backup)
-
-    from app import app  # noqa: E402
-
-    from werkzeug.serving import make_server  # noqa: E402
 
     port = free_port()
     url = f"http://{HOST}:{port}/"
@@ -346,12 +381,35 @@ def main(argv: list[str]) -> int:
     return 0
 
 
+REPAIR_CMD = (
+    "irm https://raw.githubusercontent.com/Harsh-0024/Pomodoro-timer/main/install.ps1 | iex"
+    if sys.platform == "win32"
+    else "curl -fsSL https://raw.githubusercontent.com/Harsh-0024/Pomodoro-timer/main/install.sh | bash"
+)
+
+
+def _explain_failure():
+    """A dead end for the user is worse than the bug. Give them one action."""
+    log.exception("Launcher failed")  # full traceback -> launcher.log only
+    line = "-" * 64
+    print(
+        f"\n{line}\n"
+        "  Muhurata could not start.\n\n"
+        "  This almost always fixes it - copy the line below, paste it\n"
+        "  into this window and press Enter:\n\n"
+        f"    {REPAIR_CMD}\n\n"
+        "  If it still will not start, send this file to Harsh:\n"
+        f"    {_data_dir() / 'launcher.log'}\n"
+        f"{line}\n",
+        file=sys.stderr,
+    )
+    if sys.stdin and sys.stdin.isatty():
+        input("Press Enter to close...")
+
+
 if __name__ == "__main__":
     try:
         sys.exit(main(sys.argv))
     except Exception:
-        log.exception("Launcher failed")
-        print("\nSomething went wrong. The log is at:", _data_dir() / "launcher.log", file=sys.stderr)
-        if sys.stdin and sys.stdin.isatty():
-            input("Press Enter to close...")
+        _explain_failure()
         sys.exit(1)

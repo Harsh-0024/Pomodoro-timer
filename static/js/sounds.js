@@ -137,10 +137,10 @@
     return SOUND_BY_ID[value] ? value : fallback;
   }
 
+  // The manual_* keys are the ones Settings edits, so they win regardless of
+  // auto-start; the older common keys are only a fallback for old databases.
   function selectedForFlow(settings, manualKey, commonKey, fallback) {
-    const manualFlow = !settings?.auto_start_work && !settings?.auto_start_break;
-    const key = manualFlow ? manualKey : commonKey;
-    return selected(settings, key, selected(settings, commonKey, fallback));
+    return selected(settings, manualKey, selected(settings, commonKey, fallback));
   }
 
   function templeGong(settings) {

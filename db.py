@@ -192,6 +192,18 @@ def save_settings(partial: dict) -> dict:
     return merged
 
 
+def reset_settings() -> dict:
+    """Forget every stored preference; load_settings() then returns the defaults."""
+    init_db()
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        conn.execute("UPDATE app_settings SET json = '{}' WHERE id = 1")
+        conn.commit()
+    finally:
+        conn.close()
+    return load_settings()
+
+
 def list_custom_presets():
     init_db()
     conn = sqlite3.connect(DB_PATH)
@@ -222,6 +234,34 @@ def create_custom_preset(name: str, work_min: int, short_rest_min: int, long_res
         )
         conn.commit()
         pid = cur.lastrowid
+        row = conn.execute(
+            """
+            SELECT id, name, work_min, short_rest_min, long_rest_min, created_at
+            FROM custom_presets WHERE id = ?
+            """,
+            (pid,),
+        ).fetchone()
+        return dict(row)
+    finally:
+        conn.close()
+
+
+def update_custom_preset(pid: int, name: str, work_min: int, short_rest_min: int, long_rest_min: int) -> dict | None:
+    init_db()
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    try:
+        cur = conn.execute(
+            """
+            UPDATE custom_presets
+            SET name = ?, work_min = ?, short_rest_min = ?, long_rest_min = ?
+            WHERE id = ?
+            """,
+            (name.strip(), work_min, short_rest_min, long_rest_min, pid),
+        )
+        conn.commit()
+        if cur.rowcount == 0:
+            return None
         row = conn.execute(
             """
             SELECT id, name, work_min, short_rest_min, long_rest_min, created_at

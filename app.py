@@ -31,6 +31,7 @@ ASSET_VERSION_PATHS = (
     BASE_DIR / "static" / "js" / "sounds.js",
     BASE_DIR / "static" / "js" / "dialog.js",
     BASE_DIR / "static" / "js" / "shortcuts.js",
+    BASE_DIR / "static" / "css" / "app.css",
 )
 BUILTIN_QUOTES = [
     {"quote": "You have power over your mind, not outside events. Realize this, and you will find strength.", "author": "Marcus Aurelius"},
@@ -201,22 +202,40 @@ def api_presets():
     return jsonify({"builtins": builtins, "custom": custom})
 
 
-@app.post("/api/presets")
-def api_create_preset():
-    data = request.get_json(silent=True) or {}
-    name = (data.get("name") or "").strip()
+def _parse_preset_body(data: dict):
+    """(name, work, short, long), or an error message."""
+    name = str(data.get("name") or "").strip()
     try:
         w = int(data.get("work_min"))
         s = int(data.get("short_rest_min"))
         l = int(data.get("long_rest_min"))
     except (TypeError, ValueError):
-        return jsonify({"error": "Invalid durations"}), 400
+        return "Invalid durations"
     if not name or len(name) > 80:
-        return jsonify({"error": "Name must be 1–80 characters"}), 400
+        return "Name must be 1–80 characters"
     if not (1 <= w <= 180 and 1 <= s <= 60 and 1 <= l <= 120):
-        return jsonify({"error": "Durations out of allowed range"}), 400
-    row = db.create_custom_preset(name, w, s, l)
+        return "Durations out of allowed range"
+    return name, w, s, l
+
+
+@app.post("/api/presets")
+def api_create_preset():
+    parsed = _parse_preset_body(request.get_json(silent=True) or {})
+    if isinstance(parsed, str):
+        return jsonify({"error": parsed}), 400
+    row = db.create_custom_preset(*parsed)
     return jsonify(_custom_public(row)), 201
+
+
+@app.put("/api/presets/<int:preset_id>")
+def api_update_preset(preset_id: int):
+    parsed = _parse_preset_body(request.get_json(silent=True) or {})
+    if isinstance(parsed, str):
+        return jsonify({"error": parsed}), 400
+    row = db.update_custom_preset(preset_id, *parsed)
+    if row is None:
+        return jsonify({"error": "Not found"}), 404
+    return jsonify(_custom_public(row))
 
 
 @app.delete("/api/presets/<int:preset_id>")
@@ -232,6 +251,11 @@ def api_delete_preset(preset_id: int):
 @app.get("/api/settings")
 def api_get_settings():
     return jsonify(db.load_settings())
+
+
+@app.post("/api/settings/reset")
+def api_reset_settings():
+    return jsonify(db.reset_settings())
 
 
 @app.get("/api/quote")

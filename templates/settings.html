@@ -5,151 +5,224 @@
 {% block content %}
 <section class="settings-hero">
   <h1 class="title title-settings">Refine the ritual.</h1>
-  <p class="lede lede-narrow">Every preference persists quietly on this device — sound, motion, defaults, and your saved rhythms.</p>
+  <p class="lede lede-narrow">Every preference saves itself on this device the moment you change it.</p>
 </section>
 
-<div class="settings-grid">
-  <section class="card">
-    <h2 class="card-title">Session flow</h2>
-    <label class="toggle">
-      <input type="checkbox" id="setAutoWork" />
-      <span class="toggle-ui"></span>
-      <span class="toggle-copy">
-        <span class="toggle-name">Auto-start work</span>
-        <span class="toggle-desc">Begin the next focus block when a break ends.</span>
-      </span>
-    </label>
-    <label class="toggle">
-      <input type="checkbox" id="setAutoBreak" />
-      <span class="toggle-ui"></span>
-      <span class="toggle-copy">
-        <span class="toggle-name">Auto-start breaks</span>
-        <span class="toggle-desc">Roll into rest without an extra tap.</span>
-      </span>
-    </label>
-    <div class="field settings-level-picker" id="setDefaultPresetPicker">
-      <span class="field-label" id="setDefaultPresetLabel">Default level</span>
-      <button type="button" class="select-button" id="setDefaultPresetButton" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="setDefaultPresetLabel setDefaultPresetText">
-        <span id="setDefaultPresetText">Choose level</span>
-      </button>
-      <div class="settings-level-menu hidden" id="setDefaultPresetMenu" role="listbox" aria-labelledby="setDefaultPresetLabel"></div>
-    </div>
-  </section>
+<div class="settings-layout">
+  <nav class="settings-nav" aria-label="Settings sections">
+    <a href="#timer" class="settings-nav-link is-active">Timer</a>
+    <a href="#sound" class="settings-nav-link">Sound</a>
+    <a href="#appearance" class="settings-nav-link">Appearance</a>
+    <a href="#notifications" class="settings-nav-link">Notifications</a>
+    <a href="#combinations" class="settings-nav-link">Combinations</a>
+    <a href="#keyboard" class="settings-nav-link">Keyboard</a>
+    <a href="#about" class="settings-nav-link">About</a>
+  </nav>
 
-  <section class="card">
-    <h2 class="card-title">Appearance</h2>
-    <p class="card-lede">Choose the visual tone for focus and planning.</p>
-    <div class="field field-first">
-      <span class="field-label" id="setThemeLabel">Theme</span>
-      <div class="segmented" id="setTheme" role="radiogroup" aria-labelledby="setThemeLabel">
-        <button type="button" class="segment" data-value="dark" role="radio" aria-checked="false">Dark</button>
-        <button type="button" class="segment" data-value="light" role="radio" aria-checked="false">Light</button>
-        <button type="button" class="segment" data-value="system" role="radio" aria-checked="false">System</button>
-      </div>
-    </div>
-  </section>
-
-  <section class="card sound-card">
-    <h2 class="card-title">Sound</h2>
-    <div class="sound-toggle-grid">
-      <label class="toggle">
-        <input type="checkbox" id="setSound" />
-        <span class="toggle-ui"></span>
-        <span class="toggle-copy">
-          <span class="toggle-name">Sound on</span>
-          <span class="toggle-desc">Master switch for audio cues.</span>
-        </span>
-      </label>
-      <label class="toggle">
-        <input type="checkbox" id="setTick" />
-        <span class="toggle-ui"></span>
-        <span class="toggle-copy">
-          <span class="toggle-name">Minute pulse</span>
-          <span class="toggle-desc">Soft marker at each minute.</span>
-        </span>
-      </label>
-    </div>
-    <div class="sound-control-grid">
-      <div class="field">
-        <label class="field-label" for="setVolume">Volume</label>
-        <div class="sound-volume-row">
-          <input type="range" id="setVolume" class="range" min="0" max="100" step="5" />
-          <span class="range-val" id="setVolumeVal">70%</span>
+  <div class="settings-sections">
+    <section class="pref-section" id="timer" aria-labelledby="timerTitle">
+      <header class="pref-head">
+        <h2 class="card-title" id="timerTitle">Timer</h2>
+        <p class="card-lede">How a session starts, and what a good day looks like.</p>
+      </header>
+      <div class="pref-group">
+        <div class="pref-row pref-row-stack settings-level-picker" id="setDefaultPresetPicker">
+          <div class="pref-text">
+            <span class="pref-name" id="setDefaultPresetLabel">Default level</span>
+            <span class="pref-desc">Ready on the timer each time you open it.</span>
+          </div>
+          <button type="button" class="select-button" id="setDefaultPresetButton" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="setDefaultPresetLabel setDefaultPresetText">
+            <span class="select-button-main">
+              <span class="select-button-name" id="setDefaultPresetText">Loading…</span>
+              <span class="select-button-sub" id="setDefaultPresetSub"></span>
+            </span>
+            <span class="select-caret" aria-hidden="true"></span>
+          </button>
+          <div class="settings-level-menu hidden" id="setDefaultPresetMenu" role="listbox" aria-labelledby="setDefaultPresetLabel"></div>
         </div>
-      </div>
-      <div class="field">
-        <span class="field-label" id="setProfileLabel">Character</span>
-        <div class="segmented" id="setProfile" role="radiogroup" aria-labelledby="setProfileLabel">
-          <button type="button" class="segment" data-value="subtle" role="radio" aria-checked="false">Subtle</button>
-          <button type="button" class="segment" data-value="balanced" role="radio" aria-checked="false">Balanced</button>
-          <button type="button" class="segment" data-value="bold" role="radio" aria-checked="false">Bold</button>
+        <div class="pref-row">
+          <div class="pref-text">
+            <span class="pref-name" id="setGoalLabel">Daily focus goal</span>
+            <span class="pref-desc" id="setGoalHint">Days that reach it glow brightest on the dashboard.</span>
+          </div>
+          <div class="stepper" role="group" aria-labelledby="setGoalLabel">
+            <button type="button" class="stepper-btn" id="setGoalDown" aria-label="Lower daily goal">&minus;</button>
+            <output class="stepper-value" id="setGoalValue" aria-live="polite">2h</output>
+            <button type="button" class="stepper-btn" id="setGoalUp" aria-label="Raise daily goal">+</button>
+          </div>
         </div>
+        <label class="pref-row toggle">
+          <span class="pref-text">
+            <span class="pref-name">Auto-start rest</span>
+            <span class="pref-desc">Roll into rest the moment a focus block ends.</span>
+          </span>
+          <input type="checkbox" id="setAutoBreak" />
+          <span class="toggle-ui" aria-hidden="true"></span>
+        </label>
+        <label class="pref-row toggle">
+          <span class="pref-text">
+            <span class="pref-name">Auto-start focus</span>
+            <span class="pref-desc">Begin the next focus block when rest ends.</span>
+          </span>
+          <input type="checkbox" id="setAutoWork" />
+          <span class="toggle-ui" aria-hidden="true"></span>
+        </label>
       </div>
-    </div>
-    <div class="sound-purpose-grid">
-      <div class="field sound-cue">
-        <label class="field-label" for="setSoundRestEnd">Rest ends</label>
-        <div class="sound-picker-row">
-          <select class="select" id="setSoundRestEnd"></select>
-          <button type="button" class="btn btn-quiet btn-preview" data-preview-for="setSoundRestEnd" aria-label="Preview rest ends sound" title="Preview">&#9658;</button>
-        </div>
-      </div>
-      <div class="field sound-cue">
-        <label class="field-label" for="setSoundWorkBegin">Work begins</label>
-        <div class="sound-picker-row">
-          <select class="select" id="setSoundWorkBegin"></select>
-          <button type="button" class="btn btn-quiet btn-preview" data-preview-for="setSoundWorkBegin" aria-label="Preview work begins sound" title="Preview">&#9658;</button>
-        </div>
-      </div>
-      <div class="field sound-cue">
-        <label class="field-label" for="setSoundWorkEnd">Work ends</label>
-        <div class="sound-picker-row">
-          <select class="select" id="setSoundWorkEnd"></select>
-          <button type="button" class="btn btn-quiet btn-preview" data-preview-for="setSoundWorkEnd" aria-label="Preview work ends sound" title="Preview">&#9658;</button>
-        </div>
-      </div>
-      <div class="field sound-cue">
-        <label class="field-label" for="setSoundAction">Small actions</label>
-        <div class="sound-picker-row">
-          <select class="select" id="setSoundAction"></select>
-          <button type="button" class="btn btn-quiet btn-preview" data-preview-for="setSoundAction" aria-label="Preview small actions sound" title="Preview">&#9658;</button>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <div class="settings-stack">
-    <section class="card card-compact">
-      <h2 class="card-title">Keyboard</h2>
-      <p class="card-lede">Quick reference for timer controls.</p>
-      <button type="button" class="btn btn-quiet" id="btnShowShortcuts">View shortcuts</button>
     </section>
 
-    <section class="card card-compact">
-      <h2 class="card-title">Notifications</h2>
-      <label class="toggle">
-        <input type="checkbox" id="setNotify" />
-        <span class="toggle-ui"></span>
-        <span class="toggle-copy">
-          <span class="toggle-name">Desktop notifications</span>
-          <span class="toggle-desc">Gentle alerts when this tab is not in view.</span>
-        </span>
-      </label>
+    <section class="pref-section" id="sound" aria-labelledby="soundTitle">
+      <header class="pref-head">
+        <h2 class="card-title" id="soundTitle">Sound</h2>
+        <p class="card-lede">Bells mark the edges of each block. Press ▶ to hear one.</p>
+      </header>
+      <div class="pref-group">
+        <label class="pref-row toggle">
+          <span class="pref-text">
+            <span class="pref-name">Sound</span>
+            <span class="pref-desc">Master switch for every cue below.</span>
+          </span>
+          <input type="checkbox" id="setSound" />
+          <span class="toggle-ui" aria-hidden="true"></span>
+        </label>
+        <div class="pref-row" data-needs-sound>
+          <div class="pref-text">
+            <label class="pref-name" for="setVolume">Volume</label>
+          </div>
+          <div class="volume-control">
+            <input type="range" id="setVolume" class="range" min="0" max="100" step="5" />
+            <output class="range-val" id="setVolumeVal" for="setVolume">70%</output>
+          </div>
+        </div>
+        <div class="pref-row" data-needs-sound>
+          <div class="pref-text">
+            <span class="pref-name" id="setProfileLabel">Character</span>
+            <span class="pref-desc">How strongly bells ring at the same volume.</span>
+          </div>
+          <div class="segmented" id="setProfile" role="radiogroup" aria-labelledby="setProfileLabel">
+            <button type="button" class="segment" data-value="subtle" role="radio" aria-checked="false">Subtle</button>
+            <button type="button" class="segment" data-value="balanced" role="radio" aria-checked="false">Balanced</button>
+            <button type="button" class="segment" data-value="bold" role="radio" aria-checked="false">Bold</button>
+          </div>
+        </div>
+        <label class="pref-row toggle" data-needs-sound>
+          <span class="pref-text">
+            <span class="pref-name">Minute pulse</span>
+            <span class="pref-desc">A soft tick as each minute passes.</span>
+          </span>
+          <input type="checkbox" id="setTick" />
+          <span class="toggle-ui" aria-hidden="true"></span>
+        </label>
+      </div>
+
+      <h3 class="pref-subhead">Cues</h3>
+      <div class="pref-group cue-list" id="cueList" data-needs-sound></div>
+    </section>
+
+    <section class="pref-section" id="appearance" aria-labelledby="appearanceTitle">
+      <header class="pref-head">
+        <h2 class="card-title" id="appearanceTitle">Appearance</h2>
+      </header>
+      <div class="pref-group">
+        <div class="pref-row">
+          <div class="pref-text">
+            <span class="pref-name" id="setThemeLabel">Theme</span>
+            <span class="pref-desc">System follows your computer's light or dark mode.</span>
+          </div>
+          <div class="segmented segmented-theme" id="setTheme" role="radiogroup" aria-labelledby="setThemeLabel">
+            <button type="button" class="segment" data-value="dark" role="radio" aria-checked="false"><span class="theme-swatch theme-swatch-dark" aria-hidden="true"></span>Dark</button>
+            <button type="button" class="segment" data-value="light" role="radio" aria-checked="false"><span class="theme-swatch theme-swatch-light" aria-hidden="true"></span>Light</button>
+            <button type="button" class="segment" data-value="system" role="radio" aria-checked="false"><span class="theme-swatch theme-swatch-system" aria-hidden="true"></span>System</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="pref-section" id="notifications" aria-labelledby="notifyTitle">
+      <header class="pref-head">
+        <h2 class="card-title" id="notifyTitle">Notifications</h2>
+      </header>
+      <div class="pref-group">
+        <label class="pref-row toggle">
+          <span class="pref-text">
+            <span class="pref-name">Desktop notifications</span>
+            <span class="pref-desc">A quiet alert when a block ends while this tab is out of view.</span>
+          </span>
+          <input type="checkbox" id="setNotify" />
+          <span class="toggle-ui" aria-hidden="true"></span>
+        </label>
+        <div class="pref-row pref-status" id="notifyStatusRow">
+          <p class="pref-status-text" id="notifyStatus"></p>
+          <button type="button" class="btn btn-quiet btn-small hidden" id="btnNotifyAction"></button>
+        </div>
+      </div>
+    </section>
+
+    <section class="pref-section" id="combinations" aria-labelledby="combosTitle">
+      <header class="pref-head">
+        <h2 class="card-title" id="combosTitle">Your combinations</h2>
+        <p class="card-lede">Name your own rhythm. A cycle is always four focus blocks, three short rests and one long rest.</p>
+      </header>
+      <div class="pref-group">
+        <form class="preset-form" id="customForm" novalidate>
+          <div class="preset-field preset-field-name">
+            <label class="field-label" for="presetName">Name</label>
+            <input type="text" id="presetName" name="name" class="input" placeholder="Morning deep work" maxlength="80" required autocomplete="off" />
+          </div>
+          <div class="preset-field">
+            <label class="field-label" for="presetWork">Focus</label>
+            <div class="input-unit"><input type="number" id="presetWork" name="work_min" class="input" inputmode="numeric" min="1" max="180" placeholder="25" required /><span>min</span></div>
+          </div>
+          <div class="preset-field">
+            <label class="field-label" for="presetShort">Short rest</label>
+            <div class="input-unit"><input type="number" id="presetShort" name="short_rest_min" class="input" inputmode="numeric" min="1" max="60" placeholder="5" required /><span>min</span></div>
+          </div>
+          <div class="preset-field">
+            <label class="field-label" for="presetLong">Long rest</label>
+            <div class="input-unit"><input type="number" id="presetLong" name="long_rest_min" class="input" inputmode="numeric" min="1" max="120" placeholder="15" required /><span>min</span></div>
+          </div>
+          <div class="preset-form-foot">
+            <p class="preset-preview" id="presetPreview" aria-live="polite">Fill in the durations to see the full cycle.</p>
+            <div class="preset-form-actions">
+              <button type="button" class="btn btn-ghost hidden" id="btnCancelEdit">Cancel</button>
+              <button type="submit" class="btn btn-primary" id="btnSavePreset">Save combination</button>
+            </div>
+          </div>
+        </form>
+        <ul class="custom-list" id="customList"></ul>
+      </div>
+    </section>
+
+    <section class="pref-section" id="keyboard" aria-labelledby="keyboardTitle">
+      <header class="pref-head">
+        <h2 class="card-title" id="keyboardTitle">Keyboard</h2>
+        <p class="card-lede">On the timer page. Press <kbd>Shift</kbd> + <kbd>/</kbd> anywhere to bring this list up.</p>
+      </header>
+      <div class="pref-group">
+        <ul class="shortcut-grid" id="shortcutGrid"></ul>
+      </div>
+    </section>
+
+    <section class="pref-section" id="about" aria-labelledby="aboutTitle">
+      <header class="pref-head">
+        <h2 class="card-title" id="aboutTitle">About</h2>
+      </header>
+      <div class="pref-group">
+        <div class="pref-row">
+          <div class="pref-text">
+            <span class="pref-name">Muhurata Timer</span>
+            <span class="pref-desc">Version {{ app_version }} · 1 Muhurat = 48 min · 1 Ghadi = 24 min</span>
+          </div>
+        </div>
+        <div class="pref-row">
+          <div class="pref-text">
+            <span class="pref-name">Restore defaults</span>
+            <span class="pref-desc">Resets timer, sound, theme and notification preferences. Your combinations and focus history stay.</span>
+          </div>
+          <button type="button" class="btn btn-danger" id="btnResetSettings">Restore</button>
+        </div>
+      </div>
     </section>
   </div>
-
-  <section class="card card-wide">
-    <h2 class="card-title">Your combinations</h2>
-    <p class="card-lede">Name a rhythm. Durations are in minutes; one full cycle is always four work blocks, three short rests, and one long rest.</p>
-    <form class="preset-form" id="customForm">
-      <input type="text" name="name" class="input" placeholder="Name" maxlength="80" required />
-      <input type="number" name="work_min" class="input input-num" placeholder="Work" min="1" max="180" required />
-      <input type="number" name="short_rest_min" class="input input-num" placeholder="Short" min="1" max="60" required />
-      <input type="number" name="long_rest_min" class="input input-num" placeholder="Long" min="1" max="120" required />
-      <button type="submit" class="btn btn-primary">Save combination</button>
-    </form>
-    <ul class="custom-list" id="customList"></ul>
-  </section>
 </div>
 <p class="settings-toast" id="settingsToast" role="status" aria-live="polite"></p>
 {% endblock %}

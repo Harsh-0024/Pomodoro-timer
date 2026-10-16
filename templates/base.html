@@ -28,10 +28,11 @@
       <a href="{{ url_for('index') }}" class="nav-link{% if request.endpoint == 'index' %} is-active{% endif %}">Timer</a>
       <a href="{{ url_for('flow_page') }}" class="nav-link{% if request.endpoint == 'flow_page' %} is-active{% endif %}">Flow</a>
       <a href="{{ url_for('dashboard_page') }}" class="nav-link{% if request.endpoint == 'dashboard_page' %} is-active{% endif %}">Dashboard</a>
-      <a href="{{ url_for('settings_page') }}" class="nav-link{% if request.endpoint == 'settings_page' %} is-active{% endif %}">Settings</a>
+      <a href="{{ url_for('settings_page') }}" class="nav-link{% if request.endpoint in ('settings_page', 'history_page') %} is-active{% endif %}">Settings</a>
     </nav>
   </header>
   <main class="main">{% block content %}{% endblock %}</main>
+  {% block modals %}{% endblock %}
   <footer class="foot">
     <span>1 Muhurat = 48 min · 1 Ghadi = 24 min</span>
     <span class="foot-version">v{{ app_version }}</span>

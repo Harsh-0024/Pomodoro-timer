@@ -323,8 +323,7 @@ def add_activity_segment(segment: dict) -> dict:
     init_db()
     kind = str(segment["kind"])
     duration_sec = float(segment["duration_sec"])
-    productive_sec = duration_sec if kind in ("work", "extend", "flow") else 0.0
-    rest_sec = duration_sec if kind in ("rest", "cumulative", "pause") else 0.0
+    productive_sec, rest_sec = _split_seconds(kind, duration_sec)
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     try:
@@ -401,6 +400,189 @@ def activity_for_day(day_iso: str) -> dict:
                 "productivity_pct": round((productive / tracked) * 100, 2) if tracked else None,
             },
         }
+    finally:
+        conn.close()
+
+
+PRODUCTIVE_KINDS = ("work", "extend", "flow")
+REST_KINDS = ("rest", "cumulative", "pause")
+# Anything this long is flagged in the history editor: the usual cause is a
+# timer or stopwatch left running on a computer nobody was sitting at.
+LONG_SEGMENT_SEC = 3 * 60 * 60
+
+_SEGMENT_SELECT = """
+    SELECT id, day, kind, started_at, ended_at, duration_sec,
+           productive_sec, rest_sec, preset_id, preset_name,
+           phase_index, details_json, created_at
+    FROM activity_segments
+"""
+
+
+class SegmentConflict(ValueError):
+    """The requested times would overlap another logged segment."""
+
+
+def _split_seconds(kind: str, duration_sec: float) -> tuple[float, float]:
+    productive = duration_sec if kind in PRODUCTIVE_KINDS else 0.0
+    rest = duration_sec if kind in REST_KINDS else 0.0
+    return productive, rest
+
+
+def _overlapping_ids(conn: sqlite3.Connection, started_at: str, ended_at: str, exclude_id: int | None) -> set[int]:
+    rows = conn.execute(
+        """
+        SELECT id FROM activity_segments
+        WHERE julianday(started_at) < julianday(?)
+          AND julianday(ended_at) > julianday(?)
+          AND id IS NOT ?
+        """,
+        (ended_at, started_at, exclude_id),
+    ).fetchall()
+    return {r[0] for r in rows}
+
+
+def _describe_conflict(conn: sqlite3.Connection, ids: set[int]) -> SegmentConflict:
+    row = conn.execute(
+        f"{_SEGMENT_SELECT} WHERE id IN ({','.join('?' * len(ids))}) ORDER BY started_at LIMIT 1",
+        tuple(ids),
+    ).fetchone()
+    err = SegmentConflict("Those times overlap another session.")
+    err.segment = _activity_public(row) if row else None
+    return err
+
+
+def list_activity_history(start_day: str, end_day: str) -> list[dict]:
+    init_db()
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    try:
+        rows = conn.execute(
+            f"{_SEGMENT_SELECT} WHERE day BETWEEN ? AND ? ORDER BY julianday(started_at) DESC, id DESC",
+            (start_day, end_day),
+        ).fetchall()
+        return [_activity_public(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def list_long_segments(min_sec: float = LONG_SEGMENT_SEC, limit: int = 200) -> list[dict]:
+    init_db()
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    try:
+        rows = conn.execute(
+            f"{_SEGMENT_SELECT} WHERE duration_sec >= ? ORDER BY julianday(started_at) DESC, id DESC LIMIT ?",
+            (min_sec, limit),
+        ).fetchall()
+        return [_activity_public(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def earliest_activity_day() -> str | None:
+    init_db()
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        row = conn.execute("SELECT MIN(day) FROM activity_segments").fetchone()
+        return row[0] if row else None
+    finally:
+        conn.close()
+
+
+def create_manual_segment(kind: str, day: str, started_at: str, ended_at: str, duration_sec: float) -> dict:
+    """Log a session the timer missed. Refuses to overlap anything already logged."""
+    init_db()
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        clash = _overlapping_ids(conn, started_at, ended_at, None)
+        if clash:
+            conn.row_factory = sqlite3.Row
+            raise _describe_conflict(conn, clash)
+    finally:
+        conn.close()
+    return add_activity_segment(
+        {
+            "day": day,
+            "kind": kind,
+            "started_at": started_at,
+            "ended_at": ended_at,
+            "duration_sec": duration_sec,
+            "preset_id": "manual",
+            "preset_name": "Added by hand",
+            "details": {"source": "manual"},
+        }
+    )
+
+
+def update_activity_segment(sid: int, day: str, started_at: str, ended_at: str, duration_sec: float) -> dict | None:
+    """Move or resize a logged segment.
+
+    The first edit keeps the timer's original times under details["edit"] so
+    the change can be undone; editing back to those times drops the marker.
+    Only overlaps the new times introduce are refused, so a segment that
+    already shared time with another (old data) can still be shortened.
+    """
+    init_db()
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    try:
+        row = conn.execute(f"{_SEGMENT_SELECT} WHERE id = ?", (sid,)).fetchone()
+        if row is None:
+            return None
+        current = _activity_public(row)
+
+        new_clash = _overlapping_ids(conn, started_at, ended_at, sid) - _overlapping_ids(
+            conn, current["started_at"], current["ended_at"], sid
+        )
+        if new_clash:
+            raise _describe_conflict(conn, new_clash)
+
+        details = current["details"]
+        edit = details.get("edit") or {}
+        original = edit.get("original") or {
+            "day": current["day"],
+            "started_at": current["started_at"],
+            "ended_at": current["ended_at"],
+            "duration_sec": current["duration_sec"],
+        }
+        same_as_original = (
+            _parse_segment_time(original["started_at"]) == _parse_segment_time(started_at)
+            and _parse_segment_time(original["ended_at"]) == _parse_segment_time(ended_at)
+        )
+        if same_as_original:
+            details.pop("edit", None)
+            day, started_at, ended_at = original["day"], original["started_at"], original["ended_at"]
+            duration_sec = float(original["duration_sec"])
+        else:
+            details["edit"] = {
+                "original": original,
+                "edited_at": datetime.now(timezone.utc).isoformat(),
+            }
+
+        productive, rest = _split_seconds(current["kind"], duration_sec)
+        conn.execute(
+            """
+            UPDATE activity_segments
+            SET day = ?, started_at = ?, ended_at = ?, duration_sec = ?,
+                productive_sec = ?, rest_sec = ?, details_json = ?
+            WHERE id = ?
+            """,
+            (day, started_at, ended_at, duration_sec, productive, rest, json.dumps(details), sid),
+        )
+        conn.commit()
+        row = conn.execute(f"{_SEGMENT_SELECT} WHERE id = ?", (sid,)).fetchone()
+        return _activity_public(row)
+    finally:
+        conn.close()
+
+
+def delete_activity_segment(sid: int) -> bool:
+    init_db()
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        cur = conn.execute("DELETE FROM activity_segments WHERE id = ?", (sid,))
+        conn.commit()
+        return cur.rowcount > 0
     finally:
         conn.close()
 

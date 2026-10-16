@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}History{% endblock %}
+{% block body_class %}page-settings page-history{% endblock %}
+{% block page_id %}history{% endblock %}
+{% block content %}
+<section class="settings-hero history-hero">
+  <a class="history-back" href="{{ url_for('settings_page') }}#history">&larr; Settings</a>
+  <h1 class="title title-settings">Mend the record.</h1>
+  <p class="lede lede-narrow">Left a timer running on an empty desk? Trim the session back to what you really did. The dashboard follows every change.</p>
+</section>
+
+<div class="history-toolbar">
+  <div class="segmented history-tabs" id="historyTabs" role="tablist" aria-label="Which sessions to show">
+    <button type="button" class="segment is-active" data-view="recent" role="tab" aria-selected="true">By day</button>
+    <button type="button" class="segment" data-view="long" role="tab" aria-selected="false">Unusually long <span class="history-count hidden" id="longCount"></span></button>
+  </div>
+  <button type="button" class="btn btn-primary btn-small" id="btnAddSession">Add a session</button>
+</div>
+
+<p class="history-hint hidden" id="longHint"></p>
+<div class="history-list" id="historyList" aria-live="polite"></div>
+<div class="history-more">
+  <button type="button" class="btn btn-quiet btn-small hidden" id="btnEarlier">Show earlier days</button>
+</div>
+
+<p class="settings-toast" id="settingsToast" role="status" aria-live="polite"></p>
+{% endblock %}
+{% block modals %}
+<div id="sessionModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="sessionTitle" aria-hidden="true">
+  <div class="modal-backdrop" tabindex="-1" aria-hidden="true"></div>
+  <form class="modal-sheet history-sheet" id="sessionForm" novalidate>
+    <button type="button" class="modal-close" id="sessionClose" aria-label="Close">×</button>
+    <p class="modal-kicker" id="sessionKicker">Edit session</p>
+    <h2 class="modal-title" id="sessionTitle">Focus</h2>
+    <p class="history-recorded hidden" id="sessionRecorded"></p>
+
+    <div class="history-field hidden" id="kindField">
+      <span class="field-label" id="kindLabel">Kind</span>
+      <div class="segmented segmented-two" id="kindPicker" role="radiogroup" aria-labelledby="kindLabel">
+        <button type="button" class="segment is-active" data-value="work" role="radio" aria-checked="true">Focus</button>
+        <button type="button" class="segment" data-value="rest" role="radio" aria-checked="false">Rest</button>
+      </div>
+    </div>
+
+    <div class="history-field">
+      <span class="field-label" id="modeLabel">Describe it by</span>
+      <div class="segmented segmented-two" id="modePicker" role="radiogroup" aria-labelledby="modeLabel">
+        <button type="button" class="segment" data-value="end" role="radio" aria-checked="false">Start &amp; end</button>
+        <button type="button" class="segment" data-value="duration" role="radio" aria-checked="false">Start &amp; duration</button>
+      </div>
+    </div>
+
+    <div class="history-field">
+      <label class="field-label" for="fieldStart">Started</label>
+      <input type="datetime-local" class="input" id="fieldStart" step="60" required />
+    </div>
+
+    <div class="history-field" id="endField">
+      <label class="field-label" for="fieldEnd">Ended</label>
+      <input type="datetime-local" class="input" id="fieldEnd" step="60" required />
+    </div>
+
+    <div class="history-field hidden" id="durationField">
+      <span class="field-label" id="durationLabel">Lasted</span>
+      <div class="history-duration" role="group" aria-labelledby="durationLabel">
+        <div class="input-unit"><input type="number" class="input" id="fieldHours" inputmode="numeric" min="0" max="24" aria-label="Hours" /><span>h</span></div>
+        <div class="input-unit"><input type="number" class="input" id="fieldMinutes" inputmode="numeric" min="0" max="59" aria-label="Minutes" /><span>min</span></div>
+      </div>
+      <div class="history-quick" id="quickDurations" aria-label="Quick durations">
+        <button type="button" class="history-chip" data-min="25">25m</button>
+        <button type="button" class="history-chip" data-min="48">1 muhurat</button>
+        <button type="button" class="history-chip" data-min="60">1h</button>
+        <button type="button" class="history-chip" data-min="90">1h 30m</button>
+        <button type="button" class="history-chip" data-min="120">2h</button>
+      </div>
+    </div>
+
+    <p class="history-preview" id="sessionPreview" aria-live="polite"></p>
+    <p class="history-error hidden" id="sessionError" role="alert"></p>
+
+    <div class="modal-actions history-actions">
+      <button type="button" class="btn btn-ghost btn-small hidden" id="btnRevert">Restore recorded times</button>
+      <span class="history-actions-gap"></span>
+      <button type="button" class="btn btn-quiet" id="sessionCancel">Cancel</button>
+      <button type="submit" class="btn btn-primary" id="sessionSave">Save</button>
+    </div>
+  </form>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/history.js') }}?v={{ asset_version }}" defer></script>
+{% endblock %}

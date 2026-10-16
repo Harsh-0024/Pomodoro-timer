@@ -756,6 +756,28 @@
     links.forEach((a) => a.addEventListener("click", () => setActive(a.getAttribute("href").slice(1))));
   }
 
+  /* ---------- history ---------- */
+
+  // Point at sessions that look like a forgotten timer, so they get fixed
+  // before they skew the dashboard.
+  async function renderHistoryHint() {
+    const el = $("historyHint");
+    if (!el) return;
+    try {
+      const data = await api("/api/activity/history?long=1");
+      const n = (data.segments || []).length;
+      if (!n) return;
+      const hours = Math.round(Number(data.long_threshold_sec || 10800) / 3600);
+      el.textContent = `${n} ${n === 1 ? "session runs" : "sessions run"} longer than ${hours} hours. Worth a look in case a timer was left on.`;
+      el.classList.add("pref-desc-warn");
+      const link = $("historyLink");
+      if (link) {
+        link.href = `${link.pathname}?view=long`;
+        link.textContent = "Review them";
+      }
+    } catch (_) {}
+  }
+
   /* ---------- reset ---------- */
 
   async function resetSettings() {
@@ -859,6 +881,7 @@
     wirePicker();
     wireControls();
     wireSectionNav();
+    renderHistoryHint();
     try {
       s = await api("/api/settings");
       applyAll();

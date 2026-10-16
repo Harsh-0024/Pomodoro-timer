@@ -9,7 +9,7 @@ import random
 import sqlite3
 import urllib.error
 import urllib.request
-from datetime import datetime
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from flask import Flask, jsonify, render_template, request
@@ -28,6 +28,7 @@ ASSET_VERSION_PATHS = (
     BASE_DIR / "static" / "js" / "session-monitor.js",
     BASE_DIR / "static" / "js" / "dashboard.js",
     BASE_DIR / "static" / "js" / "settings.js",
+    BASE_DIR / "static" / "js" / "history.js",
     BASE_DIR / "static" / "js" / "sounds.js",
     BASE_DIR / "static" / "js" / "dialog.js",
     BASE_DIR / "static" / "js" / "shortcuts.js",
@@ -188,6 +189,11 @@ def flow_page():
 @app.route("/settings")
 def settings_page():
     return render_template("settings.html")
+
+
+@app.route("/settings/history")
+def history_page():
+    return render_template("history.html")
 
 
 @app.route("/dashboard")
@@ -474,6 +480,112 @@ def api_activity_day():
     if not day or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", day):
         day = datetime.now().date().isoformat()
     return jsonify(db.activity_for_day(str(day)))
+
+
+HISTORY_MIN_SEC = 60
+HISTORY_MAX_SEC = 24 * 60 * 60
+# Clocks on the same machine agree, but leave room for a page that has been
+# open across a few seconds of drift.
+HISTORY_FUTURE_SLACK_SEC = 5 * 60
+
+
+def _parse_history_body(data: dict):
+    """(day, started_at, ended_at, duration_sec) in canonical UTC ISO, or an
+    error message. The browser sends the local day so it matches the timer's
+    own records."""
+    day = str(data.get("day") or "")
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", day):
+        return "Invalid day"
+    try:
+        start = datetime.fromisoformat(str(data.get("started_at") or "").replace("Z", "+00:00"))
+        end = datetime.fromisoformat(str(data.get("ended_at") or "").replace("Z", "+00:00"))
+    except ValueError:
+        return "Invalid start or end time"
+    if start.tzinfo is None or end.tzinfo is None:
+        return "Times need a timezone"
+    duration = (end - start).total_seconds()
+    if duration <= 0:
+        return "The end has to come after the start"
+    if duration < HISTORY_MIN_SEC:
+        return "A session has to be at least a minute long"
+    if duration > HISTORY_MAX_SEC:
+        return "A session can be at most 24 hours long"
+    if (end - datetime.now(timezone.utc)).total_seconds() > HISTORY_FUTURE_SLACK_SEC:
+        return "That session would end in the future"
+    to_iso = lambda d: d.astimezone(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+    return day, to_iso(start), to_iso(end), duration
+
+
+def _conflict_response(err: db.SegmentConflict):
+    return jsonify({"error": str(err), "conflict": getattr(err, "segment", None)}), 409
+
+
+@app.get("/api/activity/history")
+def api_activity_history():
+    earliest = db.earliest_activity_day()
+    if request.args.get("long"):
+        return jsonify(
+            {
+                "segments": db.list_long_segments(),
+                "long_threshold_sec": db.LONG_SEGMENT_SEC,
+                "earliest_day": earliest,
+            }
+        )
+    end = request.args.get("end") or ""
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", end):
+        end = datetime.now().date().isoformat()
+    try:
+        days = max(1, min(int(request.args.get("days", 7)), 62))
+        end_day = date.fromisoformat(end)
+    except (TypeError, ValueError):
+        return jsonify({"error": "Invalid range"}), 400
+    start = (end_day - timedelta(days=days - 1)).isoformat()
+    return jsonify(
+        {
+            "start": start,
+            "end": end,
+            "segments": db.list_activity_history(start, end),
+            "long_threshold_sec": db.LONG_SEGMENT_SEC,
+            "earliest_day": earliest,
+        }
+    )
+
+
+@app.post("/api/activity/manual")
+def api_activity_manual():
+    data = request.get_json(silent=True) or {}
+    kind = str(data.get("kind") or "")
+    if kind not in ("work", "rest"):
+        return jsonify({"error": "Choose focus or rest"}), 400
+    parsed = _parse_history_body(data)
+    if isinstance(parsed, str):
+        return jsonify({"error": parsed}), 400
+    try:
+        segment = db.create_manual_segment(kind, *parsed)
+    except db.SegmentConflict as err:
+        return _conflict_response(err)
+    return jsonify(segment), 201
+
+
+@app.put("/api/activity/segment/<int:segment_id>")
+def api_activity_update(segment_id: int):
+    parsed = _parse_history_body(request.get_json(silent=True) or {})
+    if isinstance(parsed, str):
+        return jsonify({"error": parsed}), 400
+    try:
+        segment = db.update_activity_segment(segment_id, *parsed)
+    except db.SegmentConflict as err:
+        return _conflict_response(err)
+    if segment is None:
+        return jsonify({"error": "Not found"}), 404
+    return jsonify(segment)
+
+
+@app.delete("/api/activity/segment/<int:segment_id>")
+def api_activity_delete(segment_id: int):
+    if not db.delete_activity_segment(segment_id):
+        return jsonify({"error": "Not found"}), 404
+    return "", 204
 
 
 @app.get("/api/dashboard")

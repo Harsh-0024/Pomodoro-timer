@@ -1,0 +1,59 @@
+# Nightly encrypted copy of the Supabase database, kept outside Supabase.
+#
+# Needs two repository secrets (Settings -> Secrets and variables -> Actions):
+#   SUPABASE_DB_URL     the "Session pooler" connection string from Supabase
+#                       (GitHub's machines cannot reach the direct one)
+#   BACKUP_PASSPHRASE   a long random password; without it the backups
+#                       cannot be opened, so keep it in a password manager
+# Until both exist, the job just says so and stops without failing.
+name: Database backup
+
+on:
+  schedule:
+    - cron: "17 21 * * *"  # 02:47 in India, when nobody is timing
+  workflow_dispatch:       # "Run workflow" button, for testing
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+    steps:
+      - name: Check secrets
+        id: secrets
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ] || [ -z "$BACKUP_PASSPHRASE" ]; then
+            echo "::notice::Backup skipped: SUPABASE_DB_URL and BACKUP_PASSPHRASE are not set yet."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.secrets.outputs.ready == 'true'
+
+      # pg_dump must be at least as new as the server (Supabase runs 17).
+      - name: Install PostgreSQL 17 client
+        if: steps.secrets.outputs.ready == 'true'
+        run: |
+          sudo apt-get install -y -q postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y -q postgresql-client-17
+
+      - name: Back up
+        if: steps.secrets.outputs.ready == 'true'
+        run: PATH="/usr/lib/postgresql/17/bin:$PATH" bash supabase/backup.sh out
+
+      # Kept for 30 days: a month of nightly copies. Encrypted, because
+      # anyone can download the files a public repository's Actions keep.
+      - uses: actions/upload-artifact@v4
+        if: steps.secrets.outputs.ready == 'true'
+        with:
+          name: muhurata-backup-${{ github.run_number }}
+          path: out/*.tar.enc
+          retention-days: 30
+          if-no-files-found: error

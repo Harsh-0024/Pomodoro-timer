@@ -27,12 +27,18 @@ pg_dump "$SUPABASE_DB_URL" --schema=public --format=custom --no-owner --no-privi
 psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -q \
     -c "\copy (select id, email, created_at from auth.users order by created_at) to '$work/users.csv' csv header"
 
-# Prove the dump is readable before calling the backup good.
-pg_restore --list "$work/data.dump" > /dev/null
+# Prove the dump is readable, and holds the sync tables, before calling the
+# backup good. A wrong database or a missing schema.sql run would otherwise
+# "succeed" with nothing in it.
+tables="$(pg_restore --list "$work/data.dump" | grep -c ' TABLE DATA public ' || true)"
+if [ "$tables" -lt 4 ]; then
+    echo "Backup has $tables of the 4 sync tables - has supabase/schema.sql been run?" >&2
+    exit 1
+fi
 
 tar -C "$work" -cf "$work/backup.tar" data.dump users.csv
 openssl enc -aes-256-cbc -pbkdf2 -iter 600000 -salt \
     -pass env:BACKUP_PASSPHRASE -in "$work/backup.tar" -out "$OUT_DIR/muhurata-backup-$stamp.tar.enc"
 
-echo "Backed up $(($(wc -l < "$work/users.csv") - 1)) accounts to muhurata-backup-$stamp.tar.enc" \
+echo "Backed up $tables tables and $(($(wc -l < "$work/users.csv") - 1)) accounts to muhurata-backup-$stamp.tar.enc" \
      "($(du -h "$OUT_DIR/muhurata-backup-$stamp.tar.enc" | cut -f1))"

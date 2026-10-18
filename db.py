@@ -52,6 +52,8 @@ DB_PATH = Path(user_data_dir("MuhurataTimer", appauthor=False)) / "focus_timer.d
 BACKUP_DIR = DB_PATH.parent / "backups"
 BACKUPS_TO_KEEP = 3
 MIGRATIONS_DIR = PROJECT_ROOT / "migrations"
+# Same format the sync triggers write: UTC ISO with milliseconds.
+_NOW_SQL = "strftime('%Y-%m-%dT%H:%M:%fZ', 'now')"
 
 # Schema setup runs once per process; the lock covers concurrent first requests.
 _schema_ready = False
@@ -116,10 +118,12 @@ def _run_migrations():
 
     if current is None and "activity_segments" in table_names:
         # A db created by the pre-alembic executescript() setup: the tables
-        # already match the baseline, so just mark it as such.
-        alembic_command.stamp(cfg, "head")
-        _log(f"stamped existing db at revision {head}")
-        return
+        # match the baseline, so mark it as such and apply what came after.
+        alembic_command.stamp(cfg, "0001")
+        _log("stamped existing db at revision 0001")
+        current = "0001"
+        if current == head:
+            return
 
     if current is not None:
         _backup_db(f"pre-{head}")
@@ -285,26 +289,38 @@ def delete_custom_preset(pid: int) -> bool:
         conn.close()
 
 
-def add_focus_minutes(day_iso: str, minutes: int) -> int:
-    if minutes <= 0:
-        return get_focus_minutes(day_iso)
+def device_id() -> str:
+    """This computer's id, created by migration 0002."""
     init_db()
     conn = sqlite3.connect(DB_PATH)
     try:
-        conn.execute(
-            """
-            INSERT INTO daily_focus (day, minutes) VALUES (?, ?)
-            ON CONFLICT(day) DO UPDATE SET minutes = daily_focus.minutes + excluded.minutes
-            """,
-            (day_iso, minutes),
-        )
-        conn.commit()
-        row = conn.execute(
-            "SELECT minutes FROM daily_focus WHERE day = ?", (day_iso,)
-        ).fetchone()
-        return row[0] if row else 0
+        return conn.execute("SELECT device_id FROM local_device WHERE id = 1").fetchone()[0]
     finally:
         conn.close()
+
+
+def add_focus_minutes(day_iso: str, minutes: int) -> int:
+    if minutes <= 0:
+        return get_focus_minutes(day_iso)
+    me = device_id()
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        # Only this computer's row for the day is touched; other computers'
+        # minutes arrive in their own rows, so nothing is overwritten.
+        conn.execute(
+            f"""
+            INSERT INTO focus_by_device (day, device_id, minutes, updated_at)
+            VALUES (?, ?, ?, {_NOW_SQL})
+            ON CONFLICT(day, device_id) DO UPDATE SET
+                minutes = focus_by_device.minutes + excluded.minutes,
+                updated_at = excluded.updated_at
+            """,
+            (day_iso, me, minutes),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return get_focus_minutes(day_iso)
 
 
 def get_focus_minutes(day_iso: str) -> int:
@@ -312,9 +328,9 @@ def get_focus_minutes(day_iso: str) -> int:
     conn = sqlite3.connect(DB_PATH)
     try:
         row = conn.execute(
-            "SELECT minutes FROM daily_focus WHERE day = ?", (day_iso,)
+            "SELECT COALESCE(SUM(minutes), 0) FROM focus_by_device WHERE day = ?", (day_iso,)
         ).fetchone()
-        return row[0] if row else 0
+        return row[0]
     finally:
         conn.close()
 
@@ -590,7 +606,7 @@ def delete_activity_segment(sid: int) -> bool:
 def _logged_year_bounds(conn: sqlite3.Connection) -> tuple[int, int] | None:
     rows = conn.execute(
         """
-        SELECT substr(day, 1, 4) AS year FROM daily_focus
+        SELECT substr(day, 1, 4) AS year FROM focus_by_device
         UNION
         SELECT substr(day, 1, 4) AS year FROM activity_segments
         """

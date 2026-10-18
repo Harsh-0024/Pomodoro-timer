@@ -1,7 +1,7 @@
 # Muhurata Focus Timer
 
 A focus/pomodoro timer with a history dashboard. It runs on your own computer
-(nothing is uploaded anywhere) and opens in your browser.
+(nothing is uploaded anywhere) and opens in a window of its own.
 
 > 1 Muhurat = 48 min · 1 Ghadi = 24 min
 
@@ -63,7 +63,7 @@ The app shows a small note in its footer when a newer version exists.
 ## Using it
 
 A terminal window shows `Muhurata is running at http://127.0.0.1:8000/` and
-your browser opens. **Close that window (or press Ctrl+C) to stop the app.**
+the timer opens in its own window. **Close the terminal window (or press Ctrl+C) to stop the app.**
 
 ## Where's my data?
 

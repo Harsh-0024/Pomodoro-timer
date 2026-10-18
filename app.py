@@ -14,6 +14,7 @@ from pathlib import Path
 
 from flask import Flask, jsonify, render_template, request
 
+import cloud
 import db
 from presets import BUILTINS
 from version import __version__
@@ -262,6 +263,35 @@ def api_get_settings():
 @app.post("/api/settings/reset")
 def api_reset_settings():
     return jsonify(db.reset_settings())
+
+
+def _cloud_call(fn, *args):
+    try:
+        return jsonify(fn(*args))
+    except cloud.CloudError as exc:
+        return jsonify({"error": str(exc)}), exc.status
+
+
+@app.get("/api/cloud/status")
+def api_cloud_status():
+    return jsonify(cloud.status())
+
+
+@app.post("/api/cloud/send-code")
+def api_cloud_send_code():
+    body = request.get_json(silent=True) or {}
+    return _cloud_call(lambda e: cloud.send_code(e) or {"sent": True}, str(body.get("email") or ""))
+
+
+@app.post("/api/cloud/verify")
+def api_cloud_verify():
+    body = request.get_json(silent=True) or {}
+    return _cloud_call(cloud.verify_code, str(body.get("email") or ""), str(body.get("code") or ""))
+
+
+@app.post("/api/cloud/sign-out")
+def api_cloud_sign_out():
+    return _cloud_call(cloud.sign_out)
 
 
 @app.get("/api/quote")

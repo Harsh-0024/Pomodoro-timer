@@ -874,6 +874,101 @@
     });
   }
 
+  /* ---------- back up & sync ---------- */
+
+  let syncEmail = "";
+
+  // One of: "unavailable", "email", "code", "signedin".
+  function showSync(state, email) {
+    $("syncUnavailable").hidden = state !== "unavailable";
+    $("syncEmailForm").hidden = state !== "email";
+    $("syncCodeForm").hidden = state !== "code";
+    $("syncSignedIn").hidden = state !== "signedin";
+    if (state === "code") {
+      $("syncCodeHint").textContent = `Sent to ${syncEmail}. It can take a minute; check spam too.`;
+      $("syncCode").value = "";
+      $("syncCode").focus();
+    }
+    if (state === "signedin") $("syncSignedInAs").textContent = `As ${email}.`;
+  }
+
+  async function busy(button, label, work) {
+    const before = button.textContent;
+    button.disabled = true;
+    button.textContent = label;
+    try {
+      return await work();
+    } catch (e) {
+      toast(e.message || "Something went wrong", "error");
+      return null;
+    } finally {
+      button.disabled = false;
+      button.textContent = before;
+    }
+  }
+
+  async function sendCode(button) {
+    const sent = await busy(button, "Sending…", () =>
+      api("/api/cloud/send-code", { method: "POST", body: JSON.stringify({ email: syncEmail }) })
+    );
+    if (sent) {
+      showSync("code");
+      toast("Code sent");
+    }
+  }
+
+  async function renderSync() {
+    if (!$("syncGroup")) return;
+    try {
+      const st = await api("/api/cloud/status");
+      if (!st.configured) showSync("unavailable");
+      else if (st.signed_in) showSync("signedin", st.email);
+      else showSync("email");
+    } catch (_) {
+      showSync("unavailable");
+    }
+  }
+
+  function wireSync() {
+    if (!$("syncGroup")) return;
+    $("syncEmailForm").addEventListener("submit", (ev) => {
+      ev.preventDefault();
+      syncEmail = $("syncEmail").value.trim();
+      if (!syncEmail) return $("syncEmail").focus();
+      sendCode($("btnSendCode"));
+    });
+    $("syncCodeForm").addEventListener("submit", async (ev) => {
+      ev.preventDefault();
+      const code = $("syncCode").value.replace(/\s+/g, "");
+      if (!code) return $("syncCode").focus();
+      const st = await busy($("btnVerifyCode"), "Checking…", () =>
+        api("/api/cloud/verify", { method: "POST", body: JSON.stringify({ email: syncEmail, code }) })
+      );
+      if (st) {
+        showSync("signedin", st.email);
+        toast("Signed in");
+      }
+    });
+    $("btnResendCode").addEventListener("click", (ev) => sendCode(ev.currentTarget));
+    $("btnChangeEmail").addEventListener("click", () => {
+      showSync("email");
+      $("syncEmail").focus();
+    });
+    $("btnSignOut").addEventListener("click", async (ev) => {
+      const ok = await askConfirm({
+        title: "Sign out?",
+        message: "Your sessions stay on this computer. They stop being copied to your account until you sign in again.",
+        accept: "Sign out",
+      });
+      if (!ok) return;
+      const st = await busy(ev.currentTarget, "Signing out…", () => api("/api/cloud/sign-out", { method: "POST" }));
+      if (st) {
+        showSync("email");
+        toast("Signed out");
+      }
+    });
+  }
+
   async function init() {
     if (window.__PAGE__ !== "settings") return;
     renderCues();
@@ -882,6 +977,8 @@
     wireControls();
     wireSectionNav();
     renderHistoryHint();
+    wireSync();
+    renderSync();
     try {
       s = await api("/api/settings");
       applyAll();

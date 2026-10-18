@@ -1,4 +1,4 @@
-"""Muhurata launcher: update, install, migrate, serve, open browser.
+"""Muhurata launcher: update, install, migrate, serve, open the app window.
 
 Double-clicked via the .command/.bat launcher the installer writes, or run
 directly with ``python run.py``. Everything is logged to
@@ -6,7 +6,7 @@ directly with ``python run.py``. Everything is logged to
 
 Flags:
   --no-update   skip the git self-update (used after re-exec, and handy in dev)
-  --no-browser  don't open a browser tab
+  --no-browser  don't open the app window
   --doctor      print environment / database diagnostics and exit
 """
 from __future__ import annotations
@@ -185,26 +185,58 @@ def ensure_python_version() -> bool:
     venv = PROJECT_ROOT / ".venv"
     if not venv.exists():
         return False
+    # The new environment is built next to the old one and only swapped in
+    # once it is complete. Rebuilding in place meant a failure halfway left
+    # no environment at all, and the app could not start until reinstalled.
+    new, old = venv.with_name(".venv.new"), venv.with_name(".venv.old")
+    for leftover in (new, old):  # from an earlier attempt that was cut short
+        shutil.rmtree(leftover, ignore_errors=True)
     log.info("Switching to Python %s - one moment...", want)
     try:
         subprocess.run([uv, "python", "install", want], cwd=PROJECT_ROOT,
                        capture_output=True, timeout=600)
-        # --clear replaces the existing venv; --seed keeps pip inside it for
-        # install_requirements(). We re-exec immediately afterwards, so pulling
-        # the environment out from under this process is safe.
-        done = subprocess.run([uv, "venv", "--clear", "--seed", "--python", want, str(venv)],
+        # --seed keeps pip inside it for install_requirements(); --relocatable
+        # so nothing in it remembers the .venv.new path after the rename.
+        done = subprocess.run([uv, "venv", "--seed", "--relocatable", "--python", want, str(new)],
                               cwd=PROJECT_ROOT, capture_output=True, text=True, timeout=600)
     except (subprocess.TimeoutExpired, OSError) as exc:
-        log.warning("Could not switch Python version (%s); continuing on %s.", exc, have)
+        shutil.rmtree(new, ignore_errors=True)
+        log.warning("Could not switch Python version; continuing on %s.", have)
+        log.debug(exc)
         return False
-    if done.returncode != 0:
+    if done.returncode != 0 or not _venv_python(new).exists():
+        shutil.rmtree(new, ignore_errors=True)
         log.warning("Could not switch Python version; continuing on %s.", have)
         log.debug(done.stderr)
         return False
-    # The new venv is empty, so the packages must be installed again.
+    # Two renames, so .venv is only ever the old environment or the new one.
+    # This process keeps running from the renamed old one until the re-exec.
+    try:
+        venv.rename(old)
+    except OSError as exc:  # e.g. Windows, where the running python.exe is locked
+        shutil.rmtree(new, ignore_errors=True)
+        log.warning("Could not switch Python version; continuing on %s.", have)
+        log.debug(exc)
+        return False
+    try:
+        new.rename(venv)
+    except OSError as exc:
+        old.rename(venv)
+        shutil.rmtree(new, ignore_errors=True)
+        log.warning("Could not switch Python version; continuing on %s.", have)
+        log.debug(exc)
+        return False
+    shutil.rmtree(old, ignore_errors=True)  # anything left is retried next time
+    # The new venv is empty, so the packages must be installed again. Its own
+    # marker starts out missing; this clears the fallback one in the data dir.
     (_data_dir() / "requirements.sha256").unlink(missing_ok=True)
     log.info("Now on Python %s.", want)
     return True
+
+
+def _venv_python(venv: Path) -> Path:
+    return venv / ("Scripts" if sys.platform == "win32" else "bin") / (
+        "python.exe" if sys.platform == "win32" else "python")
 
 
 def _requirements_marker(data_dir: Path) -> Path:
@@ -275,6 +307,46 @@ def free_port(start: int = FIRST_PORT, attempts: int = 50) -> int:
     raise RuntimeError(f"No free port found in {start}-{start + attempts}")
 
 
+def _app_browsers() -> list[Path]:
+    """Chromium-family browsers that can show a page as its own app window."""
+    if sys.platform == "darwin":
+        names = ["Google Chrome", "Microsoft Edge", "Brave Browser", "Chromium"]
+        roots = [Path("/Applications"), Path.home() / "Applications"]
+        return [r / f"{n}.app" / "Contents" / "MacOS" / n for n in names for r in roots]
+    if sys.platform == "win32":
+        exes = [r"Google\Chrome\Application\chrome.exe", r"Microsoft\Edge\Application\msedge.exe",
+                r"BraveSoftware\Brave-Browser\Application\brave.exe"]
+        roots = [os.environ.get(v) for v in ("PROGRAMFILES", "PROGRAMFILES(X86)", "LOCALAPPDATA")]
+        return [Path(r) / e for e in exes for r in roots if r]
+    names = ["google-chrome", "google-chrome-stable", "chromium", "chromium-browser",
+             "microsoft-edge", "brave-browser"]
+    return [Path(p) for p in map(shutil.which, names) if p]
+
+
+def open_app_window(url: str):
+    """Open the timer in its own window (no tabs, no address bar).
+
+    Chrome/Edge's --app mode makes the page look like a standalone program.
+    Without one of those browsers, a normal tab in the default browser.
+    """
+    for exe in _app_browsers():
+        if not exe.is_file():
+            continue
+        try:
+            # A session of its own, so the browser survives the launcher
+            # window being closed (which kills everything it started).
+            kw = ({"creationflags": subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP}
+                  if sys.platform == "win32" else {"start_new_session": True})
+            subprocess.Popen([str(exe), f"--app={url}"], stdin=subprocess.DEVNULL,
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, **kw)
+            log.debug("Opened app window with %s", exe)
+            return
+        except OSError as exc:
+            log.debug("Could not start %s: %s", exe, exc)
+    log.debug("No app-mode browser found; opening a normal tab.")
+    webbrowser.open(url)
+
+
 def _open_when_ready(url: str, open_browser: bool):
     for _ in range(100):  # ~20s
         try:
@@ -288,7 +360,7 @@ def _open_when_ready(url: str, open_browser: bool):
         return
     log.info("Muhurata is running at %s  (Ctrl+C or close this window to stop)", url)
     if open_browser:
-        webbrowser.open(url)
+        open_app_window(url)
 
 
 def _load_app():
@@ -367,7 +439,7 @@ def main(argv: list[str]) -> int:
         os.execv(sys.executable, [sys.executable, str(PROJECT_ROOT / "run.py"), "--no-update", *argv[1:]])
 
     if ensure_python_version():
-        new_python = PROJECT_ROOT / ".venv" / ("Scripts" if sys.platform == "win32" else "bin") / "python"
+        new_python = _venv_python(PROJECT_ROOT / ".venv")
         os.execv(str(new_python), [str(new_python), str(PROJECT_ROOT / "run.py"), "--no-update", *argv[1:]])
 
     install_requirements(data_dir)

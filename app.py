@@ -17,6 +17,7 @@ from flask import Flask, jsonify, render_template, request
 import cloud
 import db
 import presence
+import release_notes
 import sync
 from presets import BUILTINS
 from version import __version__
@@ -357,13 +358,15 @@ def api_quote():
     return jsonify({**fallback, "source": "fallback"})
 
 
-# Only bundled (.zip download) copies need this: git installs update themselves
-# on every launch, so nagging them about a release would be noise.
+# Every copy checks, because an install only updates when it starts and the
+# app can stay open for days. A downloaded app links to the download page; a
+# git install restarts itself into the update (run.py sets RESTART_KEY).
 IS_BUNDLED = getattr(sys, "frozen", False)
+RESTART_KEY = "MUHURATA_RESTART"
 RELEASES_API = "https://api.github.com/repos/Harsh-0024/muhurta-pomodoro/releases/latest"
 # The download page picks the right file for the computer and shows the steps.
 DOWNLOAD_PAGE = "https://harsh-0024.github.io/muhurta-pomodoro/download.html"
-UPDATE_CHECK_INTERVAL = 24 * 60 * 60  # once a day is plenty
+UPDATE_CHECK_INTERVAL = 6 * 60 * 60  # a few times a day; GitHub allows 60 an hour
 
 
 def _version_tuple(text: str):
@@ -401,12 +404,61 @@ def _cached_latest_version() -> str | None:
 @app.get("/api/version")
 def api_version():
     payload = {"current": __version__, "bundled": IS_BUNDLED, "update_available": False}
-    if not IS_BUNDLED:
+    # A git checkout started some other way (app.py in development) cannot
+    # restart itself, so it gets no notice.
+    how = "download" if IS_BUNDLED else "restart" if app.config.get(RESTART_KEY) else None
+    if not how:
         return jsonify(payload)
     latest = _cached_latest_version()
     if latest and _version_tuple(latest) > _version_tuple(__version__):
-        payload.update(update_available=True, latest=latest, url=DOWNLOAD_PAGE)
+        payload.update(update_available=True, latest=latest, how=how, url=DOWNLOAD_PAGE)
     return jsonify(payload)
+
+
+def _seen_version_file():
+    return db.DB_PATH.parent / "seen-version.txt"
+
+
+@app.get("/api/whats-new")
+def api_whats_new():
+    """Release notes for the versions since this computer last saw the app."""
+    try:
+        seen = _seen_version_file().read_text().strip()
+    except OSError:
+        # Never recorded: a new install has nothing to catch up on, but an
+        # existing one updated from before this existed should hear about it.
+        seen = None if db.earliest_activity_day() else __version__
+    current = _version_tuple(__version__)
+    notes = [{"version": v, "items": items} for v, items in release_notes.NOTES.items()
+             if _version_tuple(v) <= current and (seen is None or _version_tuple(v) > _version_tuple(seen))]
+    if seen is None:
+        notes = notes[:1]  # updated from an unknown version: just the latest
+    if not notes:
+        _mark_seen()
+    return jsonify({"current": __version__, "notes": notes})
+
+
+def _mark_seen():
+    try:
+        _seen_version_file().write_text(__version__)
+    except OSError:
+        pass
+
+
+@app.post("/api/whats-new/seen")
+def api_whats_new_seen():
+    _mark_seen()
+    return "", 204
+
+
+@app.post("/api/update/restart")
+def api_update_restart():
+    """Stop and start again; starting is when a git install updates itself."""
+    restart = app.config.get(RESTART_KEY)
+    if not restart:
+        return jsonify({"error": "This copy cannot restart itself."}), 409
+    restart()
+    return "", 202
 
 
 @app.put("/api/settings")

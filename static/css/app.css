@@ -373,11 +373,45 @@ body[data-theme="light"] .ambient {
   opacity: 0.6;
 }
 
-.foot-update {
-  margin-left: 0.75rem;
-  color: var(--gold);
-  text-decoration: underline;
-  text-underline-offset: 2px;
+/* "A new version is available" (static/js/update-check.js) */
+.update-bar {
+  position: fixed;
+  left: 50%;
+  bottom: 1.25rem;
+  transform: translateX(-50%);
+  z-index: 60;
+  width: min(36rem, calc(100vw - 2rem));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 0.85rem 0.85rem 1.1rem;
+  border: 1px solid var(--gold);
+  border-radius: var(--radius);
+  background: var(--menu-bg-strong);
+  box-shadow: var(--menu-shadow);
+  color: var(--ink);
+  font-size: 0.92rem;
+}
+
+.update-bar-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 0.5rem;
+}
+
+.update-bar .btn {
+  text-decoration: none;
+}
+
+@media (max-width: 520px) {
+  .update-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .update-bar-actions {
+    justify-content: flex-end;
+  }
 }
 
 .hero {
@@ -548,6 +582,26 @@ body[data-theme="light"] .modal-backdrop {
   background:
     linear-gradient(135deg, rgba(216, 189, 121, 0.08), transparent 46%),
     var(--bg1);
+}
+
+.whats-new-sheet {
+  width: min(460px, 100%);
+}
+
+.whats-new-version {
+  margin: 0.25rem 0 0.4rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.whats-new-list {
+  margin: 0 0 1.25rem;
+  padding-left: 1.1rem;
+  line-height: 1.55;
+}
+
+.whats-new-list li + li {
+  margin-top: 0.45rem;
 }
 
 .modal-actions {

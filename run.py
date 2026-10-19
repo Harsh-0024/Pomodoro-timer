@@ -12,6 +12,8 @@ Flags:
   --no-browser  don't open the app window
   --doctor      print environment / database diagnostics and exit
   --background  (internal) the Mac app's copy that keeps running
+  --restarted   (internal) restarted for an update; the window is already open
+  --port=N      (internal) the address to use if it is free
 """
 from __future__ import annotations
 
@@ -710,7 +712,10 @@ def main(argv: list[str]) -> int:
 
     sync.start()  # background cloud sync; does nothing until signed in
 
-    port = free_port()
+    # --port: a restart for an update asks for the address it had, so the
+    # open window (and what it keeps in localStorage) carries on there.
+    wanted = next((int(a.split("=", 1)[1]) for a in argv if a.startswith("--port=")), FIRST_PORT)
+    port = free_port(wanted)
     url = f"http://{HOST}:{port}/"
     # make_server rather than app.run: no "development server" banner, and
     # the request log goes through logging (file) instead of raw stderr.
@@ -729,9 +734,27 @@ def main(argv: list[str]) -> int:
             _running_file(data_dir).unlink(missing_ok=True)
         log.info("Stopped.")
         return 0
-    threading.Thread(target=_open_when_ready, args=(url, open_browser), daemon=True).start()
+    # After a restart the window is already open and reloads by itself.
+    reopen = open_browser and "--restarted" not in argv
+    threading.Thread(target=_open_when_ready, args=(url, reopen), daemon=True).start()
     if open_browser:
         threading.Thread(target=_quit_when_closed, args=(server, data_dir), daemon=True).start()
+    restarting = threading.Event()
+
+    def restart():
+        if restarting.is_set():
+            return
+        restarting.set()
+
+        def stop():
+            time.sleep(0.5)  # let the answer reach the page first
+            log.info("Restarting to install an update...")
+            _final_sync()
+            server.shutdown()
+
+        threading.Thread(target=stop, daemon=True).start()
+
+    app.config["MUHURATA_RESTART"] = restart
     try:
         server.serve_forever()
     except KeyboardInterrupt:
@@ -739,6 +762,12 @@ def main(argv: list[str]) -> int:
     finally:
         server.server_close()
         _running_file(data_dir).unlink(missing_ok=True)
+    if restarting.is_set():
+        # Start from the top: that is where the update happens.
+        logging.shutdown()
+        args = [a for a in argv[1:] if a not in ("--no-update", "--restarted") and not a.startswith("--port=")]
+        os.execv(sys.executable, [sys.executable, str(PROJECT_ROOT / "run.py"), *args,
+                                  "--restarted", f"--port={port}"])
     log.info("Stopped.")
     return 0
 

@@ -36,7 +36,6 @@
   <footer class="foot">
     <span>1 Muhurat = 48 min · 1 Ghadi = 24 min</span>
     <span class="foot-version">v{{ app_version }}</span>
-    <span id="updateNotice"></span>
   </footer>
   <div id="shortcutsModal" class="modal hidden" role="dialog" aria-labelledby="shortcutsTitle" aria-hidden="true">
     <div class="modal-backdrop" tabindex="-1" aria-hidden="true"></div>
@@ -61,6 +60,7 @@
   <script>window.__PAGE__ = "{% block page_id %}home{% endblock %}";</script>
   <script src="{{ url_for('static', filename='js/native.js') }}?v={{ asset_version }}"></script>
   <script src="{{ url_for('static', filename='js/update-check.js') }}?v={{ asset_version }}" defer></script>
+  <script src="{{ url_for('static', filename='js/whats-new.js') }}?v={{ asset_version }}" defer></script>
   <script src="{{ url_for('static', filename='js/alive.js') }}?v={{ asset_version }}" defer></script>
   <script src="{{ url_for('static', filename='js/sounds.js') }}?v={{ asset_version }}" defer></script>
   <script src="{{ url_for('static', filename='js/session-monitor.js') }}?v={{ asset_version }}" defer></script>

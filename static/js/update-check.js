@@ -1,19 +1,102 @@
-// Shows a quiet "new version" link in the footer. Only bundled (.zip) copies
-// ever get one — git installs update themselves. Silent on any failure.
+// When a newer version is out, a notice at the bottom of the window offers
+// it: "Update now" restarts a git install into the new version (the page
+// reloads by itself); a downloaded app gets a link to the download page.
+// Checked on load and every few hours, since the app can stay open for days.
+// Silent on any failure, including being offline.
 (function () {
-  const slot = document.getElementById("updateNotice");
-  if (!slot) return;
-  fetch("/api/version", { headers: { Accept: "application/json" } })
-    .then((r) => (r.ok ? r.json() : null))
-    .then((d) => {
-      if (!d || !d.update_available) return;
-      const link = document.createElement("a");
-      link.href = d.url;
-      link.target = "_blank";
-      link.rel = "noopener";
-      link.className = "foot-update";
-      link.textContent = `Version ${d.latest} is available — download`;
-      slot.appendChild(link);
-    })
-    .catch(() => {});
+  "use strict";
+  const CHECK_EVERY = 3 * 60 * 60 * 1000;
+  const DISMISS_KEY = "muhurata.update.dismissed";
+  let shown = null;
+
+  function dismissed(version) {
+    try {
+      return sessionStorage.getItem(DISMISS_KEY) === version;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function el(tag, cls, text) {
+    const node = document.createElement(tag);
+    if (cls) node.className = cls;
+    if (text) node.textContent = text;
+    return node;
+  }
+
+  function waitForNewVersion(from, msg) {
+    const started = Date.now();
+    const poll = () => {
+      fetch("/api/version", { cache: "no-store" })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => {
+          if (d && d.current !== from) location.reload();
+          else retry();
+        })
+        .catch(retry);
+    };
+    const retry = () => {
+      // An update that also installs components can take a minute or two.
+      if (Date.now() - started < 4 * 60 * 1000) setTimeout(poll, 2000);
+      else msg.textContent = "The update is taking long. Close this window and open Muhurta Pomodoro again.";
+    };
+    setTimeout(poll, 2000);
+  }
+
+  function show(d) {
+    if (shown === d.latest || dismissed(d.latest)) return;
+    document.querySelector(".update-bar")?.remove();
+    shown = d.latest;
+
+    const bar = el("div", "update-bar");
+    bar.setAttribute("role", "status");
+    const msg = el("span", "update-bar-text", `Version ${d.latest} is available. You have ${d.current}.`);
+    const actions = el("span", "update-bar-actions");
+    const later = el("button", "btn btn-quiet", "Later");
+    later.type = "button";
+    later.addEventListener("click", () => {
+      try {
+        sessionStorage.setItem(DISMISS_KEY, d.latest);
+      } catch (_) {}
+      bar.remove();
+    });
+
+    let main;
+    if (d.how === "restart") {
+      main = el("button", "btn btn-primary", "Update now");
+      main.type = "button";
+      main.addEventListener("click", () => {
+        main.disabled = later.disabled = true;
+        msg.textContent = "Updating… this window reloads by itself in a few seconds.";
+        fetch("/api/update/restart", { method: "POST" })
+          .then((r) => {
+            if (!r.ok) throw new Error();
+            waitForNewVersion(d.current, msg);
+          })
+          .catch(() => {
+            msg.textContent = "Could not update just now. Close this window and open Muhurta Pomodoro again.";
+          });
+      });
+    } else {
+      main = el("a", "btn btn-primary", "Download");
+      main.href = d.url;
+      main.target = "_blank";
+      main.rel = "noopener";
+    }
+    actions.append(later, main);
+    bar.append(msg, actions);
+    document.body.appendChild(bar);
+  }
+
+  function check() {
+    fetch("/api/version", { headers: { Accept: "application/json" } })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d && d.update_available) show(d);
+      })
+      .catch(() => {});
+  }
+
+  check();
+  setInterval(check, CHECK_EVERY);
 })();

@@ -5,6 +5,14 @@ a few short lines per version, about what they will notice. Versions with
 nothing worth telling can be left out.
 """
 NOTES = {
+    "1.7.1": [
+        "Update notices now work. Earlier versions could never tell that a new version was out; "
+        "from now on you'll see \"Update now\" whenever there is one. Settings > About shows when "
+        "it last checked.",
+        "Creating a password? \"Suggest a strong password\" makes one for you, with a button to copy it.",
+        "Saving your password in Passwords? Use the website harsh-0024.github.io/muhurta-pomodoro "
+        "with your email (also shown in Settings > Account).",
+    ],
     "1.7.0": [
         "You now sign in with a free account: your name, a username, your email and a password. "
         "Your sessions, combinations and settings are kept in your account and appear on every "

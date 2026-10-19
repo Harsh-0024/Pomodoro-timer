@@ -1,12 +1,14 @@
 /* Muhurta Pomodoro website: index.html (landing) and download.html.
-   Same palette and type as the app: warm near-black, gold, Cormorant + DM Sans. */
+   Same palette and type as the app: warm near-black (or warm paper), gold,
+   Cormorant + DM Sans. Follows the system's light/dark setting; the toggle in
+   the top bar overrides it (theme.js sets data-theme on <html>). */
 
 :root {
   color-scheme: dark;
   --bg: #070605;
-  --bg-2: #0d0b09;
   --card: rgba(255, 255, 255, 0.025);
   --card-strong: rgba(255, 255, 255, 0.05);
+  --card-shadow: none;
   --ink: #f4efe5;
   --muted: rgba(244, 239, 229, 0.62);
   --faint: rgba(244, 239, 229, 0.38);
@@ -14,10 +16,86 @@
   --gold: #d8bd79;
   --gold-deep: #b8954a;
   --gold-glow: rgba(216, 189, 121, 0.16);
+  --accent-soft: rgba(216, 189, 121, 0.1);
+  --accent-line: rgba(216, 189, 121, 0.32);
+  --accent-strong-line: rgba(216, 189, 121, 0.45);
+  --hero-glow: rgba(216, 189, 121, 0.14);
+  --hero-glow-2: rgba(216, 189, 121, 0.06);
+  --halo-opacity: 0.07;
+  --nav-bg: rgba(7, 6, 5, 0.72);
+  --window-bg: #0b0a08;
+  --window-bar: #1c1a17;
+  --window-bar-line: rgba(0, 0, 0, 0.5);
+  --window-bar-ink: rgba(244, 239, 229, 0.55);
+  --window-border: rgba(255, 255, 255, 0.1);
+  --window-shadow: 0 50px 120px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(0, 0, 0, 0.6), 0 0 120px var(--gold-glow);
+  --bar-end: #f1e1b4;
   --radius: 22px;
   --serif: "Cormorant Garamond", Georgia, serif;
   --sans: "DM Sans", system-ui, -apple-system, sans-serif;
   --max: 1120px;
+}
+
+/* Light: warm paper, ink-brown text, a deeper gold that reads on a pale page.
+   The same tokens twice: once for an explicit choice, once for the system
+   setting when no script has run. */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f7f3ec;
+  --card: rgba(255, 255, 255, 0.62);
+  --card-strong: rgba(70, 52, 24, 0.07);
+  --card-shadow: 0 1px 2px rgba(70, 52, 24, 0.04), 0 10px 30px rgba(70, 52, 24, 0.06);
+  --ink: #241c12;
+  --muted: rgba(36, 28, 18, 0.68);
+  --faint: rgba(36, 28, 18, 0.48);
+  --line: rgba(70, 52, 24, 0.12);
+  --gold: #96702c;
+  --gold-deep: #b8954a;
+  --gold-glow: rgba(196, 160, 84, 0.22);
+  --accent-soft: rgba(184, 149, 74, 0.13);
+  --accent-line: rgba(150, 112, 44, 0.32);
+  --accent-strong-line: rgba(150, 112, 44, 0.45);
+  --hero-glow: rgba(222, 186, 108, 0.32);
+  --hero-glow-2: rgba(222, 186, 108, 0.14);
+  --halo-opacity: 0.14;
+  --nav-bg: rgba(247, 243, 236, 0.8);
+  --window-bg: #fbf9f5;
+  --window-bar: #e9e4da;
+  --window-bar-line: rgba(70, 52, 24, 0.1);
+  --window-bar-ink: rgba(36, 28, 18, 0.55);
+  --window-border: rgba(70, 52, 24, 0.14);
+  --window-shadow: 0 40px 100px rgba(90, 66, 28, 0.2), 0 0 0 1px rgba(70, 52, 24, 0.05), 0 0 120px var(--gold-glow);
+  --bar-end: #e3c88a;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    color-scheme: light;
+    --bg: #f7f3ec;
+    --card: rgba(255, 255, 255, 0.62);
+    --card-strong: rgba(70, 52, 24, 0.07);
+    --card-shadow: 0 1px 2px rgba(70, 52, 24, 0.04), 0 10px 30px rgba(70, 52, 24, 0.06);
+    --ink: #241c12;
+    --muted: rgba(36, 28, 18, 0.68);
+    --faint: rgba(36, 28, 18, 0.48);
+    --line: rgba(70, 52, 24, 0.12);
+    --gold: #96702c;
+    --gold-deep: #b8954a;
+    --gold-glow: rgba(196, 160, 84, 0.22);
+    --accent-soft: rgba(184, 149, 74, 0.13);
+    --accent-line: rgba(150, 112, 44, 0.32);
+    --accent-strong-line: rgba(150, 112, 44, 0.45);
+    --hero-glow: rgba(222, 186, 108, 0.32);
+    --hero-glow-2: rgba(222, 186, 108, 0.14);
+    --halo-opacity: 0.14;
+    --nav-bg: rgba(247, 243, 236, 0.8);
+    --window-bg: #fbf9f5;
+    --window-bar: #e9e4da;
+    --window-bar-line: rgba(70, 52, 24, 0.1);
+    --window-bar-ink: rgba(36, 28, 18, 0.55);
+    --window-border: rgba(70, 52, 24, 0.14);
+    --window-shadow: 0 40px 100px rgba(90, 66, 28, 0.2), 0 0 0 1px rgba(70, 52, 24, 0.05), 0 0 120px var(--gold-glow);
+    --bar-end: #e3c88a;
+  }
 }
 
 * { box-sizing: border-box; }
@@ -52,7 +130,7 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
   z-index: 20;
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  background: rgba(7, 6, 5, 0.72);
+  background: var(--nav-bg);
   border-bottom: 1px solid transparent;
   transition: border-color 0.3s;
 }
@@ -85,18 +163,50 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
 .nav-links a:hover { color: var(--ink); text-decoration: none; }
 .nav-links .pill {
   color: #1a140a;
-  background: linear-gradient(180deg, #ecd9a6, var(--gold));
+  background: linear-gradient(180deg, #ecd9a6, #d8bd79);
   padding: 8px 16px;
   border-radius: 999px;
   font-weight: 500;
 }
 .nav-links .pill:hover { color: #1a140a; filter: brightness(1.05); }
 @media (max-width: 720px) {
+  .nav-links { gap: 12px; }
   .nav-links a:not(.pill) { display: none; }
-  .brand span { font-size: 1.05rem; }
+  .brand span { font-size: 1.05rem; white-space: nowrap; }
+}
+/* Phones: the big Download button is right below, so the bar keeps the name
+   and the theme switch on one line. */
+@media (max-width: 480px) {
+  .nav-links .pill { display: none; }
 }
 
 /* ------------------------------------------------------------------ wheel mark */
+/* light / dark switch in the top bar (theme.js) */
+.theme-toggle {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--card);
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s, transform 0.4s;
+}
+.theme-toggle:hover { color: var(--gold); border-color: var(--accent-line); }
+.theme-toggle:active { transform: rotate(30deg); }
+.theme-toggle svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+/* Show the theme you would switch to. */
+.theme-toggle .to-light { display: block; }
+.theme-toggle .to-dark { display: none; }
+:root[data-theme="light"] .theme-toggle .to-light { display: none; }
+:root[data-theme="light"] .theme-toggle .to-dark { display: block; }
+
+/* A smooth crossfade when switching, not on first paint. */
+.theme-anim, .theme-anim * { transition: background-color 0.4s, border-color 0.4s, color 0.4s, box-shadow 0.4s !important; }
+
 /* Set on the <svg> so it reaches inside <use> too. */
 .wheel-mark {
   fill: none;
@@ -119,8 +229,8 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
   inset: -120px 0 auto;
   height: 900px;
   background:
-    radial-gradient(600px 380px at 50% 30%, rgba(216, 189, 121, 0.14), transparent 70%),
-    radial-gradient(900px 500px at 50% 80%, rgba(216, 189, 121, 0.06), transparent 70%);
+    radial-gradient(600px 380px at 50% 30%, var(--hero-glow), transparent 70%),
+    radial-gradient(900px 500px at 50% 80%, var(--hero-glow-2), transparent 70%);
   z-index: -1;
 }
 .halo {
@@ -130,7 +240,7 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
   width: 760px;
   height: 760px;
   transform: translateX(-50%);
-  opacity: 0.07;
+  opacity: var(--halo-opacity);
   z-index: -1;
   pointer-events: none;
 }
@@ -144,7 +254,7 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
   gap: 10px;
   margin: 0 0 26px;
   padding: 6px 14px;
-  border: 1px solid rgba(216, 189, 121, 0.3);
+  border: 1px solid var(--accent-line);
   border-radius: 999px;
   color: var(--gold);
   font-size: 0.78rem;
@@ -189,7 +299,7 @@ h1 em { color: var(--gold); font-style: italic; }
   gap: 12px;
   padding: 17px 30px;
   border-radius: 999px;
-  background: linear-gradient(180deg, #f1e1b4, var(--gold) 55%, var(--gold-deep));
+  background: linear-gradient(180deg, #f1e1b4, #d8bd79 55%, #b8954a);
   color: #17120a;
   font-weight: 500;
   font-size: 1.08rem;
@@ -212,12 +322,9 @@ h1 em { color: var(--gold); font-style: italic; }
   max-width: 1040px;
   border-radius: 14px;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: #0b0a08;
-  box-shadow:
-    0 50px 120px rgba(0, 0, 0, 0.7),
-    0 0 0 1px rgba(0, 0, 0, 0.6),
-    0 0 120px var(--gold-glow);
+  border: 1px solid var(--window-border);
+  background: var(--window-bg);
+  box-shadow: var(--window-shadow);
   text-align: left;
 }
 .window-bar {
@@ -225,9 +332,9 @@ h1 em { color: var(--gold); font-style: italic; }
   align-items: center;
   height: 38px;
   padding: 0 14px;
-  background: #1c1a17;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.5);
-  color: rgba(244, 239, 229, 0.55);
+  background: var(--window-bar);
+  border-bottom: 1px solid var(--window-bar-line);
+  color: var(--window-bar-ink);
   font-size: 0.8rem;
 }
 .lights { display: flex; gap: 8px; }
@@ -270,7 +377,8 @@ h2 {
   padding: 40px 36px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: linear-gradient(160deg, rgba(216, 189, 121, 0.07), transparent 55%), var(--card);
+  background: linear-gradient(160deg, var(--accent-soft), transparent 55%), var(--card);
+  box-shadow: var(--card-shadow);
   overflow: hidden;
 }
 .unit .num {
@@ -315,7 +423,7 @@ h2 {
   height: 100%;
   width: 0;
   border-radius: 999px;
-  background: linear-gradient(90deg, var(--gold-deep), #f1e1b4);
+  background: linear-gradient(90deg, var(--gold-deep), var(--bar-end));
   transition: width 1.4s cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 .levels.seen .level-bar span { width: var(--w); }
@@ -338,8 +446,9 @@ h2 {
   border-radius: var(--radius);
   background: var(--card);
   transition: border-color 0.3s, transform 0.3s;
+  box-shadow: var(--card-shadow);
 }
-.feature:hover { border-color: rgba(216, 189, 121, 0.3); transform: translateY(-3px); }
+.feature:hover { border-color: var(--accent-line); transform: translateY(-3px); }
 .feature .icon {
   display: grid;
   place-items: center;
@@ -347,7 +456,7 @@ h2 {
   height: 44px;
   margin-bottom: 20px;
   border-radius: 12px;
-  background: rgba(216, 189, 121, 0.1);
+  background: var(--accent-soft);
   color: var(--gold);
 }
 .feature .icon svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
@@ -370,6 +479,7 @@ h2 {
   border: 1px solid var(--line);
   border-radius: 999px;
   background: var(--card);
+  box-shadow: var(--card-shadow);
 }
 .theme-switch button {
   border: 0;
@@ -383,7 +493,7 @@ h2 {
 }
 .theme-switch button[aria-pressed="true"] { background: var(--card-strong); color: var(--ink); }
 .showcase .window { margin-top: 40px; }
-.showcase .window img { transition: opacity 0.35s; }
+.window img { transition: opacity 0.35s; }
 
 /* install steps */
 .steps {
@@ -399,6 +509,7 @@ h2 {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--card);
+  box-shadow: var(--card-shadow);
 }
 .step::before {
   counter-increment: step;
@@ -409,7 +520,7 @@ h2 {
   height: 38px;
   margin-bottom: 22px;
   border-radius: 50%;
-  border: 1px solid rgba(216, 189, 121, 0.45);
+  border: 1px solid var(--accent-strong-line);
   color: var(--gold);
   font-family: var(--serif);
   font-size: 1.3rem;
@@ -421,8 +532,8 @@ h2 {
   margin-top: 22px;
   padding: 18px 22px;
   border-radius: 16px;
-  border: 1px solid rgba(216, 189, 121, 0.22);
-  background: rgba(216, 189, 121, 0.05);
+  border: 1px solid var(--accent-line);
+  background: var(--accent-soft);
   color: var(--muted);
   font-size: 0.95rem;
 }
@@ -462,7 +573,7 @@ h2 {
   padding: 90px 24px;
   text-align: center;
   border-top: 1px solid var(--line);
-  background: radial-gradient(600px 300px at 50% 0%, rgba(216, 189, 121, 0.12), transparent 70%);
+  background: radial-gradient(600px 300px at 50% 0%, var(--hero-glow), transparent 70%);
 }
 .closing h2 { max-width: 16ch; margin-inline: auto; }
 
@@ -511,7 +622,7 @@ footer a { color: var(--muted); }
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  border: 2px solid rgba(216, 189, 121, 0.25);
+  border: 2px solid var(--accent-line);
   border-top-color: var(--gold);
   animation: turn 0.9s linear infinite;
 }
@@ -539,7 +650,7 @@ footer a { color: var(--muted); }
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  border: 1px solid rgba(216, 189, 121, 0.45);
+  border: 1px solid var(--accent-strong-line);
   color: var(--gold);
   font-family: var(--serif);
   font-size: 1.3rem;

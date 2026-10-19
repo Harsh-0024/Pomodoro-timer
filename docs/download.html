@@ -7,11 +7,16 @@
 <meta name="description" content="Your Muhurta Pomodoro download, and what to do once it finishes." />
 <meta name="robots" content="noindex" />
 <meta name="theme-color" content="#070605" />
+<script>
+  /* Starting theme before anything paints: the visitor's pick, else the system's (theme.js). */
+  try { var t = localStorage.getItem("muhurta-theme"); } catch (e) {}
+  document.documentElement.dataset.theme = t || (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+</script>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23040302'/%3E%3Cg fill='none' stroke='%23d8bd79' stroke-width='4' stroke-linecap='round'%3E%3Ccircle cx='32' cy='32' r='22'/%3E%3Ccircle cx='32' cy='32' r='6'/%3E%3Cpath d='M32 6v14M32 44v14M6 32h14M44 32h14M13.6 13.6l10 10M40.4 40.4l10 10M50.4 13.6l-10 10M23.6 40.4l-10 10'/%3E%3C/g%3E%3C/svg%3E" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="style.css?v=1.6.0d" />
+<link rel="stylesheet" href="style.css?v=1.6.1a" />
 </head>
 <body class="dl-page">
 
@@ -24,7 +29,13 @@
       </svg>
       <span>Muhurta Pomodoro</span>
     </a>
-    <div class="nav-links"><a href="./">← Back</a></div>
+    <div class="nav-links">
+      <button class="theme-toggle" type="button" aria-label="Switch theme">
+        <svg class="to-light" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4" /><path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4L6 18M18 6l1.4-1.4" /></svg>
+        <svg class="to-dark" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.6A8.2 8.2 0 0 1 9.4 4 8.2 8.2 0 1 0 20 14.6z" /></svg>
+      </button>
+      <a href="./">← Back</a>
+    </div>
   </div>
 </nav>
 
@@ -49,6 +60,7 @@
   </div>
 </footer>
 
+<script src="theme.js?v=1.6.0"></script>
 <script>
   const REPO = "https://github.com/Harsh-0024/muhurta-pomodoro";
   // /releases/latest/download/<file> always resolves to the newest release,

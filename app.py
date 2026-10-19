@@ -128,7 +128,8 @@ def _ensure_db():
 # What works before signing in: the sign-in page and what it needs, plus
 # the launcher's and updater's own checks.
 OPEN_ENDPOINTS = {
-    "static", "sign_in_page", "api_cloud_status", "api_cloud_send_code", "api_cloud_verify",
+    "static", "sign_in_page", "api_cloud_status", "api_cloud_sign_in", "api_cloud_send_code",
+    "api_cloud_verify", "api_cloud_set_password", "api_cloud_cancel",
     "api_alive", "api_version", "api_update_restart",
 }
 
@@ -207,9 +208,12 @@ def index():
 
 @app.route("/sign-in")
 def sign_in_page():
-    if not cloud.configured() or cloud.status()["signed_in"]:
+    st = cloud.status()
+    if not st["configured"] or st["signed_in"]:
         return redirect(url_for("index"))
-    return render_template("sign_in.html", bare=True)
+    # Stopped after the code, before choosing a password: carry on from there.
+    return render_template("sign_in.html", bare=True,
+                           pending_email=st["email"] if st["password_pending"] else "")
 
 
 @app.route("/flow")
@@ -344,22 +348,46 @@ def api_cloud_sync_now():
     return jsonify(_cloud_status())
 
 
-@app.post("/api/cloud/send-code")
-def api_cloud_send_code():
-    body = request.get_json(silent=True) or {}
-    return _cloud_call(lambda e: cloud.send_code(e) or {"sent": True}, str(body.get("email") or ""))
-
-
-@app.post("/api/cloud/verify")
-def api_cloud_verify():
+@app.post("/api/cloud/sign-in")
+def api_cloud_sign_in():
     body = request.get_json(silent=True) or {}
     try:
-        cloud.verify_code(str(body.get("email") or ""), str(body.get("code") or ""))
+        cloud.sign_in_password(str(body.get("email") or ""), str(body.get("password") or ""))
     except cloud.CloudError as exc:
         return jsonify({"error": str(exc)}), exc.status
     # Fetch the account's data now, so the timer opens with it.
     sync.enter_account()
     return jsonify(_cloud_status())
+
+
+@app.post("/api/cloud/send-code")
+def api_cloud_send_code():
+    """A code to create an account, or (reset) to choose a new password."""
+    body = request.get_json(silent=True) or {}
+    new_account = body.get("purpose") != "reset"
+    return _cloud_call(lambda e: cloud.send_code(e, new_account) or {"sent": True}, str(body.get("email") or ""))
+
+
+@app.post("/api/cloud/verify")
+def api_cloud_verify():
+    body = request.get_json(silent=True) or {}
+    return _cloud_call(cloud.verify_code, str(body.get("email") or ""), str(body.get("code") or ""))
+
+
+@app.post("/api/cloud/set-password")
+def api_cloud_set_password():
+    body = request.get_json(silent=True) or {}
+    try:
+        cloud.set_password(str(body.get("password") or ""))
+    except cloud.CloudError as exc:
+        return jsonify({"error": str(exc)}), exc.status
+    sync.enter_account()
+    return jsonify(_cloud_status())
+
+
+@app.post("/api/cloud/cancel")
+def api_cloud_cancel():
+    return _cloud_call(cloud.cancel_pending)
 
 
 @app.post("/api/cloud/sign-out")

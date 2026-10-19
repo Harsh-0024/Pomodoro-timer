@@ -1,7 +1,14 @@
 """Signing in to the Muhurata cloud account (Supabase Auth).
 
-Sign-in is by email code: the person types their email, Supabase emails a
-code, they type the code back. No passwords exist anywhere.
+Creating an account: the person types their email, Supabase emails a code,
+they type it back (proving the address is theirs), then choose a password.
+After that they sign in with email and password; no code is needed. A
+forgotten password is reset the same way an account is created: a code to
+the email, then a new password.
+
+Between the code and the password the account is signed in but not yet
+usable (password_pending), so stopping halfway never leaves an account
+without a password.
 
 The resulting session (an access token that lasts an hour, and a refresh
 token that renews it) is kept in cloud_session.json next to the database,
@@ -35,6 +42,7 @@ TIMEOUT = 15  # seconds; a slow connection should fail, not hang
 REFRESH_EARLY = 120  # renew the access token this many seconds before it expires
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 CODE_RE = re.compile(r"^\d{6,10}$")
+PASSWORD_MIN = 8
 
 # Our own list of trusted certificates, so HTTPS works however Python was
 # installed. The python.org Mac installer and some frozen builds ship
@@ -122,7 +130,7 @@ def _load() -> dict | None:
     return data if isinstance(data, dict) and data.get("refresh_token") else None
 
 
-def _save(payload: dict) -> dict:
+def _save(payload: dict, password_pending: bool = False) -> dict:
     user = payload.get("user") or {}
     expires_at = payload.get("expires_at") or (time.time() + int(payload.get("expires_in") or 3600))
     session = {
@@ -131,7 +139,12 @@ def _save(payload: dict) -> dict:
         "expires_at": int(expires_at),
         "user_id": user.get("id"),
         "email": user.get("email"),
+        "password_pending": password_pending,
     }
+    return _write(session)
+
+
+def _write(session: dict) -> dict:
     path = _session_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(".tmp")
@@ -152,24 +165,84 @@ def _forget():
 # public API
 # --------------------------------------------------------------------------- #
 def status() -> dict:
-    """What Settings shows. Never touches the network."""
+    """Whether the app may be used, and as whom. Never touches the network."""
     session = _load()
+    pending = bool(session and session.get("password_pending"))
     return {
         "configured": configured(),
-        "signed_in": session is not None,
+        "signed_in": session is not None and not pending,
+        "password_pending": pending,
         "email": session.get("email") if session else None,
     }
 
 
-def send_code(email: str) -> None:
+def _clean_email(email: str) -> str:
     email = (email or "").strip().lower()
     if not EMAIL_RE.match(email):
         raise CloudError("That doesn't look like an email address.")
-    code, payload = _request("POST", "/auth/v1/otp", {"email": email, "create_user": True})
+    return email
+
+
+def send_code(email: str, new_account: bool = True) -> None:
+    """Email a code: to create an account, or (new_account=False) to reset
+    the password of one that exists."""
+    email = _clean_email(email)
+    code, payload = _request("POST", "/auth/v1/otp", {"email": email, "create_user": new_account})
     if code == 429 or "rate" in _error_text(payload):
         raise CloudError("Too many codes asked for. Wait a minute, then try again.", 429)
+    if code >= 400 and not new_account and ("signup" in _error_text(payload) or "not found" in _error_text(payload)
+                                            or "otp_disabled" in _error_text(payload)):
+        raise CloudError("There's no account with that email. Create one instead.", 404)
     if code >= 400:
         raise CloudError("The code could not be sent. Check the address and try again.", 502)
+
+
+def sign_in_password(email: str, password: str) -> dict:
+    email = _clean_email(email)
+    if not password:
+        raise CloudError("Enter your password.")
+    code, payload = _request("POST", "/auth/v1/token?grant_type=password", {"email": email, "password": password})
+    if code == 429:
+        raise CloudError("Too many tries. Wait a minute, then try again.", 429)
+    if code >= 400 or not isinstance(payload, dict) or "access_token" not in payload:
+        if "email_not_confirmed" in _error_text(payload):
+            raise CloudError("This email isn't confirmed yet. Use Create an account to get a code.")
+        raise CloudError("Wrong email or password. Forgot it? Reset it with a code.", 401)
+    with _lock:
+        _save(payload)
+    return status()
+
+
+def set_password(password: str) -> dict:
+    """Finish creating the account (or resetting the password) after the code."""
+    password = password or ""
+    if len(password) < PASSWORD_MIN:
+        raise CloudError(f"Use at least {PASSWORD_MIN} characters.")
+    token = access_token()
+    if token is None:
+        raise CloudError("That took too long. Start again with a new code.", 401)
+    code, payload = _request("PUT", "/auth/v1/user", {"password": password}, token=token)
+    text = _error_text(payload)
+    if code == 429:
+        raise CloudError("Too many tries. Wait a minute, then try again.", 429)
+    if code >= 400 and "same_password" not in text:  # resetting to the old one is fine
+        if "weak" in text or "password" in text:
+            reason = payload.get("msg") or payload.get("message") if isinstance(payload, dict) else None
+            raise CloudError(reason or "Choose a stronger password.")
+        raise CloudError("The password could not be saved. Try again.", 502)
+    with _lock:
+        session = _load()
+        if session:
+            session["password_pending"] = False
+            _write(session)
+    return status()
+
+
+def cancel_pending() -> dict:
+    """Stopped between the code and the password: forget that half sign-in."""
+    if status()["password_pending"]:
+        sign_out()
+    return status()
 
 
 def verify_code(email: str, code: str) -> dict:
@@ -183,7 +256,7 @@ def verify_code(email: str, code: str) -> dict:
     if status_code >= 400 or not isinstance(payload, dict) or "access_token" not in payload:
         raise CloudError("That code is wrong or has expired. Ask for a new one if it is over an hour old.")
     with _lock:
-        _save(payload)
+        _save(payload, password_pending=True)  # usable once a password is chosen
     return status()
 
 
@@ -204,7 +277,7 @@ def access_token() -> str | None:
         if code < 400 and isinstance(payload, dict) and "access_token" in payload:
             # Supabase may leave out the user on refresh; keep what we know.
             payload.setdefault("user", {"id": session["user_id"], "email": session["email"]})
-            return _save(payload)["access_token"]
+            return _save(payload, session.get("password_pending", False))["access_token"]
         if code in (400, 401, 403):
             # The refresh token was revoked or expired (signed out elsewhere,
             # account deleted). Sign out here too, rather than retrying forever.

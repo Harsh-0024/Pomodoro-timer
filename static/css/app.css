@@ -3742,6 +3742,48 @@ body[data-theme="light"] .history-sheet input[type="datetime-local"] {
   font-size: 0.9rem;
 }
 
+.signin-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.signin-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--gold);
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.signin-link:hover {
+  text-decoration: underline;
+}
+
+.signin-switch {
+  margin: 0.75rem 0 0;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.signin-switch .signin-link {
+  font-size: inherit;
+}
+
+.signin-step > .input + .signin-label {
+  margin-top: 0.5rem;
+}
+
+.signin-step > .input:last-of-type + .signin-submit,
+.signin-step > .input + .btn {
+  margin-top: 0.75rem;
+}
+
 .signin-hint {
   margin: 0 0 0.5rem;
   color: var(--muted);

@@ -3,28 +3,52 @@
 {% block body_class %}page-signin{% endblock %}
 {% block page_id %}signin{% endblock %}
 {% block content %}
-<section class="signin">
+<section class="signin" id="signin" data-pending-email="{{ pending_email }}">
   <div class="signin-card">
     <p class="signin-kicker">Free · your own account</p>
-    <h1 class="signin-title">Sign in to begin</h1>
-    <p class="signin-lede">Your sessions, combinations and settings are kept in your account, so they follow you to every computer you sign in on.</p>
+    <h1 class="signin-title" id="signinTitle">Sign in</h1>
+    <p class="signin-lede" id="signinLede">Your sessions, combinations and settings are kept in your account, so they follow you to every computer you sign in on.</p>
 
-    <form class="signin-step" id="signinEmailForm" novalidate>
-      <label class="signin-label" for="signinEmail">Your email</label>
-      <input type="email" id="signinEmail" class="input" placeholder="you@example.com" autocomplete="email" required autofocus />
-      <p class="signin-hint">We email you a code. No password to remember.</p>
-      <button type="submit" class="btn btn-primary signin-submit" id="btnSigninSend">Send code</button>
+    <form class="signin-step" id="signinPasswordForm" novalidate>
+      <label class="signin-label" for="signinEmail">Email</label>
+      <input type="email" id="signinEmail" class="input" placeholder="you@example.com" autocomplete="username" required autofocus />
+      <div class="signin-label-row">
+        <label class="signin-label" for="signinPassword">Password</label>
+        <button type="button" class="signin-link" id="btnForgot">Forgot password?</button>
+      </div>
+      <input type="password" id="signinPassword" class="input" autocomplete="current-password" required />
+      <button type="submit" class="btn btn-primary signin-submit" id="btnSignin">Sign in</button>
+      <p class="signin-switch">New here? <button type="button" class="signin-link" id="btnCreate">Create an account</button></p>
+    </form>
+
+    <form class="signin-step" id="signinEmailForm" novalidate hidden>
+      <label class="signin-label" for="signinCodeEmail">Your email</label>
+      <input type="email" id="signinCodeEmail" class="input" placeholder="you@example.com" autocomplete="email" required />
+      <p class="signin-hint">We email you a code to check it's yours.</p>
+      <button type="submit" class="btn btn-primary signin-submit" id="btnSendCode">Send code</button>
+      <p class="signin-switch"><button type="button" class="signin-link" data-back>Back to sign in</button></p>
     </form>
 
     <form class="signin-step" id="signinCodeForm" novalidate hidden>
       <label class="signin-label" for="signinCode">Enter the code</label>
       <input type="text" id="signinCode" class="input sync-code" inputmode="numeric" autocomplete="one-time-code" placeholder="123456" maxlength="10" required />
       <p class="signin-hint" id="signinCodeHint">Sent to your email. It can take a minute; check spam too.</p>
-      <button type="submit" class="btn btn-primary signin-submit" id="btnSigninVerify">Sign in</button>
+      <button type="submit" class="btn btn-primary signin-submit" id="btnVerify">Continue</button>
       <div class="signin-links">
-        <button type="button" class="btn btn-quiet btn-small" id="btnSigninResend">Send a new code</button>
-        <button type="button" class="btn btn-quiet btn-small" id="btnSigninChange">Use a different email</button>
+        <button type="button" class="btn btn-quiet btn-small" id="btnResend">Send a new code</button>
+        <button type="button" class="btn btn-quiet btn-small" data-back>Back to sign in</button>
       </div>
+    </form>
+
+    <form class="signin-step" id="signinNewPasswordForm" novalidate hidden>
+      <input type="email" id="signinNewPasswordEmail" autocomplete="username" hidden readonly />
+      <label class="signin-label" for="signinNewPassword">Choose a password</label>
+      <input type="password" id="signinNewPassword" class="input" autocomplete="new-password" minlength="8" required />
+      <label class="signin-label" for="signinNewPassword2">Type it again</label>
+      <input type="password" id="signinNewPassword2" class="input" autocomplete="new-password" minlength="8" required />
+      <p class="signin-hint">At least 8 characters. You'll use it to sign in from now on.</p>
+      <button type="submit" class="btn btn-primary signin-submit" id="btnSavePassword">Save and continue</button>
+      <p class="signin-switch"><button type="button" class="signin-link" id="btnCancelPending">Use a different email</button></p>
     </form>
 
     <p class="signin-message" id="signinMessage" role="status" aria-live="polite" hidden></p>

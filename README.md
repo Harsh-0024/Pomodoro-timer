@@ -3,7 +3,8 @@
 A calm focus timer for your Mac, built on the old Indian units of time:
 **1 Muhurta = 48 min · 1 Ghadi = 24 min**. Eight timer levels, a no-countdown
 Flow mode, a rest pool and a dashboard of your focus over the year. It is free
-but needs a (free) account: you sign in with an emailed code, and your history,
+but needs a (free) account: you confirm your email with a code once, choose a
+password, and from then on sign in with email and password. Your history,
 combinations and settings are kept in your account and appear on every computer
 you sign in on. After signing in it works offline and syncs when back online.
 

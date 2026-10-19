@@ -16,6 +16,7 @@ from flask import Flask, jsonify, render_template, request
 
 import cloud
 import db
+import presence
 import sync
 from presets import BUILTINS
 from version import __version__
@@ -34,6 +35,7 @@ ASSET_VERSION_PATHS = (
     BASE_DIR / "static" / "js" / "sounds.js",
     BASE_DIR / "static" / "js" / "dialog.js",
     BASE_DIR / "static" / "js" / "shortcuts.js",
+    BASE_DIR / "static" / "js" / "alive.js",
     BASE_DIR / "static" / "css" / "app.css",
 )
 BUILTIN_QUOTES = [
@@ -281,9 +283,21 @@ def _sync_after_change(response):
     # Any saved change (a session, an edit, a preset, a setting) syncs a few
     # seconds later. Cheap when signed out: the sync thread just looks and stops.
     if request.method in ("POST", "PUT", "PATCH", "DELETE") and request.path.startswith("/api/") \
-            and not request.path.startswith("/api/cloud/") and response.status_code < 400:
+            and not request.path.startswith(("/api/cloud/", "/api/alive")) and response.status_code < 400:
         sync.nudge()
     return response
+
+
+@app.post("/api/alive")
+def api_alive():
+    """A window checking in, or saying goodbye (see presence.py)."""
+    page = str(request.args.get("page") or "")[:64]
+    if page:
+        if request.args.get("event") == "closed":
+            presence.closed(page)
+        else:
+            presence.checked_in(page)
+    return "", 204
 
 
 def _cloud_status() -> dict:

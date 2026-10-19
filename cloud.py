@@ -23,9 +23,12 @@ from pathlib import Path
 import db
 
 # The project's address and publishable key are meant to ship inside the
-# app. The environment variables exist for testing against another project.
-SUPABASE_URL = os.environ.get("MUHURATA_SUPABASE_URL", "").rstrip("/")
-SUPABASE_KEY = os.environ.get("MUHURATA_SUPABASE_KEY", "")
+# app: the publishable key only identifies the project, and the own-rows
+# rules decide what anyone can read. Never put a "secret" or "service_role"
+# key here. The environment variables exist for testing against another
+# project.
+SUPABASE_URL = os.environ.get("MUHURATA_SUPABASE_URL", "https://ybjyzvtilicsncuiujks.supabase.co").rstrip("/")
+SUPABASE_KEY = os.environ.get("MUHURATA_SUPABASE_KEY", "sb_publishable_YDL_wTS1iPM9bKHpR6yP7g_o8pnFBDk")
 
 TIMEOUT = 15  # seconds; a slow connection should fail, not hang
 REFRESH_EARLY = 120  # renew the access token this many seconds before it expires

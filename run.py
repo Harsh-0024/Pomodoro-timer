@@ -577,6 +577,14 @@ class _WindowApi:
         script = f"display notification {json.dumps(str(body))} with title {json.dumps(str(title))}"
         subprocess.Popen(["osascript", "-e", script], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
+    def menu_bar(self, state=None):
+        # What is running, for the time in the menu bar (static/js/menubar.js).
+        if _MENU_BAR is not None:
+            _MENU_BAR.update(state if isinstance(state, dict) else None)
+
+
+_MENU_BAR = None
+
 
 def _native_window(url: str, data_dir: Path):
     """Show the timer in the app's own window; returns once it is closed."""
@@ -593,6 +601,21 @@ def _native_window(url: str, data_dir: Path):
         _running_file(data_dir).unlink(missing_ok=True)
 
     window.events.closing += closing
+
+    def bring_to_front():
+        import AppKit
+
+        AppKit.NSApp.activateIgnoringOtherApps_(True)
+        window.restore()
+        window.show()
+
+    global _MENU_BAR
+    try:
+        from menubar import MenuBar
+
+        _MENU_BAR = MenuBar(on_click=bring_to_front)
+    except Exception:
+        log.exception("No menu bar timer this time")
     # Not private: the page keeps a running session in localStorage, which
     # has to survive closing the window.
     webview.start(private_mode=False, storage_path=str(data_dir / "window"))

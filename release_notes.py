@@ -5,6 +5,16 @@ a few short lines per version, about what they will notice. Versions with
 nothing worth telling can be left out.
 """
 NOTES = {
+    "1.7.0": [
+        "You now sign in with a free account: your name, a username, your email and a password. "
+        "Your sessions, combinations and settings are kept in your account and appear on every "
+        "computer you sign in on.",
+        "The history already on this computer was added to your account the first time you signed in. "
+        "Signing out saves everything to your account first, then clears it from this computer.",
+        "Forgot your password? \"Forgot password?\" on the sign-in screen emails you a code to set a new one.",
+        "On a Mac, the running timer or Flow now shows in the menu bar, like Apple's Clock. "
+        "Click it to bring the window back.",
+    ],
     "1.6.0": [
         "Muhurta Pomodoro is now a proper Mac app. Download it from the website, drag it "
         "into Applications, and it opens in its own window with its own Dock icon. "

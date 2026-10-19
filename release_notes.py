@@ -5,6 +5,9 @@ a few short lines per version, about what they will notice. Versions with
 nothing worth telling can be left out.
 """
 NOTES = {
+    "1.5.3": [
+        "On a Mac, the timer now opens even when Chrome is closed.",
+    ],
     "1.5.2": [
         "When a new version is out, a notice at the bottom of the window offers it. "
         "\"Update now\" installs it in a few seconds. Your timer and history are kept.",

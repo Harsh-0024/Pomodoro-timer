@@ -407,6 +407,18 @@ def open_app_window(url: str):
     for exe in _app_browsers():
         if not exe.is_file():
             continue
+        if sys.platform == "darwin":
+            # Through LaunchServices, as the Dock would. Started directly, a
+            # browser that is not already running counts as ours, and newer
+            # macOS then blocks it from its own profile folder, so it quits
+            # at once and no window appears.
+            app_bundle = exe.parents[2]
+            done = _run(["open", "-na", str(app_bundle), "--args", f"--app={url}"])
+            if done.returncode == 0:
+                log.debug("Opened app window with %s", app_bundle)
+                return
+            log.debug("Could not open %s: %s", app_bundle, done.stderr)
+            continue
         try:
             # A session of its own, so the browser survives the launcher
             # window being closed (which kills everything it started).

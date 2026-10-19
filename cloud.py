@@ -41,6 +41,10 @@ SUPABASE_KEY = os.environ.get("MUHURATA_SUPABASE_KEY", "sb_publishable_YDL_wTS1i
 # Settings). Shown on the code screen so people can find the email; keep
 # the two in step.
 EMAIL_FROM = os.environ.get("MUHURATA_EMAIL_FROM", "muhurata.pomodoro.timer@gmail.com")
+# The app has no web address of its own (it runs at 127.0.0.1), so password
+# managers can't tell what a saved password is for. This is the one address
+# we tell everyone to file it under: the app's website.
+PASSWORD_SITE = "harsh-0024.github.io/muhurta-pomodoro"
 
 TIMEOUT = 15  # seconds; a slow connection should fail, not hang
 REFRESH_EARLY = 120  # renew the access token this many seconds before it expires

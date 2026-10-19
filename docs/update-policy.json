@@ -1,0 +1,6 @@
+{
+  "_how_to": "Every copy of the app reads this file about once an hour. Copies older than minimum_version, or listed in blocked_versions, show an 'Update required' screen and can't be used until they update. Newer releases are always offered with an 'Update now' notice. Leave minimum_version empty and blocked_versions [] to keep every update optional. message (optional) is shown on the notice. Edit on GitHub (docs/update-policy.json on main); it takes effect within about an hour.",
+  "minimum_version": "",
+  "blocked_versions": [],
+  "message": ""
+}

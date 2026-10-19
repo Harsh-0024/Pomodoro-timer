@@ -4113,3 +4113,83 @@ body[data-theme="light"] .signin-message[data-tone="error"] {
 .signin-progress[hidden] {
   display: none;
 }
+
+/* sign-in: where to save the password */
+.save-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-strong);
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.save-hint strong {
+  display: block;
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.save-hint-text {
+  flex: 1;
+}
+
+.save-hint .btn {
+  flex: none;
+}
+
+.save-site {
+  color: var(--ink);
+  font-weight: 500;
+  word-break: break-all;
+}
+
+/* update required: covers the whole app until it updates */
+.update-required {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: color-mix(in srgb, var(--bg0) 88%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.update-required-card {
+  width: min(26rem, 100%);
+  padding: 2rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg1);
+  box-shadow: var(--shadow);
+  text-align: center;
+}
+
+.update-required-title {
+  margin: 0 0 0.75rem;
+  font-family: var(--font-serif);
+  font-size: 1.7rem;
+  font-weight: 500;
+}
+
+.update-required-text {
+  margin: 0 0 1.25rem;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.update-required-card .btn {
+  width: 100%;
+}
+
+.update-required-note {
+  margin: 1rem 0 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+}

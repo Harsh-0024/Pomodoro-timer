@@ -477,6 +477,11 @@ def refresh_launcher():
                 marker = app / "Contents" / "Resources" / "launcher-version"
                 if not plist.exists() or "com.muhurata.timer.launcher" not in plist.read_text(errors="ignore"):
                     continue  # not one we made
+                exe = app / "Contents" / "MacOS" / "muhurata"
+                if not exe.exists() or f'"{PROJECT_ROOT}' not in exe.read_text(errors="ignore"):
+                    # Made for another copy of the timer (say, a developer's
+                    # checkout next to a normal install): that copy's job, not ours.
+                    continue
                 if marker.exists() and marker.read_text().strip() == LAUNCHER_VERSION:
                     continue
                 done = _run(["bash", str(PROJECT_ROOT / "packaging" / "make_macos_app.sh"),

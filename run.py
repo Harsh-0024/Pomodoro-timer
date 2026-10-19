@@ -1,18 +1,23 @@
 """Muhurata launcher: update, install, migrate, serve, open the app window.
 
-Double-clicked via the .command/.bat launcher the installer writes, or run
-directly with ``python run.py``. Everything is logged to
-<data dir>/launcher.log so problems on a friend's machine can be diagnosed.
+Double-clicked via the Desktop app/shortcut the installer writes, which
+starts it in the background with no Terminal window, or run directly with
+``python run.py``. Closing the timer's last window stops it; starting it
+while it already runs just opens the window again. Everything is logged to
+<data dir>/launcher.log so problems on a friend's machine can be diagnosed;
+without a Terminal, problems are shown in a pop-up instead.
 
 Flags:
   --no-update   skip the git self-update (used after re-exec, and handy in dev)
   --no-browser  don't open the app window
   --doctor      print environment / database diagnostics and exit
+  --background  (internal) the Mac app's copy that keeps running
 """
 from __future__ import annotations
 
 import hashlib
 import importlib
+import json
 import logging
 import logging.handlers
 import os
@@ -37,6 +42,15 @@ UV_DIR = Path.home() / ".muhurata" / "bin"
 REPAIR_FLAG = "MUHURATA_REPAIRED"  # set across a repair restart, so it happens once
 FIRST_PORT = 8000
 HOST = "127.0.0.1"
+# Started from a Terminal (developer, installer) rather than double-clicked.
+INTERACTIVE = bool(sys.stdin and sys.stdin.isatty())
+# Programs run from a no-console app on Windows would each flash a black
+# console window; this keeps them hidden.
+NO_WINDOW = {"creationflags": subprocess.CREATE_NO_WINDOW} if sys.platform == "win32" else {}
+# Bump when the Desktop launcher changes; installs older than this get theirs
+# rewritten on the next start. Keep in step with packaging/make_macos_app.sh.
+LAUNCHER_VERSION = "2"
+SITE = "https://harsh-0024.github.io/Pomodoro-timer/"
 
 log = logging.getLogger("muhurata.launcher")
 
@@ -45,6 +59,8 @@ log = logging.getLogger("muhurata.launcher")
 # setup
 # --------------------------------------------------------------------------- #
 def _data_dir() -> Path:
+    if os.environ.get("MUHURATA_DATA_DIR"):  # tests and side-by-side copies
+        return Path(os.environ["MUHURATA_DATA_DIR"])
     # Same locations platformdirs.user_data_dir("MuhurataTimer", appauthor=False)
     # resolves to, computed by hand because platformdirs isn't installed yet on
     # the very first run.
@@ -65,23 +81,59 @@ def _setup_logging(data_dir: Path):
     )
     file_h.setFormatter(fmt)
     file_h.setLevel(logging.DEBUG)      # the log keeps everything
-    console = logging.StreamHandler(sys.stderr)
-    console.setFormatter(logging.Formatter("%(message)s"))
-    console.setLevel(logging.INFO)      # the screen keeps only plain sentences
-    # Per-request lines and tracebacks belong in the file, not in front of
-    # someone who is not a programmer.
-    console.addFilter(lambda r: not r.name.startswith("werkzeug") and not r.exc_info)
     root = logging.getLogger()
     root.setLevel(logging.DEBUG)
     root.addHandler(file_h)
-    root.addHandler(console)
+    if sys.stderr is not None:  # None in a no-console app (pythonw, windowed build)
+        console = logging.StreamHandler(sys.stderr)
+        console.setFormatter(logging.Formatter("%(message)s"))
+        console.setLevel(logging.INFO)      # the screen keeps only plain sentences
+        # Per-request lines and tracebacks belong in the file, not in front of
+        # someone who is not a programmer.
+        console.addFilter(lambda r: not r.name.startswith("werkzeug") and not r.exc_info)
+        root.addHandler(console)
     logging.getLogger("alembic").setLevel(logging.WARNING)
     logging.getLogger("werkzeug").setLevel(logging.INFO)
 
 
 def _run(cmd: list[str], **kw) -> subprocess.CompletedProcess:
     log.debug("$ %s", " ".join(cmd))
-    return subprocess.run(cmd, cwd=PROJECT_ROOT, capture_output=True, text=True, **kw)
+    return subprocess.run(cmd, cwd=PROJECT_ROOT, capture_output=True, text=True, **NO_WINDOW, **kw)
+
+
+# --------------------------------------------------------------------------- #
+# talking to someone who has no Terminal window
+# --------------------------------------------------------------------------- #
+def _notice(text: str):
+    """A passing note (an update is installing). Terminal users read the log line."""
+    if INTERACTIVE:
+        return
+    if sys.platform == "darwin":
+        script = f'display notification {json.dumps(text)} with title "Muhurata Timer"'
+        subprocess.Popen(["osascript", "-e", script], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+def _alert(message: str, copyable: str | None = None):
+    """A pop-up that waits for OK. `copyable` goes in a box the person can copy from."""
+    if os.environ.get("CI"):
+        return  # nobody would click OK on a build machine; the log has it all
+    try:
+        if sys.platform == "darwin":
+            script = f'display alert "Muhurata Timer could not start" message {json.dumps(message)} as critical'
+            if copyable:
+                script = (f'display dialog {json.dumps(message)} default answer {json.dumps(copyable)} '
+                          'with title "Muhurata Timer could not start" with icon caution buttons {"OK"} default button 1')
+            subprocess.run(["osascript", "-e", script], capture_output=True, timeout=3600)
+        elif sys.platform == "win32":
+            import ctypes
+            # Ctrl+C in a Windows message box copies all of its text.
+            text = message + (f"\n\n{copyable}\n\n(Press Ctrl+C to copy this message.)" if copyable else "")
+            ctypes.windll.user32.MessageBoxW(None, text, "Muhurata Timer could not start", 0x10)
+        elif shutil.which("zenity"):
+            subprocess.run(["zenity", "--error", "--title=Muhurata Timer", f"--text={message}\n\n{copyable or ''}"],
+                           capture_output=True, timeout=3600)
+    except Exception:  # a pop-up that fails must not hide the real problem
+        log.debug("could not show a pop-up", exc_info=True)
 
 
 # --------------------------------------------------------------------------- #
@@ -192,13 +244,14 @@ def ensure_python_version() -> bool:
     for leftover in (new, old):  # from an earlier attempt that was cut short
         shutil.rmtree(leftover, ignore_errors=True)
     log.info("Switching to Python %s - one moment...", want)
+    _notice("Installing an update - this takes a minute, only this once.")
     try:
         subprocess.run([uv, "python", "install", want], cwd=PROJECT_ROOT,
-                       capture_output=True, timeout=600)
+                       capture_output=True, timeout=600, **NO_WINDOW)
         # --seed keeps pip inside it for install_requirements(); --relocatable
         # so nothing in it remembers the .venv.new path after the rename.
         done = subprocess.run([uv, "venv", "--seed", "--relocatable", "--python", want, str(new)],
-                              cwd=PROJECT_ROOT, capture_output=True, text=True, timeout=600)
+                              cwd=PROJECT_ROOT, capture_output=True, text=True, timeout=600, **NO_WINDOW)
     except (subprocess.TimeoutExpired, OSError) as exc:
         shutil.rmtree(new, ignore_errors=True)
         log.warning("Could not switch Python version; continuing on %s.", have)
@@ -265,6 +318,7 @@ def install_requirements(data_dir: Path, force: bool = False):
     if not force and marker.exists() and marker.read_text().strip() == digest:
         return
     log.info("Installing new components - this can take a minute, only this once...")
+    _notice("Installing an update - this takes a minute, only this once.")
     uv = _uv()
     # A repair must not trust the existing install: a package whose files are
     # damaged still leaves its metadata behind, and a plain install would call
@@ -281,7 +335,7 @@ def install_requirements(data_dir: Path, force: bool = False):
         # Captured, not streamed: pip's failure output is frightening and
         # useless to a friend. It goes to launcher.log, which is what gets
         # sent back when something really is wrong.
-        last = subprocess.run(cmd, cwd=PROJECT_ROOT, capture_output=True, text=True)
+        last = subprocess.run(cmd, cwd=PROJECT_ROOT, capture_output=True, text=True, **NO_WINDOW)
         if last.returncode == 0:
             break
         log.debug("%s failed:\n%s\n%s", cmd[0], last.stdout, last.stderr)
@@ -358,9 +412,99 @@ def _open_when_ready(url: str, open_browser: bool):
     else:
         log.warning("Server did not respond in time; open %s manually.", url)
         return
-    log.info("Muhurata is running at %s  (Ctrl+C or close this window to stop)", url)
+    log.info("Muhurata is running at %s  (close the timer window to stop it)", url)
     if open_browser:
         open_app_window(url)
+
+
+# --------------------------------------------------------------------------- #
+# one copy at a time, and quitting when the last window closes
+# --------------------------------------------------------------------------- #
+def _running_file(data_dir: Path) -> Path:
+    return data_dir / "running.json"
+
+
+def _already_running(data_dir: Path) -> str | None:
+    """The address of a copy of the timer that is already running, if any."""
+    try:
+        url = json.loads(_running_file(data_dir).read_text())["url"]
+        with urllib.request.urlopen(url + "api/version", timeout=2) as resp:
+            if resp.status == 200:
+                return url
+    except Exception:
+        pass
+    return None
+
+
+def _quit_when_closed(server, data_dir: Path):
+    """Stop the server once every timer window has been closed (see presence.py)."""
+    import presence
+    import sync
+
+    while True:
+        time.sleep(5)
+        if presence.should_quit():
+            break
+    log.info("The timer window was closed - stopping.")
+    # One last sync so a session finished just before closing is not left
+    # waiting for the next start. Bounded: closing must never hang.
+    final = threading.Thread(target=sync.run_once, daemon=True)
+    final.start()
+    final.join(timeout=20)
+    server.shutdown()
+
+
+# --------------------------------------------------------------------------- #
+# the Desktop launcher
+# --------------------------------------------------------------------------- #
+def _mac_apps() -> list[Path]:
+    name = "Muhurata Timer.app"
+    return [d / name for d in (Path.home() / "Desktop", Path("/Applications"), Path.home() / "Applications")]
+
+
+def refresh_launcher():
+    """Bring the Desktop launcher up to date after an update.
+
+    The installer writes it once, so without this an existing install would
+    keep starting the old way (in a Terminal window) forever.
+    """
+    if FROZEN:
+        return  # the downloaded app is its own launcher
+    try:
+        if sys.platform == "darwin":
+            for app in _mac_apps():
+                plist = app / "Contents" / "Info.plist"
+                marker = app / "Contents" / "Resources" / "launcher-version"
+                if not plist.exists() or "com.muhurata.timer.launcher" not in plist.read_text(errors="ignore"):
+                    continue  # not one we made
+                if marker.exists() and marker.read_text().strip() == LAUNCHER_VERSION:
+                    continue
+                done = _run(["bash", str(PROJECT_ROOT / "packaging" / "make_macos_app.sh"),
+                             str(PROJECT_ROOT), str(app.parent)])
+                log.info("Updated the Muhurata app in %s: it now starts without a Terminal window.", app.parent)
+                if done.returncode != 0:
+                    log.debug("make_macos_app.sh failed: %s", done.stderr)
+        elif sys.platform == "win32":
+            marker = _data_dir() / "launcher-version"
+            if marker.exists() and marker.read_text().strip() == LAUNCHER_VERSION:
+                return
+            pythonw = PROJECT_ROOT / ".venv" / "Scripts" / "pythonw.exe"
+            if not pythonw.exists():
+                return
+            script = (
+                "$d = [Environment]::GetFolderPath('Desktop'); $p = Join-Path $d 'Muhurata Timer.lnk';"
+                "if (Test-Path $p) { $l = (New-Object -ComObject WScript.Shell).CreateShortcut($p);"
+                f"$l.TargetPath = '{pythonw}'; $l.Arguments = 'run.py'; $l.WorkingDirectory = '{PROJECT_ROOT}';"
+                "$l.Save() }"
+            )
+            done = _run(["powershell", "-NoProfile", "-NonInteractive", "-Command", script])
+            if done.returncode == 0:
+                marker.write_text(LAUNCHER_VERSION)
+                log.info("Updated the Desktop shortcut: it now starts without a console window.")
+            else:
+                log.debug("shortcut update failed: %s", done.stderr)
+    except Exception:  # an old launcher still works; never fail the start over it
+        log.debug("could not refresh the launcher", exc_info=True)
 
 
 def _load_app():
@@ -434,6 +578,23 @@ def main(argv: list[str]) -> int:
 
     log.info("---- Muhurata %s start (python %s%s) ----", __version__, sys.version.split()[0], ", bundled" if FROZEN else "")
 
+    running = _already_running(data_dir)
+    if running:
+        log.info("Muhurata is already running at %s - opening its window.", running)
+        if open_browser:
+            open_app_window(running)
+        return 0
+
+    if sys.platform == "darwin" and not INTERACTIVE and "--background" not in argv:
+        # Started by double-clicking the app. Carry on in a separate process
+        # and let this one end at once: while the app's own process lives,
+        # macOS treats the app as open, and double-clicking it again would only
+        # bring it to the front instead of reopening the timer's window.
+        cmd = [sys.executable] if FROZEN else [sys.executable, str(PROJECT_ROOT / "run.py")]
+        subprocess.Popen([*cmd, *argv[1:], "--background"], cwd=PROJECT_ROOT, start_new_session=True,
+                         stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return 0
+
     if not no_update and self_update():
         # Re-exec so the freshly pulled launcher/app code is what actually runs.
         os.execv(sys.executable, [sys.executable, str(PROJECT_ROOT / "run.py"), "--no-update", *argv[1:]])
@@ -443,6 +604,7 @@ def main(argv: list[str]) -> int:
         os.execv(str(new_python), [str(new_python), str(PROJECT_ROOT / "run.py"), "--no-update", *argv[1:]])
 
     install_requirements(data_dir)
+    refresh_launcher()
 
     sys.path.insert(0, str(PROJECT_ROOT))
     try:
@@ -473,13 +635,17 @@ def main(argv: list[str]) -> int:
     # make_server rather than app.run: no "development server" banner, and
     # the request log goes through logging (file) instead of raw stderr.
     server = make_server(HOST, port, app, threaded=True)
+    _running_file(data_dir).write_text(json.dumps({"url": url, "pid": os.getpid()}))
     threading.Thread(target=_open_when_ready, args=(url, open_browser), daemon=True).start()
+    if open_browser:
+        threading.Thread(target=_quit_when_closed, args=(server, data_dir), daemon=True).start()
     try:
         server.serve_forever()
     except KeyboardInterrupt:
         pass
     finally:
         server.server_close()
+        _running_file(data_dir).unlink(missing_ok=True)
     log.info("Stopped.")
     return 0
 
@@ -494,6 +660,18 @@ REPAIR_CMD = (
 def _explain_failure():
     """A dead end for the user is worse than the bug. Give them one action."""
     log.exception("Launcher failed")  # full traceback -> launcher.log only
+    logfile = _data_dir() / "launcher.log"
+    if not INTERACTIVE:
+        if FROZEN:
+            _alert("Something went wrong while starting. Downloading the app again from the "
+                   f"website almost always fixes it:\n\n{SITE}\n\nIf it still will not start, send "
+                   f"this file to Harsh:\n{logfile}")
+        else:
+            _alert("Something went wrong while starting. This almost always fixes it: open "
+                   + ("PowerShell" if sys.platform == "win32" else "Terminal")
+                   + ", paste the line below and press Enter.\n\nIf it still will not start, send "
+                   f"this file to Harsh:\n{logfile}", copyable=REPAIR_CMD)
+        return
     line = "-" * 64
     print(
         f"\n{line}\n"

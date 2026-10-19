@@ -62,8 +62,13 @@ The app shows a small note in its footer when a newer version exists.
 
 ## Using it
 
-A terminal window shows `Muhurata is running at http://127.0.0.1:8000/` and
-the timer opens in its own window. **Close the terminal window (or press Ctrl+C) to stop the app.**
+Double-click **Muhurata Timer** and the timer opens in its own window, with no
+Terminal window. **Close the timer's window to stop the app** (it stops a few
+seconds later, after a last sync). Double-clicking again while it runs just
+brings the window back. If something goes wrong, a pop-up says what to do.
+
+Linux still starts it from a terminal for now. Developers can run
+`python run.py` from a terminal as before; the log is in `launcher.log`.
 
 ## Where's my data?
 

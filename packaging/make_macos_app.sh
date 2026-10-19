@@ -13,14 +13,20 @@ VERSION="$(sed -n 's/.*"\(.*\)".*/\1/p' "$INSTALL_DIR/version.py" 2>/dev/null ||
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
-# The bundle's executable opens a Terminal window running the launcher. The
-# window is deliberate: it shows "running at http://..." and closing it (or
-# Ctrl+C) is how you stop the timer.
+# Bump with LAUNCHER_VERSION in run.py: an install whose app is older gets it
+# rebuilt on its next start.
+LAUNCHER_VERSION=2
+
+# The bundle's executable starts the launcher in the background - no
+# Terminal window. Closing the timer's window stops it; anything worth
+# knowing goes to launcher.log, and problems appear in a pop-up.
 cat > "$APP/Contents/MacOS/muhurata" <<LAUNCH
 #!/bin/bash
-exec /usr/bin/open -a Terminal "$INSTALL_DIR/Muhurata Timer.command"
+cd "$INSTALL_DIR" || exit 1
+exec "$INSTALL_DIR/.venv/bin/python" run.py </dev/null >/dev/null 2>&1
 LAUNCH
 chmod +x "$APP/Contents/MacOS/muhurata"
+echo "$LAUNCHER_VERSION" > "$APP/Contents/Resources/launcher-version"
 
 cp "$INSTALL_DIR/packaging/icon.icns" "$APP/Contents/Resources/icon.icns"
 
@@ -38,6 +44,9 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleVersion</key><string>$VERSION</string>
   <key>CFBundleShortVersionString</key><string>$VERSION</string>
   <key>NSHighResolutionCapable</key><true/>
+  <!-- No Dock icon of its own: the timer's window is the app, and the
+       launcher underneath has no window for the Dock to show. -->
+  <key>LSUIElement</key><true/>
   <key>LSMinimumSystemVersion</key><string>10.13</string>
 </dict>
 </plist>

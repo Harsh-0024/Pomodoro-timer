@@ -123,7 +123,15 @@ $Desktop = [Environment]::GetFolderPath("Desktop")
 if (Test-Path $Desktop) {
     $Shell = New-Object -ComObject WScript.Shell
     $Lnk = $Shell.CreateShortcut((Join-Path $Desktop "Muhurata Timer.lnk"))
-    $Lnk.TargetPath = $Bat
+    # pythonw: no console window. Closing the timer's window stops it, and
+    # problems appear in a pop-up. The .bat stays for starting it by hand.
+    $VenvPyw = Join-Path $InstallDir ".venv\Scripts\pythonw.exe"
+    if (Test-Path $VenvPyw) {
+        $Lnk.TargetPath = $VenvPyw
+        $Lnk.Arguments = "run.py"
+    } else {
+        $Lnk.TargetPath = $Bat
+    }
     $Lnk.WorkingDirectory = $InstallDir
     $Lnk.Description = "Muhurata Focus Timer"
     $Lnk.Save()

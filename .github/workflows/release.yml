@@ -48,23 +48,33 @@ jobs:
       - name: Build
         run: python -m PyInstaller --noconfirm muhurata.spec
 
+      # The app has no console, so the test reads the address from the log
+      # file the app writes in its data folder.
       - name: Smoke test the bundle
         shell: bash
         run: |
-          cd dist
-          if [ "$RUNNER_OS" = "Windows" ]; then exe="Muhurata Timer/Muhurata Timer.exe"; else exe="Muhurata Timer/Muhurata Timer"; fi
-          "$exe" --no-browser > smoke.log 2>&1 &
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            exe="dist/Muhurata Timer/Muhurata Timer.exe"
+            logfile="$(cygpath "$LOCALAPPDATA")/MuhurataTimer/launcher.log"
+          else
+            exe="dist/Muhurata Timer.app/Contents/MacOS/Muhurata Timer"
+            logfile="$HOME/Library/Application Support/MuhurataTimer/launcher.log"
+          fi
+          "$exe" --no-browser > /dev/null 2>&1 &
           pid=$!
-          for i in $(seq 1 40); do
+          url=""
+          for i in $(seq 1 60); do
             sleep 1
-            if grep -q "running at" smoke.log; then break; fi
+            url=$(grep -o 'running at http://127.0.0.1:[0-9]*' "$logfile" 2>/dev/null | tail -1 | sed 's/running at //')
+            [ -n "$url" ] && break
           done
-          port=$(grep -o 'http://127.0.0.1:[0-9]*' smoke.log | head -1)
-          [ -n "$port" ] || { cat smoke.log; exit 1; }
-          curl -fsS "$port/api/dashboard" > /dev/null
-          curl -fsS "$port/dashboard" > /dev/null
+          [ -n "$url" ] || { echo "no address in the log"; cat "$logfile" 2>/dev/null; exit 1; }
+          curl -fsS "$url/api/dashboard" > /dev/null
+          curl -fsS "$url/dashboard" > /dev/null
+          curl -fsS -X POST "$url/api/alive?page=ci" > /dev/null
+          curl -fsS "$url/api/cloud/status" > /dev/null
           kill $pid || true
-          echo "Smoke test passed on $port"
+          echo "Smoke test passed on $url"
 
       # Asset names deliberately carry no version number, so that
       # /releases/latest/download/<name> is a permanent direct-download link
@@ -73,7 +83,7 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           cd dist
-          ditto -c -k --sequesterRsrc --keepParent "Muhurata Timer" "../Muhurata-Timer-${{ matrix.label }}.zip"
+          ditto -c -k --sequesterRsrc --keepParent "Muhurata Timer.app" "../Muhurata-Timer-${{ matrix.label }}.zip"
 
       - name: Zip (Windows)
         if: runner.os == 'Windows'

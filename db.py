@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import shutil
 import sqlite3
 import sys
@@ -48,7 +49,8 @@ DEFAULT_SETTINGS = {
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 LEGACY_DB_PATH = PROJECT_ROOT / "data" / "focus_timer.db"
-DB_PATH = Path(user_data_dir("MuhurataTimer", appauthor=False)) / "focus_timer.db"
+# MUHURATA_DATA_DIR: a separate data folder, for tests and side-by-side copies.
+DB_PATH = Path(os.environ.get("MUHURATA_DATA_DIR") or user_data_dir("MuhurataTimer", appauthor=False)) / "focus_timer.db"
 BACKUP_DIR = DB_PATH.parent / "backups"
 BACKUPS_TO_KEEP = 3
 MIGRATIONS_DIR = PROJECT_ROOT / "migrations"

@@ -2,13 +2,15 @@
 // it. "Update now" has the app update itself: the Mac app downloads the new
 // version and reopens; a git install restarts and this page reloads. Other
 // downloads (Windows) get a link to the download page.
-// Checked on load and every few hours, since the app can stay open for days.
-// Silent on any failure, including being offline.
+// When the owner requires it (docs/update-policy.json), a screen covers the
+// app instead, with no "Later": this version can't be used until it updates.
+// Checked on load and every hour, since the app can stay open for days.
+// Silent when offline; Settings > About shows whether checks are working.
 (function () {
   "use strict";
-  const CHECK_EVERY = 3 * 60 * 60 * 1000;
+  const CHECK_EVERY = 60 * 60 * 1000;
   const DISMISS_KEY = "muhurata.update.dismissed";
-  let shown = null;
+  let shown = null; // "bar:<version>" or "required:<version>"
 
   function dismissed(version) {
     try {
@@ -45,14 +47,48 @@
     setTimeout(poll, 2000);
   }
 
-  function show(d) {
-    if (shown === d.latest || dismissed(d.latest)) return;
+  // The "Update now" (or "Download") button, shared by the notice and the
+  // required screen. `others` are disabled while updating.
+  function updateButton(d, msg, others) {
+    if (d.how !== "restart") {
+      const link = el("a", "btn btn-primary", "Download the new version");
+      link.href = d.url;
+      link.target = "_blank";
+      link.rel = "noopener";
+      return link;
+    }
+    const button = el("button", "btn btn-primary", "Update now");
+    button.type = "button";
+    button.addEventListener("click", () => {
+      const all = [button, ...others];
+      all.forEach((b) => (b.disabled = true));
+      const before = msg.textContent;
+      msg.textContent = "Updating… the app is back by itself in a few seconds.";
+      const failed = (text) => {
+        msg.textContent = text || before;
+        all.forEach((b) => (b.disabled = false));
+      };
+      fetch("/api/update/restart", { method: "POST" })
+        .then((r) => {
+          if (!r.ok) throw new Error();
+          waitForNewVersion(d.current, msg, failed);
+        })
+        .catch(() => failed("Could not update just now. Close this window and open Muhurta Pomodoro again."));
+    });
+    return button;
+  }
+
+  function showBar(d) {
+    if (shown === `bar:${d.latest}` || dismissed(d.latest)) return;
     document.querySelector(".update-bar")?.remove();
-    shown = d.latest;
+    shown = `bar:${d.latest}`;
 
     const bar = el("div", "update-bar");
     bar.setAttribute("role", "status");
-    const msg = el("span", "update-bar-text", `Version ${d.latest} is available. You have ${d.current}.`);
+    const text = d.message
+      ? `Version ${d.latest} is available. ${d.message}`
+      : `Version ${d.latest} is available. You have ${d.current}.`;
+    const msg = el("span", "update-bar-text", text);
     const actions = el("span", "update-bar-actions");
     const later = el("button", "btn btn-quiet", "Later");
     later.type = "button";
@@ -62,47 +98,61 @@
       } catch (_) {}
       bar.remove();
     });
-
-    let main;
-    if (d.how === "restart") {
-      main = el("button", "btn btn-primary", "Update now");
-      main.type = "button";
-      main.addEventListener("click", () => {
-        main.disabled = later.disabled = true;
-        msg.textContent = "Updating… the app is back by itself in a few seconds.";
-        const failed = (text) => {
-          msg.textContent = text;
-          main.disabled = later.disabled = false;
-        };
-        fetch("/api/update/restart", { method: "POST" })
-          .then((r) => {
-            if (!r.ok) throw new Error();
-            waitForNewVersion(d.current, msg, failed);
-          })
-          .catch(() => {
-            msg.textContent = "Could not update just now. Close this window and open Muhurta Pomodoro again.";
-          });
-      });
-    } else {
-      main = el("a", "btn btn-primary", "Download");
-      main.href = d.url;
-      main.target = "_blank";
-      main.rel = "noopener";
-    }
-    actions.append(later, main);
+    actions.append(later, updateButton(d, msg, [later]));
     bar.append(msg, actions);
     document.body.appendChild(bar);
+  }
+
+  // Keys pressed while the required screen is up stay with it, so shortcuts
+  // can't start the timer underneath.
+  function trapKeys(ev) {
+    const screen = document.querySelector(".update-required");
+    if (!screen) return;
+    if (!screen.contains(ev.target)) {
+      ev.preventDefault();
+      screen.querySelector("button, a")?.focus();
+    }
+    ev.stopPropagation();
+  }
+
+  function showRequired(d) {
+    if (shown === `required:${d.latest}`) return;
+    document.querySelector(".update-bar")?.remove();
+    document.querySelector(".update-required")?.remove();
+    shown = `required:${d.latest}`;
+
+    const screen = el("div", "update-required");
+    screen.setAttribute("role", "alertdialog");
+    screen.setAttribute("aria-modal", "true");
+    screen.setAttribute("aria-labelledby", "updateRequiredTitle");
+    const card = el("div", "update-required-card");
+    const kicker = el("p", "signin-kicker", "Update required");
+    const title = el("h2", "update-required-title", `Please update to version ${d.latest}`);
+    title.id = "updateRequiredTitle";
+    const body = el("p", "update-required-text",
+      d.message || `Version ${d.current} is no longer supported. Update to keep using Muhurta Pomodoro.`);
+    const note = el("p", "update-required-note",
+      "Your sessions and settings are safe in your account and come back after the update.");
+    const button = updateButton(d, body, []);
+    card.append(kicker, title, body, button, note);
+    screen.append(card);
+    document.body.appendChild(screen);
+    document.addEventListener("keydown", trapKeys, true);
+    button.focus();
   }
 
   function check() {
     fetch("/api/version", { headers: { Accept: "application/json" } })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
-        if (d && d.update_available) show(d);
+        if (!d || !d.update_available) return;
+        if (d.required) showRequired(d);
+        else showBar(d);
       })
       .catch(() => {});
   }
 
   check();
   setInterval(check, CHECK_EVERY);
+  window.addEventListener("muhurata:check-updates", check); // Settings > Check now
 })();

@@ -7,6 +7,7 @@ import sys
 import time
 import random
 import sqlite3
+import threading
 import urllib.error
 import urllib.request
 from datetime import date, datetime, timedelta, timezone
@@ -455,7 +456,7 @@ def api_quote():
             "https://zenquotes.io/api/random",
             headers={"User-Agent": "MuhurataTimer/1.0"},
         )
-        with urllib.request.urlopen(req, timeout=4) as res:
+        with urllib.request.urlopen(req, timeout=4, context=cloud._SSL) as res:
             payload = res.read().decode("utf-8")
         data = json.loads(payload)
         item = data[0] if isinstance(data, list) and data else {}
@@ -473,57 +474,107 @@ def api_quote():
 # or the Mac app) it sets RESTART_KEY; other downloads link to the website.
 IS_BUNDLED = getattr(sys, "frozen", False)
 RESTART_KEY = "MUHURATA_RESTART"
-RELEASES_API = "https://api.github.com/repos/Harsh-0024/muhurta-pomodoro/releases/latest"
+RELEASES_API = os.environ.get("MUHURATA_RELEASES_API",
+                              "https://api.github.com/repos/Harsh-0024/muhurta-pomodoro/releases/latest")
+# The owner's say over old versions (docs/update-policy.json, on the website):
+# a minimum version, versions that may no longer be used, and a message.
+# Older or blocked copies must update before they can be used again.
+UPDATE_POLICY_URL = os.environ.get("MUHURATA_UPDATE_POLICY_URL",
+                                   "https://harsh-0024.github.io/muhurta-pomodoro/update-policy.json")
 # The download page picks the right file for the computer and shows the steps.
 DOWNLOAD_PAGE = "https://harsh-0024.github.io/muhurta-pomodoro/download.html"
-UPDATE_CHECK_INTERVAL = 6 * 60 * 60  # a few times a day; GitHub allows 60 an hour
+UPDATE_CHECK_INTERVAL = 60 * 60  # hourly; GitHub allows 60 unsigned requests an hour
+UPDATE_RETRY_INTERVAL = 10 * 60  # after a failed check, try again this soon
+_update_lock = threading.Lock()
 
 
 def _version_tuple(text: str):
-    return tuple(int(part) for part in re.findall(r"\d+", text)[:3])
+    return tuple(int(part) for part in re.findall(r"\d+", str(text or ""))[:3])
 
 
-def _cached_latest_version() -> str | None:
-    """Latest released version string, or None. Never raises, never blocks
-    for long: offline must be completely silent."""
+def _fetch_json(url: str, headers: dict | None = None):
+    """GET a JSON document over HTTPS, with the app's own list of trusted
+    certificates: a built app has no system list to fall back on, and
+    without this every check failed silently (versions up to 1.7.0)."""
+    req = urllib.request.Request(url, headers={"User-Agent": "MuhurataTimer", **(headers or {})})
+    with urllib.request.urlopen(req, timeout=5, context=cloud._SSL) as res:
+        return json.loads(res.read().decode("utf-8"))
+
+
+def _describe_failure(exc: Exception) -> str:
+    text = str(getattr(exc, "reason", exc))
+    if "CERTIFICATE" in text.upper() or "SSL" in text.upper():
+        return "couldn't make a secure connection"
+    if isinstance(exc, urllib.error.HTTPError):
+        return f"the update server answered {exc.code}"
+    return "no internet connection"
+
+
+def _clean_policy(raw) -> dict:
+    raw = raw if isinstance(raw, dict) else {}
+    blocked = raw.get("blocked_versions")
+    return {
+        "minimum_version": str(raw.get("minimum_version") or "").lstrip("v"),
+        "blocked_versions": [str(v).lstrip("v") for v in blocked] if isinstance(blocked, list) else [],
+        "message": str(raw.get("message") or "")[:500],
+    }
+
+
+def _update_info(force: bool = False) -> dict:
+    """What we know about updates: the latest release, the owner's policy,
+    when we last asked and whether it worked. Never raises; offline keeps
+    whatever was known before, including a "you must update"."""
     cache = db.DB_PATH.parent / "update-check.json"
     try:
         data = json.loads(cache.read_text())
-        if time.time() - float(data.get("checked_at", 0)) < UPDATE_CHECK_INTERVAL:
-            return data.get("latest") or None
-    except (OSError, ValueError, TypeError):
+        if not isinstance(data, dict):
+            data = {}
+    except (OSError, ValueError):
         data = {}
-
-    latest = data.get("latest")
-    try:
-        req = urllib.request.Request(
-            RELEASES_API,
-            headers={"User-Agent": "MuhurataTimer", "Accept": "application/vnd.github+json"},
-        )
-        with urllib.request.urlopen(req, timeout=4) as res:
-            latest = str(json.loads(res.read().decode("utf-8")).get("tag_name", "")).lstrip("v") or None
-    except Exception:
-        return latest  # offline or rate-limited: keep whatever we knew before
-    try:
-        cache.write_text(json.dumps({"latest": latest, "checked_at": time.time()}))
-    except OSError:
-        pass
-    return latest
+    age = time.time() - float(data.get("checked_at") or 0)
+    wait = UPDATE_CHECK_INTERVAL if not data.get("error") else UPDATE_RETRY_INTERVAL
+    if not force and age < wait:
+        return data
+    with _update_lock:
+        error = None
+        try:
+            release = _fetch_json(RELEASES_API, {"Accept": "application/vnd.github+json"})
+            data["latest"] = str(release.get("tag_name") or "").lstrip("v") or data.get("latest")
+        except Exception as exc:
+            error = _describe_failure(exc)
+        try:
+            data["policy"] = _clean_policy(_fetch_json(UPDATE_POLICY_URL))
+        except Exception as exc:
+            # A missing policy file just means no rules; anything else is a failure.
+            if not (isinstance(exc, urllib.error.HTTPError) and exc.code == 404):
+                error = error or _describe_failure(exc)
+        data.update(checked_at=time.time(), error=error)
+        try:
+            cache.write_text(json.dumps(data))
+        except OSError:
+            pass
+    return data
 
 
 @app.get("/api/version")
 def api_version():
-    payload = {"current": __version__, "bundled": IS_BUNDLED, "update_available": False}
+    payload = {"current": __version__, "bundled": IS_BUNDLED, "update_available": False, "required": False}
     # A git checkout started some other way (app.py in development) cannot
     # restart itself, so it gets no notice.
     how = "restart" if app.config.get(RESTART_KEY) else "download" if IS_BUNDLED else None
-    if not how:
-        return jsonify(payload)
+    info = _update_info(force=request.args.get("refresh") == "1")
+    payload.update(checked_at=info.get("checked_at"), check_error=info.get("error"))
     if app.config.get("MUHURATA_UPDATE_ERROR"):
         payload["update_error"] = app.config["MUHURATA_UPDATE_ERROR"]
-    latest = _cached_latest_version()
-    if latest and _version_tuple(latest) > _version_tuple(__version__):
-        payload.update(update_available=True, latest=latest, how=how, url=DOWNLOAD_PAGE)
+    latest = info.get("latest")
+    if not how or not latest or _version_tuple(latest) <= _version_tuple(__version__):
+        return jsonify(payload)
+    policy = _clean_policy(info.get("policy"))
+    mine = _version_tuple(__version__)
+    required = (bool(policy["minimum_version"]) and mine < _version_tuple(policy["minimum_version"])) \
+        or any(_version_tuple(v) == mine for v in policy["blocked_versions"])
+    payload.update(update_available=True, latest=latest, how=how, url=DOWNLOAD_PAGE,
+                   required=required, message=policy["message"])
     return jsonify(payload)
 
 

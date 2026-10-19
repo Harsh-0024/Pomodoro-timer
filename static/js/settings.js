@@ -1060,8 +1060,44 @@
     });
   }
 
+  /* ---------- updates ---------- */
+
+  async function renderUpdates(refresh) {
+    const text = $("updateStatus");
+    if (!text) return;
+    let d;
+    try {
+      d = await api(`/api/version${refresh ? "?refresh=1" : ""}`);
+    } catch (_) {
+      text.textContent = "Couldn't check for updates.";
+      return;
+    }
+    const when = d.checked_at ? ` Checked ${ago(new Date(d.checked_at * 1000).toISOString())}.` : "";
+    $("updateRow").dataset.tone = d.check_error ? "warn" : "ok";
+    if (d.update_available) {
+      text.textContent = `Version ${d.latest} is available (you have ${d.current})` +
+        (d.required ? " and is required." : ".") + " Use the notice to update.";
+    } else if (d.check_error) {
+      text.textContent = `Couldn't check for updates: ${d.check_error}. It tries again by itself.${when}`;
+    } else if (d.checked_at) {
+      text.textContent = `You have the latest version (${d.current}).${when}`;
+    } else {
+      text.textContent = `Version ${d.current}.`;
+    }
+  }
+
+  function wireUpdates() {
+    $("btnCheckUpdates")?.addEventListener("click", async (ev) => {
+      await busy(ev.currentTarget, "Checking…", () => renderUpdates(true));
+      // A newer version found now: show its notice without a reload.
+      window.dispatchEvent(new Event("muhurata:check-updates"));
+    });
+    renderUpdates(false);
+  }
+
   async function init() {
     if (window.__PAGE__ !== "settings") return;
+    wireUpdates();
     renderCues();
     renderShortcuts();
     wirePicker();

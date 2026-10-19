@@ -874,23 +874,14 @@
     });
   }
 
-  /* ---------- back up & sync ---------- */
+  /* ---------- account ---------- */
 
-  let syncEmail = "";
+  // An unfinished timer or flow session is kept in the browser; it belongs to
+  // the account that started it, so it goes when that account signs out.
+  const SESSION_KEYS = ["muhurat_timer_session_v1", "muhurat_flow_session_v1", "muhurat_session_command_v1"];
 
-  // One of: "unavailable", "email", "code", "signedin".
-  function showSync(state, email) {
-    $("syncUnavailable").hidden = state !== "unavailable";
-    $("syncEmailForm").hidden = state !== "email";
-    $("syncCodeForm").hidden = state !== "code";
-    $("syncSignedIn").hidden = state !== "signedin";
-    $("syncStatusRow").hidden = state !== "signedin";
-    if (state === "code") {
-      $("syncCodeHint").textContent = `Sent to ${syncEmail}. It can take a minute; check spam too.`;
-      $("syncCode").value = "";
-      $("syncCode").focus();
-    }
-    if (state === "signedin") $("syncSignedInAs").textContent = `As ${email}.`;
+  function showAccount(email) {
+    $("syncSignedInAs").textContent = email ? `As ${email}.` : "";
   }
 
   async function busy(button, label, work) {
@@ -905,16 +896,6 @@
     } finally {
       button.disabled = false;
       button.textContent = before;
-    }
-  }
-
-  async function sendCode(button) {
-    const sent = await busy(button, "Sending…", () =>
-      api("/api/cloud/send-code", { method: "POST", body: JSON.stringify({ email: syncEmail }) })
-    );
-    if (sent) {
-      showSync("code");
-      toast("Code sent");
     }
   }
 
@@ -969,68 +950,60 @@
     if (!$("syncGroup")) return;
     try {
       const st = await api("/api/cloud/status");
-      if (!st.configured) showSync("unavailable");
-      else if (st.signed_in) {
-        showSync("signedin", st.email);
-        renderSyncStatus(st.sync);
-        pollSync();
-      }
-      else showSync("email");
-    } catch (_) {
-      showSync("unavailable");
-    }
+      if (st.configured && !st.signed_in) return window.location.replace("/sign-in");
+      showAccount(st.email);
+      renderSyncStatus(st.sync);
+      pollSync();
+    } catch (_) {}
+  }
+
+  async function signOut(force) {
+    const r = await fetch("/api/cloud/sign-out", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ force }),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (r.status === 409) return { unsynced: data.error };
+    if (!r.ok) throw new Error(data.error || "Couldn't sign out. Try again.");
+    return { done: true };
   }
 
   function wireSync() {
     if (!$("syncGroup")) return;
-    $("syncEmailForm").addEventListener("submit", (ev) => {
-      ev.preventDefault();
-      syncEmail = $("syncEmail").value.trim();
-      if (!syncEmail) return $("syncEmail").focus();
-      sendCode($("btnSendCode"));
-    });
-    $("syncCodeForm").addEventListener("submit", async (ev) => {
-      ev.preventDefault();
-      const code = $("syncCode").value.replace(/\s+/g, "");
-      if (!code) return $("syncCode").focus();
-      const st = await busy($("btnVerifyCode"), "Checking…", () =>
-        api("/api/cloud/verify", { method: "POST", body: JSON.stringify({ email: syncEmail, code }) })
-      );
-      if (st) {
-        showSync("signedin", st.email);
-        renderSyncStatus({ running: true });
-        toast("Signed in");
-        // The first sync starts a few seconds after signing in.
-        setTimeout(renderSync, 8000);
-      }
-    });
-    $("btnResendCode").addEventListener("click", (ev) => sendCode(ev.currentTarget));
-    $("btnChangeEmail").addEventListener("click", () => {
-      showSync("email");
-      $("syncEmail").focus();
-    });
     $("btnSyncNow").addEventListener("click", async (ev) => {
       renderSyncStatus({ running: true });
       const st = await busy(ev.currentTarget, "Syncing…", () => api("/api/cloud/sync-now", { method: "POST" }));
-      if (st) {
-        if (!st.signed_in) return showSync("email");
-        renderSyncStatus(st.sync);
-      } else {
-        renderSync();
-      }
+      if (st) renderSyncStatus(st.sync);
+      else renderSync();
     });
     $("btnSignOut").addEventListener("click", async (ev) => {
+      const button = ev.currentTarget; // gone once the dialog's await returns
       const ok = await askConfirm({
         title: "Sign out?",
-        message: "Your sessions stay on this computer. They stop being copied to your account until you sign in again.",
+        message: "Everything is saved to your account first, then removed from this computer. " +
+          "Sign in again to get it all back. A session in progress is ended without saving.",
         accept: "Sign out",
       });
       if (!ok) return;
-      const st = await busy(ev.currentTarget, "Signing out…", () => api("/api/cloud/sign-out", { method: "POST" }));
-      if (st) {
-        showSync("email");
-        toast("Signed out");
+      let result = await busy(button, "Saving to your account…", () => signOut(false));
+      if (result?.unsynced) {
+        const really = await askConfirm({
+          title: "Sign out anyway?",
+          message: result.unsynced,
+          accept: "Sign out anyway",
+        });
+        if (!really) return;
+        result = await busy(button, "Signing out…", () => signOut(true));
       }
+      if (!result?.done) return;
+      for (const key of SESSION_KEYS) {
+        try {
+          localStorage.removeItem(key);
+          sessionStorage.removeItem(key);
+        } catch (_) {}
+      }
+      window.location.replace("/sign-in");
     });
   }
 

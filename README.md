@@ -2,9 +2,10 @@
 
 A calm focus timer for your Mac, built on the old Indian units of time:
 **1 Muhurta = 48 min · 1 Ghadi = 24 min**. Eight timer levels, a no-countdown
-Flow mode, a rest pool and a dashboard of your focus over the year. It works
-offline; sign in (Settings → Back up & sync) to back up your history and see it
-on all your computers.
+Flow mode, a rest pool and a dashboard of your focus over the year. It is free
+but needs a (free) account: you sign in with an emailed code, and your history,
+combinations and settings are kept in your account and appear on every computer
+you sign in on. After signing in it works offline and syncs when back online.
 
 ## Get the app
 
@@ -34,7 +35,14 @@ card shows what changed.
 | macOS | `~/Library/Application Support/MuhurataTimer/` |
 | Windows | `%LOCALAPPDATA%\MuhurataTimer\` |
 
-Inside: `focus_timer.db` (everything), `backups/` (automatic copies taken
+Your data lives in your account (Supabase); this folder holds the copy for
+whoever is signed in on this computer. Signing out uploads anything left and
+then clears it, so the next person to sign in sees only their own. The first
+time someone signs in after upgrading, the history already on the computer is
+added to their account.
+
+Inside: `focus_timer.db` (everything), `cloud_session.json` (the sign-in),
+`backups/` (automatic copies taken
 before any database upgrade, newest 3 kept), `launcher.log` (send it along if
 something goes wrong). Replacing or updating the app never touches this folder.
 

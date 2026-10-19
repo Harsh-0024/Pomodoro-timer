@@ -16,7 +16,7 @@
     <a href="#notifications" class="settings-nav-link">Notifications</a>
     <a href="#combinations" class="settings-nav-link">Combinations</a>
     <a href="#history" class="settings-nav-link">History</a>
-    <a href="#sync" class="settings-nav-link">Back up &amp; sync</a>
+    <a href="#sync" class="settings-nav-link">Account</a>
     <a href="#keyboard" class="settings-nav-link">Keyboard</a>
     <a href="#about" class="settings-nav-link">About</a>
   </nav>
@@ -212,51 +212,18 @@
 
     <section class="pref-section" id="sync" aria-labelledby="syncTitle">
       <header class="pref-head">
-        <h2 class="card-title" id="syncTitle">Back up &amp; sync</h2>
-        <p class="card-lede">Optional. Sign in to keep a copy of your sessions in your account and see them on your other computers. The timer keeps working without internet either way.</p>
+        <h2 class="card-title" id="syncTitle">Account</h2>
+        <p class="card-lede">Your sessions, combinations and settings are kept in your account and appear on every computer you sign in on. The timer keeps working without internet; changes sync when you're back online.</p>
       </header>
       <div class="pref-group" id="syncGroup">
-        <div class="pref-row" id="syncUnavailable" hidden>
-          <div class="pref-text">
-            <span class="pref-name">Not available yet</span>
-            <span class="pref-desc">This version of the app has no sync service set up.</span>
-          </div>
-        </div>
-
-        <form class="pref-row sync-form" id="syncEmailForm" novalidate hidden>
-          <label class="pref-text" for="syncEmail">
-            <span class="pref-name">Your email</span>
-            <span class="pref-desc">We email you a code. No password to remember.</span>
-          </label>
-          <div class="sync-inline">
-            <input type="email" id="syncEmail" class="input" placeholder="you@example.com" autocomplete="email" required />
-            <button type="submit" class="btn btn-primary btn-small" id="btnSendCode">Send code</button>
-          </div>
-        </form>
-
-        <form class="pref-row sync-form" id="syncCodeForm" novalidate hidden>
-          <label class="pref-text" for="syncCode">
-            <span class="pref-name">Enter the code</span>
-            <span class="pref-desc" id="syncCodeHint">Sent to your email. It can take a minute; check spam too.</span>
-          </label>
-          <div class="sync-inline">
-            <input type="text" id="syncCode" class="input sync-code" inputmode="numeric" autocomplete="one-time-code" placeholder="123456" maxlength="10" required />
-            <button type="submit" class="btn btn-primary btn-small" id="btnVerifyCode">Sign in</button>
-          </div>
-          <div class="sync-links">
-            <button type="button" class="btn btn-quiet btn-small" id="btnResendCode">Send a new code</button>
-            <button type="button" class="btn btn-quiet btn-small" id="btnChangeEmail">Use a different email</button>
-          </div>
-        </form>
-
-        <div class="pref-row" id="syncSignedIn" hidden>
+        <div class="pref-row" id="syncSignedIn">
           <div class="pref-text">
             <span class="pref-name">Signed in</span>
             <span class="pref-desc" id="syncSignedInAs"></span>
           </div>
           <button type="button" class="btn btn-quiet btn-small" id="btnSignOut">Sign out</button>
         </div>
-        <div class="pref-row pref-status" id="syncStatusRow" hidden>
+        <div class="pref-row pref-status" id="syncStatusRow">
           <p class="pref-status-text" id="syncStatus" aria-live="polite"></p>
           <button type="button" class="btn btn-quiet btn-small" id="btnSyncNow">Sync now</button>
         </div>

@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Sign in{% endblock %}
+{% block body_class %}page-signin{% endblock %}
+{% block page_id %}signin{% endblock %}
+{% block content %}
+<section class="signin">
+  <div class="signin-card">
+    <p class="signin-kicker">Free · your own account</p>
+    <h1 class="signin-title">Sign in to begin</h1>
+    <p class="signin-lede">Your sessions, combinations and settings are kept in your account, so they follow you to every computer you sign in on.</p>
+
+    <form class="signin-step" id="signinEmailForm" novalidate>
+      <label class="signin-label" for="signinEmail">Your email</label>
+      <input type="email" id="signinEmail" class="input" placeholder="you@example.com" autocomplete="email" required autofocus />
+      <p class="signin-hint">We email you a code. No password to remember.</p>
+      <button type="submit" class="btn btn-primary signin-submit" id="btnSigninSend">Send code</button>
+    </form>
+
+    <form class="signin-step" id="signinCodeForm" novalidate hidden>
+      <label class="signin-label" for="signinCode">Enter the code</label>
+      <input type="text" id="signinCode" class="input sync-code" inputmode="numeric" autocomplete="one-time-code" placeholder="123456" maxlength="10" required />
+      <p class="signin-hint" id="signinCodeHint">Sent to your email. It can take a minute; check spam too.</p>
+      <button type="submit" class="btn btn-primary signin-submit" id="btnSigninVerify">Sign in</button>
+      <div class="signin-links">
+        <button type="button" class="btn btn-quiet btn-small" id="btnSigninResend">Send a new code</button>
+        <button type="button" class="btn btn-quiet btn-small" id="btnSigninChange">Use a different email</button>
+      </div>
+    </form>
+
+    <p class="signin-message" id="signinMessage" role="status" aria-live="polite" hidden></p>
+  </div>
+</section>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/sign-in.js') }}?v={{ asset_version }}" defer></script>
+{% endblock %}

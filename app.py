@@ -12,7 +12,7 @@ import urllib.request
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, redirect, render_template, request, url_for
 
 import cloud
 import db
@@ -37,6 +37,7 @@ ASSET_VERSION_PATHS = (
     BASE_DIR / "static" / "js" / "dialog.js",
     BASE_DIR / "static" / "js" / "shortcuts.js",
     BASE_DIR / "static" / "js" / "alive.js",
+    BASE_DIR / "static" / "js" / "sign-in.js",
     BASE_DIR / "static" / "css" / "app.css",
 )
 BUILTIN_QUOTES = [
@@ -124,6 +125,24 @@ def _ensure_db():
     db.init_db()
 
 
+# What works before signing in: the sign-in page and what it needs, plus
+# the launcher's and updater's own checks.
+OPEN_ENDPOINTS = {
+    "static", "sign_in_page", "api_cloud_status", "api_cloud_send_code", "api_cloud_verify",
+    "api_alive", "api_version", "api_update_restart",
+}
+
+
+@app.before_request
+def _require_sign_in():
+    """The app is free, but it is used signed in: everything else waits for it."""
+    if not cloud.configured() or request.endpoint in OPEN_ENDPOINTS or cloud.status()["signed_in"]:
+        return None
+    if request.path.startswith("/api/"):
+        return jsonify({"error": "Please sign in first."}), 401, {"X-Signed-Out": "1"}
+    return redirect(url_for("sign_in_page"))
+
+
 @app.context_processor
 def _inject_theme():
     theme = db.load_settings().get("theme", "system")
@@ -184,6 +203,13 @@ def _preset_exists(preset_id: str) -> bool:
 @app.route("/")
 def index():
     return render_template("index.html", initial_quote=INITIAL_QUOTE)
+
+
+@app.route("/sign-in")
+def sign_in_page():
+    if not cloud.configured() or cloud.status()["signed_in"]:
+        return redirect(url_for("index"))
+    return render_template("sign_in.html", bare=True)
 
 
 @app.route("/flow")
@@ -327,14 +353,24 @@ def api_cloud_send_code():
 @app.post("/api/cloud/verify")
 def api_cloud_verify():
     body = request.get_json(silent=True) or {}
-    result = _cloud_call(cloud.verify_code, str(body.get("email") or ""), str(body.get("code") or ""))
-    sync.nudge()  # first sync right after signing in
-    return result
+    try:
+        cloud.verify_code(str(body.get("email") or ""), str(body.get("code") or ""))
+    except cloud.CloudError as exc:
+        return jsonify({"error": str(exc)}), exc.status
+    # Fetch the account's data now, so the timer opens with it.
+    sync.enter_account()
+    return jsonify(_cloud_status())
 
 
 @app.post("/api/cloud/sign-out")
 def api_cloud_sign_out():
-    return _cloud_call(cloud.sign_out)
+    body = request.get_json(silent=True) or {}
+    try:
+        return jsonify(sync.leave_account(force=bool(body.get("force"))))
+    except sync.UnsyncedChanges as exc:
+        return jsonify({"error": str(exc), "pending": exc.pending}), exc.status
+    except cloud.CloudError as exc:
+        return jsonify({"error": str(exc)}), exc.status
 
 
 @app.get("/api/quote")

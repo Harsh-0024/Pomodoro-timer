@@ -65,7 +65,8 @@ jobs:
           url=""
           for i in $(seq 1 60); do
             sleep 1
-            url=$(grep -o 'running at http://127.0.0.1:[0-9]*' "$logfile" 2>/dev/null | tail -1 | sed 's/running at //')
+            # || true: the log does not exist for the first second or two
+            url=$(grep -o 'running at http://127.0.0.1:[0-9]*' "$logfile" 2>/dev/null | tail -1 | sed 's/running at //' || true)
             [ -n "$url" ] && break
           done
           [ -n "$url" ] || { echo "no address in the log"; cat "$logfile" 2>/dev/null; exit 1; }

@@ -266,6 +266,9 @@ def api_reset_settings():
     return jsonify(db.reset_settings())
 
 
+SEGMENT_CLOCK_SLACK_SEC = 5
+
+
 def _cloud_call(fn, *args):
     try:
         return jsonify(fn(*args))
@@ -497,11 +500,19 @@ def api_activity_segment():
     started_at = str(data.get("started_at") or "")
     ended_at = str(data.get("ended_at") or "")
     try:
-        datetime.fromisoformat(started_at.replace("Z", "+00:00"))
-        datetime.fromisoformat(ended_at.replace("Z", "+00:00"))
+        start = datetime.fromisoformat(started_at.replace("Z", "+00:00"))
+        end = datetime.fromisoformat(ended_at.replace("Z", "+00:00"))
         duration_sec = float(data.get("duration_sec"))
     except (TypeError, ValueError):
         return jsonify({"error": "Invalid activity timing"}), 400
+    # Safety net: the timer only saves sessions that have finished, so one
+    # cannot end in the future. Cap it at now and shorten it to match.
+    # (A start in the future means this browser's clock is off; leave it.)
+    now = datetime.now(timezone.utc)
+    if start.tzinfo and end > now + timedelta(seconds=SEGMENT_CLOCK_SLACK_SEC) and start < now:
+        end = now
+        ended_at = end.isoformat(timespec="milliseconds").replace("+00:00", "Z")
+        duration_sec = (end - start).total_seconds()
     if not (0.5 <= duration_sec <= 24 * 60 * 60):
         return jsonify({"error": "Activity duration out of range"}), 400
     phase_index = data.get("phase_index")

@@ -14,6 +14,8 @@
   let statsTimer = null;
   /** @type {number | null} */
   let phaseEndsAt = null;
+  // When the block that just ran out was due to end (kept for commitSegment).
+  let lastPhaseDueAt = null;
   let quoteLoadId = 0;
 
   const state = {
@@ -545,8 +547,15 @@
       s.segDurationSec > 0 &&
       state.remainingSec <= 0 &&
       (s.segKind === "work" || s.segKind === "rest" || s.segKind === "cumulative");
-    const elapsed = completedTimedSegment ? s.segDurationSec : (Date.now() - s.segStartedAt) / 1000;
-    const endedAt = completedTimedSegment ? startedAt + elapsed * 1000 : Date.now();
+    let endedAt = Date.now();
+    if (completedTimedSegment) {
+      // A finished block ends when it was due, never later. After a pause the
+      // part still to run is shorter than the full block, so "start + full
+      // length" would run past the real end into whatever came next.
+      endedAt = Math.min(startedAt + s.segDurationSec * 1000, lastPhaseDueAt || Date.now());
+    }
+    lastPhaseDueAt = null;
+    const elapsed = Math.max(0, (endedAt - startedAt) / 1000);
     if (s.segKind === "work") s.workSec += elapsed;
     else if (s.segKind === "extend") s.extendSec += elapsed;
     else if (s.segKind === "rest" || s.segKind === "cumulative") s.restTakenSec += elapsed;
@@ -1434,6 +1443,7 @@
 
   function onTimerElapsed() {
     state.running = false;
+    lastPhaseDueAt = phaseEndsAt;
     disarmPhaseEnd();
     stopTicking();
     if (state.mode === "work") {

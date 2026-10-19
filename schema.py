@@ -115,3 +115,30 @@ activity_segments = Table(
     Index("ux_activity_segments_uuid", "uuid", unique=True),
     sqlite_autoincrement=True,
 )
+
+
+# Copies of sessions that migration 0004 shortened or removed, so that
+# downgrading it restores them exactly.
+activity_segments_fix_backup = Table(
+    "activity_segments_fix_backup",
+    metadata,
+    Column("id", Integer),
+    Column("day", Text),
+    Column("kind", Text),
+    Column("started_at", Text),
+    Column("ended_at", Text),
+    Column("duration_sec", REAL),
+    Column("productive_sec", REAL),
+    Column("rest_sec", REAL),
+    Column("preset_id", Text),
+    Column("preset_name", Text),
+    Column("phase_index", Integer),
+    Column("details_json", Text),
+    Column("created_at", Text),
+    Column("uuid", Text),
+    Column("updated_at", Text),
+    Column("synced_version", Text),
+    Column("device_id", Text),
+    Column("fix_action", Text, nullable=False),  # "shortened" or "removed"
+    Column("fixed_at", Text, nullable=False),
+)

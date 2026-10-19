@@ -199,9 +199,13 @@
       if (!preset) return;
 
       const endedAt = Number(data.phaseEndsAt);
-      const durationSec =
+      const plannedSec =
         Number(data.session?.segDurationSec || 0) || phaseDurationSec(preset, Number(data.phaseIndex || 0));
-      const startedAt = Number(data.session?.segStartedAt || 0) || endedAt - durationSec * 1000;
+      const knownStart = Number(data.session?.segStartedAt || 0);
+      const startedAt = knownStart || endedAt - plannedSec * 1000;
+      // The real length. After a pause the block's last part is shorter than
+      // the full block, which is already counted in the parts before it.
+      const durationSec = Math.max(0, (endedAt - startedAt) / 1000);
       const now = Date.now();
       const session = data.session || {};
       const rest = buildPendingRest(preset, Number(data.phaseIndex || 0));
@@ -222,11 +226,13 @@
         preset_id: data.presetId,
         preset_name: preset.name || "",
         phase_index: data.phaseIndex,
-        details: { duration_sec: durationSec, advanced_by: "session-monitor" },
+        details: { duration_sec: plannedSec, advanced_by: "session-monitor" },
       });
       postJSON("/api/focus/log", {
         day: localDayISO(endedAt),
-        minutes: Math.max(1, Math.min(240, Math.round(durationSec / 60))),
+        // Today's total counts each finished block once, at its full length,
+        // like the timer page does; the parts before a pause add nothing there.
+        minutes: Math.max(1, Math.min(240, Math.round(plannedSec / 60))),
       });
 
       if (currentSettings.auto_start_break && rest) {

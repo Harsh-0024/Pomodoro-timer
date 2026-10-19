@@ -343,6 +343,16 @@ def add_activity_segment(segment: dict) -> dict:
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     try:
+        # The timer page and the background monitor can both save the same
+        # finished block. Same computer, same kind, same start: keep the first.
+        existing = conn.execute(
+            f"""{_SEGMENT_SELECT}
+            WHERE kind = ? AND started_at = ?
+              AND device_id IS (SELECT device_id FROM local_device WHERE id = 1)""",
+            (kind, segment["started_at"]),
+        ).fetchone()
+        if existing is not None:
+            return _activity_public(existing)
         cur = conn.execute(
             """
             INSERT INTO activity_segments (

@@ -70,10 +70,16 @@ jobs:
             [ -n "$url" ] && break
           done
           [ -n "$url" ] || { echo "no address in the log"; cat "$logfile" 2>/dev/null; exit 1; }
-          curl -fsS "$url/api/dashboard" > /dev/null
-          curl -fsS "$url/dashboard" > /dev/null
-          curl -fsS -X POST "$url/api/alive?page=ci" > /dev/null
-          curl -fsS "$url/api/cloud/status" > /dev/null
+          # Signed out (a fresh install): pages lead to sign-in and data
+          # stays locked, while the sign-in page and its checks work.
+          code() { curl -sS -o /dev/null -w '%{http_code}' "$@"; }
+          expect() { [ "$1" = "$2" ] || { echo "$3: expected $2, got $1"; cat "$logfile"; exit 1; }; }
+          expect "$(code "$url/api/dashboard")" 401 "dashboard data while signed out"
+          expect "$(code "$url/dashboard")" 302 "dashboard page while signed out"
+          expect "$(code "$url/sign-in")" 200 "sign-in page"
+          expect "$(code "$url/api/version")" 200 "version check"
+          expect "$(code -X POST "$url/api/alive?page=ci")" 204 "window check-in"
+          curl -fsS "$url/api/cloud/status" | grep -q '"signed_in": *false' || { echo "cloud status"; exit 1; }
           kill $pid || true
           echo "Smoke test passed on $url"
 

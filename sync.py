@@ -10,7 +10,9 @@ changes in both directions when signed in and online:
             few minutes of overlap; applying a row twice is harmless
 
 Newest change wins, on the server (keep_newest in supabase/schema.sql) and
-here. A sync runs a few seconds after any change, every few minutes, and
+here. The data on this computer always belongs to the account signed in:
+signing in to a different account clears it first, and signing out uploads
+what is left and then clears it (see enter_account / leave_account). A sync runs a few seconds after any change, every few minutes, and
 when asked from Settings. Failures are remembered and retried; they never
 reach the timer.
 """
@@ -279,17 +281,66 @@ def _connect():
     return conn
 
 
-def _switch_account(conn, state: dict, uid: str):
-    """A different account signed in here: start over with it.
+# A change time older than anything real: settings stamped with it lose to
+# whatever the account already has, instead of overwriting it.
+NEVER = "1970-01-01T00:00:00.000Z"
+SYNCED_TABLES = ("activity_segments", "custom_presets", "app_settings", "focus_by_device")
 
-    Everything local is offered to the new account, and its data is
-    downloaded from the beginning.
+
+def _settings_lose_to_account(conn):
+    """Mark this computer's settings as older than any the account has."""
+    conn.execute("UPDATE app_settings SET updated_at = ?, synced_version = ? WHERE id = 1", (NEVER, NEVER))
+    # If both already held NEVER the edit trigger saw "no change" and stamped
+    # the row with the current time; set it back (this second update changes
+    # updated_at, so the trigger leaves it alone).
+    conn.execute("UPDATE app_settings SET updated_at = ?, synced_version = ? "
+                 "WHERE id = 1 AND updated_at IS NOT ?", (NEVER, NEVER, NEVER))
+
+
+def _clear_account_data(conn):
+    """Empty this computer of everything that belongs to an account.
+
+    Kept: the settings that belong to the computer (volume, notification
+    permission). Everything else comes back from the account on sign-in.
     """
-    for table in ("activity_segments", "custom_presets", "app_settings", "focus_by_device"):
-        # Only rows where the value actually changes, so the edit trigger
-        # does not take this for an edit.
-        conn.execute(f"UPDATE {table} SET synced_version = NULL WHERE synced_version IS NOT NULL")
+    for table in ("activity_segments", "custom_presets", "focus_by_device"):
+        conn.execute(f"DELETE FROM {table}")
+    conn.execute("DELETE FROM sync_tombstones")  # the deletes above are not edits to upload
+    row = conn.execute("SELECT json FROM app_settings WHERE id = 1").fetchone()
+    mine = json.loads((row["json"] if row else None) or "{}")
+    kept = {k: mine[k] for k in LOCAL_ONLY_SETTINGS if k in mine and k != "default_preset_id"}
+    conn.execute("UPDATE app_settings SET json = ? WHERE id = 1", (json.dumps(kept),))
+    _settings_lose_to_account(conn)
     conn.commit()
+
+
+def _has_own_settings(conn) -> bool:
+    row = conn.execute("SELECT json FROM app_settings WHERE id = 1").fetchone()
+    data = json.loads((row["json"] if row else None) or "{}")
+    return any(k not in LOCAL_ONLY_SETTINGS for k in data)
+
+
+def _switch_account(conn, state: dict, uid: str):
+    """An account signed in that this computer has not synced with yet.
+
+    If the data here belongs to another account (an older version signed
+    out without clearing it), it is cleared. If it belongs to nobody - this
+    computer's history from before accounts were required - it is added to
+    the account. Either way the account's data is then downloaded from the
+    beginning.
+    """
+    if state.get("user_id"):
+        _clear_account_data(conn)
+    else:
+        for table in SYNCED_TABLES:
+            # Only rows where the value actually changes, so the edit trigger
+            # does not take this for an edit.
+            conn.execute(f"UPDATE {table} SET synced_version = NULL WHERE synced_version IS NOT NULL")
+        if not _has_own_settings(conn):
+            # Never changed here: the account's settings win, rather than
+            # this computer's defaults overwriting them.
+            _settings_lose_to_account(conn)
+        conn.commit()
     state.clear()
     state["user_id"] = uid
 
@@ -350,7 +401,7 @@ def pending_changes() -> int:
     conn = _connect()
     try:
         n = sum(conn.execute(f"SELECT COUNT(*) FROM {t} WHERE synced_version IS NOT updated_at").fetchone()[0]
-                for t in ("activity_segments", "custom_presets", "app_settings", "focus_by_device"))
+                for t in SYNCED_TABLES)
         return n + conn.execute("SELECT COUNT(*) FROM sync_tombstones").fetchone()[0]
     finally:
         conn.close()
@@ -364,6 +415,60 @@ def status() -> dict:
         "error": state.get("last_error"),
         "pending": pending_changes(),
     }
+
+
+# --------------------------------------------------------------------------- #
+# signing in and out
+# --------------------------------------------------------------------------- #
+class UnsyncedChanges(cloud.CloudError):
+    def __init__(self, pending: int):
+        noun = "change has" if pending == 1 else "changes have"
+        super().__init__(f"{pending} {noun} not reached your account yet (no connection?). "
+                         "Signing out now removes them from this computer for good.", 409)
+        self.pending = pending
+
+
+def enter_account() -> dict:
+    """Right after signing in: get this computer onto the account and fetch
+    its data, so the timer opens with it. Offline, it fetches later."""
+    uid = cloud.user_id()
+    if uid:
+        with _run_lock:
+            db.init_db()
+            state = _load_state()
+            if state.get("user_id") != uid:
+                conn = _connect()
+                try:
+                    _switch_account(conn, state, uid)
+                finally:
+                    conn.close()
+                _save_state(state)
+    return run_once()
+
+
+def leave_account(force: bool = False) -> dict:
+    """Upload what is left, sign out, and clear the account's data from this
+    computer, so the next person to sign in here sees only their own.
+
+    Raises UnsyncedChanges when something could not be uploaded, unless
+    force is set.
+    """
+    if cloud.status()["signed_in"]:
+        run_once()
+    with _run_lock:
+        db.init_db()
+        if cloud.status()["signed_in"] and not force:
+            pending = pending_changes()
+            if pending:
+                raise UnsyncedChanges(pending)
+        result = cloud.sign_out()
+        conn = _connect()
+        try:
+            _clear_account_data(conn)
+        finally:
+            conn.close()
+        _save_state({})
+    return result
 
 
 # --------------------------------------------------------------------------- #

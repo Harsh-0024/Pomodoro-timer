@@ -12,7 +12,7 @@ import urllib.request
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, redirect, render_template, request, url_for
 
 import cloud
 import db
@@ -37,6 +37,7 @@ ASSET_VERSION_PATHS = (
     BASE_DIR / "static" / "js" / "dialog.js",
     BASE_DIR / "static" / "js" / "shortcuts.js",
     BASE_DIR / "static" / "js" / "alive.js",
+    BASE_DIR / "static" / "js" / "sign-in.js",
     BASE_DIR / "static" / "css" / "app.css",
 )
 BUILTIN_QUOTES = [
@@ -124,6 +125,36 @@ def _ensure_db():
     db.init_db()
 
 
+# What works before signing in: the sign-in page and what it needs, plus
+# the launcher's and updater's own checks.
+OPEN_ENDPOINTS = {
+    "static", "sign_in_page", "api_cloud_status", "api_cloud_sign_in", "api_cloud_send_code",
+    "api_cloud_verify", "api_cloud_set_password", "api_cloud_cancel", "api_cloud_username_available",
+    "api_alive", "api_version", "api_update_restart",
+}
+
+
+@app.before_request
+def _require_sign_in():
+    """The app is free, but it is used signed in: everything else waits for it."""
+    if not cloud.configured() or request.endpoint in OPEN_ENDPOINTS or cloud.status()["signed_in"]:
+        return None
+    if request.path.startswith("/api/"):
+        return jsonify({"error": "Please sign in first."}), 401, {"X-Signed-Out": "1"}
+    return redirect(url_for("sign_in_page"))
+
+
+@app.context_processor
+def _inject_account():
+    st = cloud.status()
+    if not st["signed_in"]:
+        return {"account": None}
+    profile = st["profile"] or {}
+    name = profile.get("first_name") or (st["email"] or "").split("@")[0]
+    return {"account": {"name": name, "initial": (name or "?")[0].upper(),
+                        "title": f"@{profile['username']} · {st['email']}" if profile else st["email"]}}
+
+
 @app.context_processor
 def _inject_theme():
     theme = db.load_settings().get("theme", "system")
@@ -184,6 +215,17 @@ def _preset_exists(preset_id: str) -> bool:
 @app.route("/")
 def index():
     return render_template("index.html", initial_quote=INITIAL_QUOTE)
+
+
+@app.route("/sign-in")
+def sign_in_page():
+    st = cloud.status()
+    if not st["configured"] or st["signed_in"]:
+        return redirect(url_for("index"))
+    # Stopped after the code, before choosing a password: carry on from there.
+    return render_template("sign_in.html", bare=True,
+                           pending_email=st["email"] if st["password_pending"] else "",
+                           pending_has_profile=bool(st["profile"]), email_from=cloud.EMAIL_FROM)
 
 
 @app.route("/flow")
@@ -318,23 +360,90 @@ def api_cloud_sync_now():
     return jsonify(_cloud_status())
 
 
+@app.post("/api/cloud/sign-in")
+def api_cloud_sign_in():
+    body = request.get_json(silent=True) or {}
+    try:
+        cloud.sign_in_password(str(body.get("email") or ""), str(body.get("password") or ""))
+    except cloud.CloudError as exc:
+        return jsonify({"error": str(exc)}), exc.status
+    # Fetch the account's data now, so the timer opens with it.
+    sync.enter_account()
+    return jsonify(_cloud_status())
+
+
 @app.post("/api/cloud/send-code")
 def api_cloud_send_code():
+    """A code to create an account, or (reset) to choose a new password."""
     body = request.get_json(silent=True) or {}
-    return _cloud_call(lambda e: cloud.send_code(e) or {"sent": True}, str(body.get("email") or ""))
+    new_account = body.get("purpose") != "reset"
+    try:
+        if new_account:
+            # Check the details before emailing, so a mistake shows now and
+            # not after the code.
+            profile = _profile_from(body)
+            if not cloud.username_available(profile["username"]):
+                return jsonify({"error": "That username is taken. Choose another.", "field": "username"}), 409
+        cloud.send_code(str(body.get("email") or ""), new_account)
+    except cloud.CloudError as exc:
+        return jsonify({"error": str(exc)}), exc.status
+    return jsonify({"sent": True})
+
+
+def _profile_from(body: dict) -> dict:
+    return cloud.clean_profile(str(body.get("first_name") or ""), str(body.get("last_name") or ""),
+                               str(body.get("username") or ""))
+
+
+@app.get("/api/cloud/username-available")
+def api_cloud_username_available():
+    name = str(request.args.get("name") or "")
+    try:
+        return jsonify({"available": cloud.username_available(name)})
+    except cloud.CloudError as exc:
+        return jsonify({"error": str(exc)}), exc.status
+
+
+@app.put("/api/cloud/profile")
+def api_cloud_profile():
+    body = request.get_json(silent=True) or {}
+    return _cloud_call(cloud.update_profile, str(body.get("first_name") or ""), str(body.get("last_name") or ""),
+                       str(body.get("username") or ""))
 
 
 @app.post("/api/cloud/verify")
 def api_cloud_verify():
     body = request.get_json(silent=True) or {}
-    result = _cloud_call(cloud.verify_code, str(body.get("email") or ""), str(body.get("code") or ""))
-    sync.nudge()  # first sync right after signing in
-    return result
+    return _cloud_call(cloud.verify_code, str(body.get("email") or ""), str(body.get("code") or ""))
+
+
+@app.post("/api/cloud/set-password")
+def api_cloud_set_password():
+    body = request.get_json(silent=True) or {}
+    try:
+        # A new account brings its name and username; a password reset doesn't.
+        profile = _profile_from(body) if body.get("username") else None
+        cloud.set_password(str(body.get("password") or ""), profile)
+    except cloud.CloudError as exc:
+        return jsonify({"error": str(exc)}), exc.status
+    sync.enter_account()
+    return jsonify(_cloud_status())
+
+
+@app.post("/api/cloud/cancel")
+def api_cloud_cancel():
+    return _cloud_call(cloud.cancel_pending)
 
 
 @app.post("/api/cloud/sign-out")
 def api_cloud_sign_out():
-    return _cloud_call(cloud.sign_out)
+    body = request.get_json(silent=True) or {}
+    try:
+        return jsonify(sync.leave_account(force=bool(body.get("force"))))
+    except sync.UnsyncedChanges as exc:
+        return jsonify({"error": str(exc), "pending": exc.pending}), exc.status
+    except cloud.CloudError as exc:
+        return jsonify({"error": str(exc)}), exc.status
 
 
 @app.get("/api/quote")

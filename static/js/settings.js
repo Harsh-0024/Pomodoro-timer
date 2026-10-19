@@ -874,23 +874,30 @@
     });
   }
 
-  /* ---------- back up & sync ---------- */
+  /* ---------- account ---------- */
 
-  let syncEmail = "";
+  // An unfinished timer or flow session is kept in the browser; it belongs to
+  // the account that started it, so it goes when that account signs out.
+  const SESSION_KEYS = ["muhurat_timer_session_v1", "muhurat_flow_session_v1", "muhurat_session_command_v1"];
 
-  // One of: "unavailable", "email", "code", "signedin".
-  function showSync(state, email) {
-    $("syncUnavailable").hidden = state !== "unavailable";
-    $("syncEmailForm").hidden = state !== "email";
-    $("syncCodeForm").hidden = state !== "code";
-    $("syncSignedIn").hidden = state !== "signedin";
-    $("syncStatusRow").hidden = state !== "signedin";
-    if (state === "code") {
-      $("syncCodeHint").textContent = `Sent to ${syncEmail}. It can take a minute; check spam too.`;
-      $("syncCode").value = "";
-      $("syncCode").focus();
-    }
-    if (state === "signedin") $("syncSignedInAs").textContent = `As ${email}.`;
+  let accountProfile = null;
+
+  function showAccount(email, profile) {
+    accountProfile = profile || null;
+    const full = profile ? [profile.first_name, profile.last_name].filter(Boolean).join(" ") : "";
+    $("accountName").textContent = full || "Signed in";
+    $("syncSignedInAs").textContent = profile ? `@${profile.username} · ${email}` : `${email || ""} · no name added yet`;
+    $("accountAvatar").textContent = ((profile && profile.first_name) || email || "?").charAt(0).toUpperCase();
+    $("btnEditProfile").textContent = profile ? "Edit profile" : "Add your name";
+  }
+
+  function openProfile(open) {
+    $("profileForm").hidden = !open;
+    if (!open) return;
+    $("profileFirst").value = accountProfile?.first_name || "";
+    $("profileLast").value = accountProfile?.last_name || "";
+    $("profileUsername").value = accountProfile?.username || "";
+    $("profileFirst").focus();
   }
 
   async function busy(button, label, work) {
@@ -905,16 +912,6 @@
     } finally {
       button.disabled = false;
       button.textContent = before;
-    }
-  }
-
-  async function sendCode(button) {
-    const sent = await busy(button, "Sending…", () =>
-      api("/api/cloud/send-code", { method: "POST", body: JSON.stringify({ email: syncEmail }) })
-    );
-    if (sent) {
-      showSync("code");
-      toast("Code sent");
     }
   }
 
@@ -969,68 +966,88 @@
     if (!$("syncGroup")) return;
     try {
       const st = await api("/api/cloud/status");
-      if (!st.configured) showSync("unavailable");
-      else if (st.signed_in) {
-        showSync("signedin", st.email);
-        renderSyncStatus(st.sync);
-        pollSync();
-      }
-      else showSync("email");
-    } catch (_) {
-      showSync("unavailable");
-    }
+      if (st.configured && !st.signed_in) return window.location.replace("/sign-in");
+      showAccount(st.email, st.profile);
+      renderSyncStatus(st.sync);
+      pollSync();
+    } catch (_) {}
+  }
+
+  async function signOut(force) {
+    const r = await fetch("/api/cloud/sign-out", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ force }),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (r.status === 409) return { unsynced: data.error };
+    if (!r.ok) throw new Error(data.error || "Couldn't sign out. Try again.");
+    return { done: true };
   }
 
   function wireSync() {
     if (!$("syncGroup")) return;
-    $("syncEmailForm").addEventListener("submit", (ev) => {
-      ev.preventDefault();
-      syncEmail = $("syncEmail").value.trim();
-      if (!syncEmail) return $("syncEmail").focus();
-      sendCode($("btnSendCode"));
+    $("btnEditProfile").addEventListener("click", () => openProfile($("profileForm").hidden));
+    $("btnProfileCancel").addEventListener("click", () => openProfile(false));
+    $("profileUsername").addEventListener("input", (ev) => {
+      const v = ev.target.value.toLowerCase().replace(/^@/, "").replace(/[^a-z0-9_.]/g, "");
+      if (v !== ev.target.value) ev.target.value = v;
     });
-    $("syncCodeForm").addEventListener("submit", async (ev) => {
+    $("profileForm").addEventListener("submit", async (ev) => {
       ev.preventDefault();
-      const code = $("syncCode").value.replace(/\s+/g, "");
-      if (!code) return $("syncCode").focus();
-      const st = await busy($("btnVerifyCode"), "Checking…", () =>
-        api("/api/cloud/verify", { method: "POST", body: JSON.stringify({ email: syncEmail, code }) })
+      const body = {
+        first_name: $("profileFirst").value,
+        last_name: $("profileLast").value,
+        username: $("profileUsername").value,
+      };
+      const st = await busy($("btnProfileSave"), "Saving…", () =>
+        api("/api/cloud/profile", { method: "PUT", body: JSON.stringify(body) })
       );
       if (st) {
-        showSync("signedin", st.email);
-        renderSyncStatus({ running: true });
-        toast("Signed in");
-        // The first sync starts a few seconds after signing in.
-        setTimeout(renderSync, 8000);
+        showAccount(st.email, st.profile);
+        openProfile(false);
+        toast("Profile saved");
+        const chip = document.getElementById("accountChip");
+        if (chip && st.profile) {
+          chip.querySelector(".account-chip-name").textContent = st.profile.first_name;
+          chip.querySelector(".account-chip-initial").textContent = st.profile.first_name.charAt(0).toUpperCase();
+          chip.title = `@${st.profile.username} · ${st.email}`;
+        }
       }
-    });
-    $("btnResendCode").addEventListener("click", (ev) => sendCode(ev.currentTarget));
-    $("btnChangeEmail").addEventListener("click", () => {
-      showSync("email");
-      $("syncEmail").focus();
     });
     $("btnSyncNow").addEventListener("click", async (ev) => {
       renderSyncStatus({ running: true });
       const st = await busy(ev.currentTarget, "Syncing…", () => api("/api/cloud/sync-now", { method: "POST" }));
-      if (st) {
-        if (!st.signed_in) return showSync("email");
-        renderSyncStatus(st.sync);
-      } else {
-        renderSync();
-      }
+      if (st) renderSyncStatus(st.sync);
+      else renderSync();
     });
     $("btnSignOut").addEventListener("click", async (ev) => {
+      const button = ev.currentTarget; // gone once the dialog's await returns
       const ok = await askConfirm({
         title: "Sign out?",
-        message: "Your sessions stay on this computer. They stop being copied to your account until you sign in again.",
+        message: "Everything is saved to your account first, then removed from this computer. " +
+          "Sign in again to get it all back. A session in progress is ended without saving.",
         accept: "Sign out",
       });
       if (!ok) return;
-      const st = await busy(ev.currentTarget, "Signing out…", () => api("/api/cloud/sign-out", { method: "POST" }));
-      if (st) {
-        showSync("email");
-        toast("Signed out");
+      let result = await busy(button, "Saving to your account…", () => signOut(false));
+      if (result?.unsynced) {
+        const really = await askConfirm({
+          title: "Sign out anyway?",
+          message: result.unsynced,
+          accept: "Sign out anyway",
+        });
+        if (!really) return;
+        result = await busy(button, "Signing out…", () => signOut(true));
       }
+      if (!result?.done) return;
+      for (const key of SESSION_KEYS) {
+        try {
+          localStorage.removeItem(key);
+          sessionStorage.removeItem(key);
+        } catch (_) {}
+      }
+      window.location.replace("/sign-in");
     });
   }
 

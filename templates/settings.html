@@ -5,7 +5,7 @@
 {% block content %}
 <section class="settings-hero">
   <h1 class="title title-settings">Refine the ritual.</h1>
-  <p class="lede lede-narrow">Every preference saves itself on this device the moment you change it.</p>
+  <p class="lede lede-narrow">Every preference saves itself to your account the moment you change it.</p>
 </section>
 
 <div class="settings-layout">
@@ -16,7 +16,7 @@
     <a href="#notifications" class="settings-nav-link">Notifications</a>
     <a href="#combinations" class="settings-nav-link">Combinations</a>
     <a href="#history" class="settings-nav-link">History</a>
-    <a href="#sync" class="settings-nav-link">Back up &amp; sync</a>
+    <a href="#sync" class="settings-nav-link">Account</a>
     <a href="#keyboard" class="settings-nav-link">Keyboard</a>
     <a href="#about" class="settings-nav-link">About</a>
   </nav>
@@ -212,51 +212,46 @@
 
     <section class="pref-section" id="sync" aria-labelledby="syncTitle">
       <header class="pref-head">
-        <h2 class="card-title" id="syncTitle">Back up &amp; sync</h2>
-        <p class="card-lede">Optional. Sign in to keep a copy of your sessions in your account and see them on your other computers. The timer keeps working without internet either way.</p>
+        <h2 class="card-title" id="syncTitle">Account</h2>
+        <p class="card-lede">Your sessions, combinations and settings are kept in your account and appear on every computer you sign in on. The timer keeps working without internet; changes sync when you're back online.</p>
       </header>
       <div class="pref-group" id="syncGroup">
-        <div class="pref-row" id="syncUnavailable" hidden>
+        <div class="pref-row" id="syncSignedIn">
+          <span class="account-avatar" id="accountAvatar" aria-hidden="true"></span>
           <div class="pref-text">
-            <span class="pref-name">Not available yet</span>
-            <span class="pref-desc">This version of the app has no sync service set up.</span>
-          </div>
-        </div>
-
-        <form class="pref-row sync-form" id="syncEmailForm" novalidate hidden>
-          <label class="pref-text" for="syncEmail">
-            <span class="pref-name">Your email</span>
-            <span class="pref-desc">We email you a code. No password to remember.</span>
-          </label>
-          <div class="sync-inline">
-            <input type="email" id="syncEmail" class="input" placeholder="you@example.com" autocomplete="email" required />
-            <button type="submit" class="btn btn-primary btn-small" id="btnSendCode">Send code</button>
-          </div>
-        </form>
-
-        <form class="pref-row sync-form" id="syncCodeForm" novalidate hidden>
-          <label class="pref-text" for="syncCode">
-            <span class="pref-name">Enter the code</span>
-            <span class="pref-desc" id="syncCodeHint">Sent to your email. It can take a minute; check spam too.</span>
-          </label>
-          <div class="sync-inline">
-            <input type="text" id="syncCode" class="input sync-code" inputmode="numeric" autocomplete="one-time-code" placeholder="123456" maxlength="10" required />
-            <button type="submit" class="btn btn-primary btn-small" id="btnVerifyCode">Sign in</button>
-          </div>
-          <div class="sync-links">
-            <button type="button" class="btn btn-quiet btn-small" id="btnResendCode">Send a new code</button>
-            <button type="button" class="btn btn-quiet btn-small" id="btnChangeEmail">Use a different email</button>
-          </div>
-        </form>
-
-        <div class="pref-row" id="syncSignedIn" hidden>
-          <div class="pref-text">
-            <span class="pref-name">Signed in</span>
+            <span class="pref-name" id="accountName">Signed in</span>
             <span class="pref-desc" id="syncSignedInAs"></span>
           </div>
-          <button type="button" class="btn btn-quiet btn-small" id="btnSignOut">Sign out</button>
+          <div class="account-actions">
+            <button type="button" class="btn btn-quiet btn-small" id="btnEditProfile">Edit profile</button>
+            <button type="button" class="btn btn-quiet btn-small" id="btnSignOut">Sign out</button>
+          </div>
         </div>
-        <div class="pref-row pref-status" id="syncStatusRow" hidden>
+        <form class="pref-row profile-form" id="profileForm" novalidate hidden>
+          <div class="field-row">
+            <div class="field">
+              <label class="signin-label" for="profileFirst">First name</label>
+              <input type="text" id="profileFirst" class="input" autocomplete="given-name" maxlength="50" required />
+            </div>
+            <div class="field">
+              <label class="signin-label" for="profileLast">Last name <span class="optional">optional</span></label>
+              <input type="text" id="profileLast" class="input" autocomplete="family-name" maxlength="50" />
+            </div>
+          </div>
+          <div class="field">
+            <label class="signin-label" for="profileUsername">Username</label>
+            <div class="username-wrap">
+              <span class="username-at" aria-hidden="true">@</span>
+              <input type="text" id="profileUsername" class="input" autocapitalize="none" spellcheck="false" maxlength="20" required />
+            </div>
+            <p class="field-note">3–20 letters, numbers, _ or . — starting with a letter.</p>
+          </div>
+          <div class="profile-actions">
+            <button type="button" class="btn btn-quiet btn-small" id="btnProfileCancel">Cancel</button>
+            <button type="submit" class="btn btn-primary btn-small" id="btnProfileSave">Save</button>
+          </div>
+        </form>
+        <div class="pref-row pref-status" id="syncStatusRow">
           <p class="pref-status-text" id="syncStatus" aria-live="polite"></p>
           <button type="button" class="btn btn-quiet btn-small" id="btnSyncNow">Sync now</button>
         </div>

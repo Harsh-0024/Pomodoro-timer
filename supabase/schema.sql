@@ -146,3 +146,45 @@ begin
     end loop;
 end;
 $$;
+
+-- --------------------------------------------------------------------------
+-- profiles: name and username (added with password accounts)
+-- --------------------------------------------------------------------------
+-- The name and username also live in each account's sign-in record
+-- (user_metadata), which is what the app shows. This table exists so that
+-- no two people can have the same username.
+create table if not exists public.profiles (
+    user_id    uuid primary key default auth.uid() references auth.users (id) on delete cascade,
+    username   text not null check (username ~ '^[a-z][a-z0-9_.]{2,19}$'),
+    first_name text not null default '' check (char_length(first_name) <= 50),
+    last_name  text not null default '' check (char_length(last_name) <= 50),
+    updated_at timestamptz not null default now()
+);
+create unique index if not exists profiles_username_unique on public.profiles (lower(username));
+
+alter table public.profiles enable row level security;
+revoke all on public.profiles from anon, authenticated;
+grant select, insert, update on public.profiles to authenticated;
+drop policy if exists own_rows on public.profiles;
+create policy own_rows on public.profiles for all to authenticated
+    using (user_id = (select auth.uid()))
+    with check (user_id = (select auth.uid()));
+
+-- "Is this username free?" while someone is creating an account (so before
+-- they are signed in). Answers yes or no only; it never reveals whose name
+-- it is, and a person's own current username counts as free for them.
+create or replace function public.username_available(name text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+    select not exists (
+        select 1 from public.profiles
+        where lower(username) = lower(name)
+          and user_id is distinct from (select auth.uid())
+    );
+$$;
+revoke all on function public.username_available(text) from public;
+grant execute on function public.username_available(text) to anon, authenticated;

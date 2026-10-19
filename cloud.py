@@ -1,7 +1,14 @@
 """Signing in to the Muhurata cloud account (Supabase Auth).
 
-Sign-in is by email code: the person types their email, Supabase emails a
-code, they type the code back. No passwords exist anywhere.
+Creating an account: the person types their email, Supabase emails a code,
+they type it back (proving the address is theirs), then choose a password.
+After that they sign in with email and password; no code is needed. A
+forgotten password is reset the same way an account is created: a code to
+the email, then a new password.
+
+Between the code and the password the account is signed in but not yet
+usable (password_pending), so stopping halfway never leaves an account
+without a password.
 
 The resulting session (an access token that lasts an hour, and a refresh
 token that renews it) is kept in cloud_session.json next to the database,
@@ -30,11 +37,22 @@ import db
 # project.
 SUPABASE_URL = os.environ.get("MUHURATA_SUPABASE_URL", "https://ybjyzvtilicsncuiujks.supabase.co").rstrip("/")
 SUPABASE_KEY = os.environ.get("MUHURATA_SUPABASE_KEY", "sb_publishable_YDL_wTS1iPM9bKHpR6yP7g_o8pnFBDk")
+# Who the sign-in codes come from (Supabase -> Authentication -> SMTP
+# Settings). Shown on the code screen so people can find the email; keep
+# the two in step.
+EMAIL_FROM = os.environ.get("MUHURATA_EMAIL_FROM", "muhurata.pomodoro.timer@gmail.com")
 
 TIMEOUT = 15  # seconds; a slow connection should fail, not hang
 REFRESH_EARLY = 120  # renew the access token this many seconds before it expires
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 CODE_RE = re.compile(r"^\d{6,10}$")
+# A username: 3-20 characters, starts with a letter, then letters, digits,
+# "_" or "."; compared without regard to case.
+USERNAME_RE = re.compile(r"^[a-z][a-z0-9_.]{2,19}$")
+NAME_MAX = 50
+PASSWORD_MIN = 8
+PASSWORD_MAX = 72  # what Supabase (bcrypt) actually uses
+PROFILE_KEYS = ("first_name", "last_name", "username")
 
 # Our own list of trusted certificates, so HTTPS works however Python was
 # installed. The python.org Mac installer and some frozen builds ship
@@ -122,7 +140,14 @@ def _load() -> dict | None:
     return data if isinstance(data, dict) and data.get("refresh_token") else None
 
 
-def _save(payload: dict) -> dict:
+def _profile_from(user: dict) -> dict | None:
+    meta = user.get("user_metadata") if isinstance(user, dict) else None
+    if not isinstance(meta, dict) or not meta.get("username"):
+        return None
+    return {k: str(meta.get(k) or "") for k in PROFILE_KEYS}
+
+
+def _save(payload: dict, password_pending: bool = False, profile: dict | None = None) -> dict:
     user = payload.get("user") or {}
     expires_at = payload.get("expires_at") or (time.time() + int(payload.get("expires_in") or 3600))
     session = {
@@ -131,7 +156,14 @@ def _save(payload: dict) -> dict:
         "expires_at": int(expires_at),
         "user_id": user.get("id"),
         "email": user.get("email"),
+        "password_pending": password_pending,
+        # Name and username, kept here so pages can show them offline.
+        "profile": _profile_from(user) or profile,
     }
+    return _write(session)
+
+
+def _write(session: dict) -> dict:
     path = _session_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(".tmp")
@@ -152,24 +184,184 @@ def _forget():
 # public API
 # --------------------------------------------------------------------------- #
 def status() -> dict:
-    """What Settings shows. Never touches the network."""
+    """Whether the app may be used, and as whom. Never touches the network."""
     session = _load()
+    pending = bool(session and session.get("password_pending"))
     return {
         "configured": configured(),
-        "signed_in": session is not None,
+        "signed_in": session is not None and not pending,
+        "password_pending": pending,
         "email": session.get("email") if session else None,
+        "profile": (session.get("profile") if session else None) or None,
     }
 
 
-def send_code(email: str) -> None:
+# --------------------------------------------------------------------------- #
+# what an account must look like (the sign-in page checks the same, as you type)
+# --------------------------------------------------------------------------- #
+def password_problems(password: str, email: str = "", username: str = "") -> list[str]:
+    """Everything wrong with a password, in words; empty when it is fine."""
+    problems = []
+    if len(password) < PASSWORD_MIN:
+        problems.append(f"at least {PASSWORD_MIN} characters")
+    if len(password.encode()) > PASSWORD_MAX:
+        problems.append(f"at most {PASSWORD_MAX} characters")
+    if not re.search(r"[a-z]", password):
+        problems.append("a lowercase letter")
+    if not re.search(r"[A-Z]", password):
+        problems.append("a capital letter")
+    if not re.search(r"\d", password):
+        problems.append("a number")
+    if not re.search(r"[^A-Za-z0-9\s]", password):
+        problems.append("a symbol, like ! ? # or @")
+    lowered = password.lower()
+    for part in (username, email.split("@")[0]):
+        if part and len(part) >= 3 and part.lower() in lowered:
+            problems.append("not your username or email")
+            break
+    return problems
+
+
+def check_password(password: str, email: str = "", username: str = "") -> None:
+    problems = password_problems(password, email, username)
+    if problems:
+        raise CloudError("Your password needs " + ", ".join(problems) + ".")
+
+
+def clean_profile(first_name: str, last_name: str, username: str) -> dict:
+    first = " ".join((first_name or "").split())
+    last = " ".join((last_name or "").split())
+    user = (username or "").strip().lower().lstrip("@")
+    if not first:
+        raise CloudError("Enter your first name.")
+    if len(first) > NAME_MAX or len(last) > NAME_MAX:
+        raise CloudError(f"Names can be at most {NAME_MAX} characters.")
+    if not USERNAME_RE.match(user):
+        raise CloudError("A username is 3 to 20 characters: letters, numbers, _ or ., starting with a letter.")
+    return {"first_name": first, "last_name": last, "username": user}
+
+
+def username_available(username: str) -> bool:
+    """Whether nobody else has this username. Needs the profiles part of
+    supabase/schema.sql; before that is set up, every name counts as free."""
+    username = (username or "").strip().lower()
+    if not USERNAME_RE.match(username):
+        return False
+    session = _load()
+    token = session["access_token"] if session and session["expires_at"] > time.time() else None
+    code, payload = _request("POST", "/rest/v1/rpc/username_available", {"name": username}, token=token)
+    if code == 200 and isinstance(payload, bool):
+        return payload
+    if code == 404:
+        return True  # not set up on the server yet
+    raise CloudError("Couldn't check that username right now. Try again.", 502)
+
+
+def _store_profile(profile: dict, token: str) -> None:
+    """Save the name and username to the account: in the sign-in record (what
+    every computer reads) and in the profiles table (what keeps usernames
+    unique)."""
+    code, payload = _request("POST", "/rest/v1/profiles?on_conflict=user_id",
+                             {**profile, "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())},
+                             token=token, headers={"Prefer": "resolution=merge-duplicates,return=minimal"})
+    if code == 409 or "23505" in _error_text(payload):
+        raise CloudError("Someone just took that username. Choose another.", 409)
+    if code >= 400 and code != 404:  # 404: profiles not set up on the server yet
+        raise CloudError("Your name couldn't be saved. Try again.", 502)
+    code, payload = _request("PUT", "/auth/v1/user", {"data": profile}, token=token)
+    if code >= 400:
+        raise CloudError("Your name couldn't be saved. Try again.", 502)
+    with _lock:
+        session = _load()
+        if session:
+            session["profile"] = profile
+            _write(session)
+
+
+def update_profile(first_name: str, last_name: str, username: str) -> dict:
+    """Change the name or username from Settings."""
+    profile = clean_profile(first_name, last_name, username)
+    current = (status().get("profile") or {}).get("username")
+    if profile["username"] != current and not username_available(profile["username"]):
+        raise CloudError("That username is taken. Choose another.", 409)
+    token = access_token()
+    if token is None:
+        raise CloudError("Please sign in first.", 401)
+    _store_profile(profile, token)
+    return status()
+
+
+def _clean_email(email: str) -> str:
     email = (email or "").strip().lower()
     if not EMAIL_RE.match(email):
         raise CloudError("That doesn't look like an email address.")
-    code, payload = _request("POST", "/auth/v1/otp", {"email": email, "create_user": True})
+    return email
+
+
+def send_code(email: str, new_account: bool = True) -> None:
+    """Email a code: to create an account, or (new_account=False) to reset
+    the password of one that exists."""
+    email = _clean_email(email)
+    code, payload = _request("POST", "/auth/v1/otp", {"email": email, "create_user": new_account})
     if code == 429 or "rate" in _error_text(payload):
         raise CloudError("Too many codes asked for. Wait a minute, then try again.", 429)
+    if code >= 400 and not new_account and ("signup" in _error_text(payload) or "not found" in _error_text(payload)
+                                            or "otp_disabled" in _error_text(payload)):
+        raise CloudError("There's no account with that email. Create one instead.", 404)
     if code >= 400:
         raise CloudError("The code could not be sent. Check the address and try again.", 502)
+
+
+def sign_in_password(email: str, password: str) -> dict:
+    email = _clean_email(email)
+    if not password:
+        raise CloudError("Enter your password.")
+    code, payload = _request("POST", "/auth/v1/token?grant_type=password", {"email": email, "password": password})
+    if code == 429:
+        raise CloudError("Too many tries. Wait a minute, then try again.", 429)
+    if code >= 400 or not isinstance(payload, dict) or "access_token" not in payload:
+        if "email_not_confirmed" in _error_text(payload):
+            raise CloudError("This email isn't confirmed yet. Use Create an account to get a code.")
+        raise CloudError("Wrong email or password. Forgot it? Reset it with a code.", 401)
+    with _lock:
+        _save(payload)
+    return status()
+
+
+def set_password(password: str, profile: dict | None = None) -> dict:
+    """Finish creating the account (with its name and username) or resetting
+    the password, after the code."""
+    password = password or ""
+    session = _load() or {}
+    check_password(password, session.get("email") or "", (profile or {}).get("username") or "")
+    token = access_token()
+    if token is None:
+        raise CloudError("That took too long. Start again with a new code.", 401)
+    if profile:
+        # First, so a taken username is found before the password is set.
+        _store_profile(profile, token)
+    code, payload = _request("PUT", "/auth/v1/user", {"password": password}, token=token)
+    text = _error_text(payload)
+    if code == 429:
+        raise CloudError("Too many tries. Wait a minute, then try again.", 429)
+    if code >= 400 and "same_password" not in text:  # resetting to the old one is fine
+        if "weak" in text or "password" in text:
+            reason = payload.get("msg") or payload.get("message") if isinstance(payload, dict) else None
+            raise CloudError(reason or "Choose a stronger password.")
+        raise CloudError("The password could not be saved. Try again.", 502)
+    with _lock:
+        session = _load()
+        if session:
+            session["password_pending"] = False
+            _write(session)
+    return status()
+
+
+def cancel_pending() -> dict:
+    """Stopped between the code and the password: forget that half sign-in."""
+    if status()["password_pending"]:
+        sign_out()
+    return status()
 
 
 def verify_code(email: str, code: str) -> dict:
@@ -183,7 +375,7 @@ def verify_code(email: str, code: str) -> dict:
     if status_code >= 400 or not isinstance(payload, dict) or "access_token" not in payload:
         raise CloudError("That code is wrong or has expired. Ask for a new one if it is over an hour old.")
     with _lock:
-        _save(payload)
+        _save(payload, password_pending=True)  # usable once a password is chosen
     return status()
 
 
@@ -204,7 +396,7 @@ def access_token() -> str | None:
         if code < 400 and isinstance(payload, dict) and "access_token" in payload:
             # Supabase may leave out the user on refresh; keep what we know.
             payload.setdefault("user", {"id": session["user_id"], "email": session["email"]})
-            return _save(payload)["access_token"]
+            return _save(payload, session.get("password_pending", False), session.get("profile"))["access_token"]
         if code in (400, 401, 403):
             # The refresh token was revoked or expired (signed out elsewhere,
             # account deleted). Sign out here too, rather than retrying forever.

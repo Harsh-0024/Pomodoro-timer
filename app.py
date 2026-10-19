@@ -225,7 +225,7 @@ def sign_in_page():
     # Stopped after the code, before choosing a password: carry on from there.
     return render_template("sign_in.html", bare=True,
                            pending_email=st["email"] if st["password_pending"] else "",
-                           pending_has_profile=bool(st["profile"]))
+                           pending_has_profile=bool(st["profile"]), email_from=cloud.EMAIL_FROM)
 
 
 @app.route("/flow")

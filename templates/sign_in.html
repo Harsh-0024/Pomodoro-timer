@@ -3,7 +3,7 @@
 {% block body_class %}page-signin{% endblock %}
 {% block page_id %}signin{% endblock %}
 {% block content %}
-<section class="signin" id="signin" data-pending-email="{{ pending_email }}" data-pending-profile="{{ '1' if pending_has_profile else '' }}">
+<section class="signin" id="signin" data-pending-email="{{ pending_email }}" data-pending-profile="{{ '1' if pending_has_profile else '' }}" data-email-from="{{ email_from }}">
   <div class="signin-card">
     <div class="signin-progress" id="signinProgress" hidden aria-hidden="true">
       <span class="signin-dot" data-dot="1"></span><span class="signin-dot" data-dot="2"></span><span class="signin-dot" data-dot="3"></span>
@@ -79,6 +79,7 @@
         <label class="signin-label" for="signinCode">Code</label>
         <input type="text" id="signinCode" class="input sync-code signin-code" inputmode="numeric" autocomplete="one-time-code" placeholder="123456" maxlength="10" required />
       </div>
+      <p class="field-note" id="codeFrom"></p>
       <button type="submit" class="btn btn-primary signin-submit" id="btnVerify">Verify</button>
       <div class="signin-links">
         <button type="button" class="btn btn-quiet btn-small" id="btnResend">Send a new code</button>

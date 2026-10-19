@@ -37,6 +37,10 @@ import db
 # project.
 SUPABASE_URL = os.environ.get("MUHURATA_SUPABASE_URL", "https://ybjyzvtilicsncuiujks.supabase.co").rstrip("/")
 SUPABASE_KEY = os.environ.get("MUHURATA_SUPABASE_KEY", "sb_publishable_YDL_wTS1iPM9bKHpR6yP7g_o8pnFBDk")
+# Who the sign-in codes come from (Supabase -> Authentication -> SMTP
+# Settings). Shown on the code screen so people can find the email; keep
+# the two in step.
+EMAIL_FROM = os.environ.get("MUHURATA_EMAIL_FROM", "muhurata.pomodoro.timer@gmail.com")
 
 TIMEOUT = 15  # seconds; a slow connection should fail, not hang
 REFRESH_EARLY = 120  # renew the access token this many seconds before it expires

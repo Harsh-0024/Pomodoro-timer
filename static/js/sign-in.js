@@ -88,7 +88,7 @@
       case "stepResetEmail":
         return [`${flow} · step 1 of 3`, "Forgot your password?", "No problem. We'll email you a code, then you can choose a new one.", 1];
       case "stepCode":
-        return [`${flow} · step 2 of 3`, "Check your email", `We sent a code to ${email}. It can take a minute; check spam too.`, 2];
+        return [`${flow} · step 2 of 3`, "Check your email", `We sent a code to ${email}. It can take a minute.`, 2];
       case "stepPassword":
         return mode === "reset"
           ? [`${flow} · step 3 of 3`, "Choose a new password", "You'll use it with your email to sign in.", 3]
@@ -121,6 +121,10 @@
       $("resetEmail").value = email || $("signinEmail").value.trim();
       $("resetEmail").focus();
     } else if (step === "stepCode") {
+      const from = $("signin").dataset.emailFrom;
+      $("codeFrom").textContent = from
+        ? `It comes from ${from}. Not there? Look in Spam and mark it "Not spam" so the next one arrives in your inbox.`
+        : "Not there? Look in your Spam folder.";
       $("signinCode").value = "";
       $("signinCode").focus();
     } else if (step === "stepPassword") {

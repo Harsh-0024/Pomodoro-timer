@@ -5,6 +5,13 @@ a few short lines per version, about what they will notice. Versions with
 nothing worth telling can be left out.
 """
 NOTES = {
+    "1.6.0": [
+        "Muhurta Pomodoro is now a proper Mac app. Download it from the website, drag it "
+        "into Applications, and it opens in its own window with its own Dock icon. "
+        "No Terminal, no Chrome.",
+        "The Mac app updates itself: when a new version is out, click \"Update now\".",
+        "A new website to share: harsh-0024.github.io/muhurta-pomodoro",
+    ],
     "1.5.3": [
         "On a Mac, the timer now opens even when Chrome is closed.",
     ],

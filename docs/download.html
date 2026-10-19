@@ -3,60 +3,51 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Downloading Muhurta Pomodoro</title>
+<title>Download Muhurta Pomodoro</title>
 <meta name="description" content="Your Muhurta Pomodoro download, and what to do once it finishes." />
 <meta name="robots" content="noindex" />
-<meta name="theme-color" content="#070605" media="(prefers-color-scheme: dark)" />
-<meta name="theme-color" content="#f2f0ea" media="(prefers-color-scheme: light)" />
+<meta name="theme-color" content="#070605" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23040302'/%3E%3Cg fill='none' stroke='%23d8bd79' stroke-width='4' stroke-linecap='round'%3E%3Ccircle cx='32' cy='32' r='22'/%3E%3Ccircle cx='32' cy='32' r='6'/%3E%3Cpath d='M32 6v14M32 44v14M6 32h14M44 32h14M13.6 13.6l10 10M40.4 40.4l10 10M50.4 13.6l-10 10M23.6 40.4l-10 10'/%3E%3C/g%3E%3C/svg%3E" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="style.css" />
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="style.css?v=1.6.0d" />
 </head>
-<body>
-<div class="wrap">
+<body class="dl-page">
 
-  <header>
-    <svg class="mark" viewBox="0 0 80 80" aria-hidden="true">
-      <circle class="disc" cx="40" cy="40" r="39" />
-      <g class="wheel">
-        <circle cx="40" cy="40" r="23" />
-        <circle cx="40" cy="40" r="6.2" />
-        <path d="M40 10v13M40 57v13M10 40h13M57 40h13" />
-        <path d="M18.8 18.8l9.2 9.2M52 52l9.2 9.2M61.2 18.8L52 28M28 52l-9.2 9.2" />
-      </g>
-    </svg>
-    <h1 id="title">Downloading…</h1>
-    <p class="lede" id="lede">Your copy of <strong>Muhurta Pomodoro</strong> is on its way.</p>
-  </header>
+<nav class="nav scrolled">
+  <div class="container">
+    <a class="brand" href="./">
+      <svg class="wheel-mark" viewBox="0 0 80 80" aria-hidden="true">
+        <circle cx="40" cy="40" r="23" /><circle cx="40" cy="40" r="6.2" />
+        <path d="M40 10v13M40 57v13M10 40h13M57 40h13M18.8 18.8l9.2 9.2M52 52l9.2 9.2M61.2 18.8L52 28M28 52l-9.2 9.2" />
+      </svg>
+      <span>Muhurta Pomodoro</span>
+    </a>
+    <div class="nav-links"><a href="./">← Back</a></div>
+  </div>
+</nav>
 
-  <p class="dl-status" id="status"><span class="dot"></span><span id="statusText">Starting the download…</span></p>
+<main>
+  <div class="container">
+    <div class="dl-head">
+      <p class="eyebrow" id="eyebrow">Mac · Apple Silicon</p>
+      <h1 id="title">Almost there.</h1>
+      <p class="dl-status" id="status"><span class="spin"></span><span id="statusText">Starting your download…</span></p>
+    </div>
 
-  <div class="card">
-    <h2 id="stepsTitle">Once it finishes</h2>
     <ol class="walk" id="walk"></ol>
-    <p class="retry" id="retry">
-      Nothing downloaded? <a href="#" id="manual">Click here to download it again</a>.
-    </p>
+    <p class="note" id="note"></p>
+    <p class="dl-retry" id="retry">Nothing downloaded? <a href="#" id="manual">Download it again</a>.</p>
   </div>
+</main>
 
-  <div class="card">
-    <h2>Good to know</h2>
-    <ol class="walk">
-      <li>Your sessions are saved <b>outside</b> the app folder, so replacing the app
-        with a newer version never loses your history.</li>
-      <li>The app works <b>on your computer, even offline</b>. Your history stays there
-        unless you sign in under <b>Settings → Back up &amp; sync</b>; then it is also
-        backed up online and shared with your other computers.</li>
-      <li>When a newer version exists, the app shows a link in its footer that brings you back here.</li>
-    </ol>
+<footer>
+  <div class="container">
+    <span>Your history is kept outside the app, so updating or reinstalling never loses it.</span>
+    <span><a href="./">muhurta-pomodoro</a></span>
   </div>
-
-  <footer>
-    <a class="back" href="./">← Back to the install page</a>
-  </footer>
-</div>
+</footer>
 
 <script>
   const REPO = "https://github.com/Harsh-0024/muhurta-pomodoro";
@@ -65,46 +56,43 @@
   const BUILDS = {
     mac: {
       file: "Muhurta-Pomodoro-macos-arm64.dmg",
-      title: "Downloading for Mac",
+      eyebrow: "Mac · Apple Silicon",
       steps: [
         `Open your <b>Downloads</b> folder and double-click
-         <span class="inline-code">Muhurta-Pomodoro-macos-arm64.dmg</span>. A small
-         window opens with the app and an <b>Applications</b> folder.`,
-        `Drag <b>Muhurta Pomodoro</b> onto the <b>Applications</b> folder in that
-         window. That installs it. You can then close the window and eject
-         <b>Muhurta Pomodoro</b> from the Finder sidebar.`,
-        `Open <b>Muhurta Pomodoro</b> from Launchpad or Applications. The first time,
-         your Mac says it could not check the app. Click <b>Done</b>.`,
-        `Open <b>System Settings</b> → <b>Privacy &amp; Security</b>, scroll down to
-         <i>"Muhurta Pomodoro" was blocked</i> and click <b>Open Anyway</b>. Confirm
-         with your password or Touch ID if asked, then click <b>Open Anyway</b> once
-         more.`,
-        `The timer opens in its own window. From now on it opens normally, like
-         any other app. Close the window when you are done and the app stops by
-         itself.`,
+         <span class="code">Muhurta-Pomodoro-macos-arm64.dmg</span>. A small window
+         opens with the app and an <b>Applications</b> folder.`,
+        `Drag <b>Muhurta Pomodoro</b> onto the <b>Applications</b> folder. That is
+         the whole installation. You can close the window and eject the disk from
+         the Finder sidebar.`,
+        `Open <b>Muhurta Pomodoro</b> from Launchpad or Applications. The first
+         time, your Mac says it could not check the app: click <b>Done</b>.`,
+        `Open <b>System Settings → Privacy &amp; Security</b>, scroll down to
+         <i>"Muhurta Pomodoro" was blocked</i> and click <b>Open Anyway</b>.
+         Confirm with Touch ID or your password, then <b>Open Anyway</b> once more.`,
+        `That's it. From now on it opens like any other app, and when a new
+         version is out it offers to update itself.`,
       ],
-      note: `Steps 3 and 4 happen only the first time. The warning appears because the
-             app is not registered with Apple (that costs $99 a year), not because
-             anything is wrong. Updating later: download the new version and drag it
-             onto Applications again. Choose <b>Replace</b>; your history is kept.`,
+      note: `<b>Steps 3 and 4 happen only once.</b> The warning appears because the app
+             is not registered with Apple (that costs $99 a year), not because anything
+             is wrong with it.`,
     },
     win: {
       file: "Muhurta-Pomodoro-windows-x64.zip",
-      title: "Downloading for Windows",
+      eyebrow: "Windows · 64-bit",
       steps: [
         `Open your <b>Downloads</b> folder, right-click
-         <span class="inline-code">Muhurta-Pomodoro-windows-x64.zip</span> and choose
+         <span class="code">Muhurta-Pomodoro-windows-x64.zip</span> and choose
          <b>Extract All</b>.`,
         `Open the extracted <b>Muhurta Pomodoro</b> folder and double-click
          <b>Muhurta Pomodoro.exe</b>.`,
-        `Windows will show <b>"Windows protected your PC"</b>. Click <b>More info</b>,
-         then <b>Run anyway</b>. You only do this the first time — it appears because
-         the app has no paid publisher certificate, not because anything is wrong.`,
-        `The timer opens in its own window. Close that window when you are done and
-         the app stops by itself.`,
+        `Windows says <b>"Windows protected your PC"</b>. Click <b>More info</b>, then
+         <b>Run anyway</b>. This happens only the first time.`,
+        `The timer opens in its own window. Close it when you are done and the app
+         stops by itself.`,
       ],
-      note: `Want a shortcut on your Desktop? Right-click <b>Muhurta Pomodoro.exe</b> →
-             <b>Send to</b> → <b>Desktop</b>.`,
+      note: `<b>Tip:</b> for a Desktop shortcut, right-click <b>Muhurta Pomodoro.exe</b> →
+             <b>Send to</b> → <b>Desktop</b>. The warning in step 3 appears because the
+             app has no paid publisher certificate, not because anything is wrong.`,
     },
   };
 
@@ -114,32 +102,26 @@
   const build = BUILDS[os];
   const url = `${REPO}/releases/latest/download/${build.file}`;
 
-  document.title = `${build.title} — Muhurta Pomodoro`;
-  document.getElementById("title").textContent = build.title;
+  document.title = `Download Muhurta Pomodoro for ${os === "win" ? "Windows" : "Mac"}`;
+  document.getElementById("eyebrow").textContent = build.eyebrow;
   document.getElementById("manual").href = url;
+  document.getElementById("walk").innerHTML = build.steps.map((s) => `<li>${s}</li>`).join("");
+  document.getElementById("note").innerHTML = build.note;
 
-  const walk = document.getElementById("walk");
-  walk.innerHTML = build.steps.map((s) => `<li>${s}</li>`).join("");
-  const note = document.createElement("div");
-  note.className = "note";
-  note.innerHTML = build.note;
-  walk.after(note);
-
-  // Phones can't run it; don't fire a download they can't use.
-  const onPhone = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
   const status = document.getElementById("status");
   const statusText = document.getElementById("statusText");
 
-  if (onPhone) {
-    status.querySelector(".dot").remove();
-    statusText.textContent = "This needs a computer — open this page there to download.";
+  // Phones can't run it; don't fire a download they can't use.
+  if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+    status.classList.add("done");
+    statusText.textContent = "This needs a computer. Open this page on your Mac or PC to download.";
     document.getElementById("retry").hidden = true;
   } else {
     const go = () => { location.href = url; };
     setTimeout(go, 700);   // let the page paint first, then start the file
     setTimeout(() => {
-      status.querySelector(".dot").remove();
-      statusText.textContent = "Download started — check your Downloads folder.";
+      status.classList.add("done");
+      statusText.textContent = "Download started. Here is what to do next.";
     }, 2600);
     document.getElementById("manual").addEventListener("click", (e) => {
       e.preventDefault();

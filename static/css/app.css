@@ -604,6 +604,14 @@ body[data-theme="light"] .modal-backdrop {
   margin-top: 0.45rem;
 }
 
+.whats-new-switch {
+  margin: 0 0 1.25rem;
+}
+
+.modal-actions a.btn {
+  text-decoration: none;
+}
+
 .modal-actions {
   display: flex;
   justify-content: flex-end;

@@ -1,6 +1,7 @@
 // When a newer version is out, a notice at the bottom of the window offers
-// it: "Update now" restarts a git install into the new version (the page
-// reloads by itself); a downloaded app gets a link to the download page.
+// it. "Update now" has the app update itself: the Mac app downloads the new
+// version and reopens; a git install restarts and this page reloads. Other
+// downloads (Windows) get a link to the download page.
 // Checked on load and every few hours, since the app can stay open for days.
 // Silent on any failure, including being offline.
 (function () {
@@ -24,13 +25,14 @@
     return node;
   }
 
-  function waitForNewVersion(from, msg) {
+  function waitForNewVersion(from, msg, onError) {
     const started = Date.now();
     const poll = () => {
       fetch("/api/version", { cache: "no-store" })
         .then((r) => (r.ok ? r.json() : null))
         .then((d) => {
-          if (d && d.current !== from) location.reload();
+          if (d && d.update_error) onError(d.update_error);
+          else if (d && d.current !== from) location.reload();
           else retry();
         })
         .catch(retry);
@@ -67,11 +69,15 @@
       main.type = "button";
       main.addEventListener("click", () => {
         main.disabled = later.disabled = true;
-        msg.textContent = "Updating… this window reloads by itself in a few seconds.";
+        msg.textContent = "Updating… the app is back by itself in a few seconds.";
+        const failed = (text) => {
+          msg.textContent = text;
+          main.disabled = later.disabled = false;
+        };
         fetch("/api/update/restart", { method: "POST" })
           .then((r) => {
             if (!r.ok) throw new Error();
-            waitForNewVersion(d.current, msg);
+            waitForNewVersion(d.current, msg, failed);
           })
           .catch(() => {
             msg.textContent = "Could not update just now. Close this window and open Muhurta Pomodoro again.";

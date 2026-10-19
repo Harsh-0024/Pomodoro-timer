@@ -359,8 +359,8 @@ def api_quote():
 
 
 # Every copy checks, because an install only updates when it starts and the
-# app can stay open for days. A downloaded app links to the download page; a
-# git install restarts itself into the update (run.py sets RESTART_KEY).
+# app can stay open for days. Where run.py can update in place (a git install,
+# or the Mac app) it sets RESTART_KEY; other downloads link to the website.
 IS_BUNDLED = getattr(sys, "frozen", False)
 RESTART_KEY = "MUHURATA_RESTART"
 RELEASES_API = "https://api.github.com/repos/Harsh-0024/muhurta-pomodoro/releases/latest"
@@ -406,9 +406,11 @@ def api_version():
     payload = {"current": __version__, "bundled": IS_BUNDLED, "update_available": False}
     # A git checkout started some other way (app.py in development) cannot
     # restart itself, so it gets no notice.
-    how = "download" if IS_BUNDLED else "restart" if app.config.get(RESTART_KEY) else None
+    how = "restart" if app.config.get(RESTART_KEY) else "download" if IS_BUNDLED else None
     if not how:
         return jsonify(payload)
+    if app.config.get("MUHURATA_UPDATE_ERROR"):
+        payload["update_error"] = app.config["MUHURATA_UPDATE_ERROR"]
     latest = _cached_latest_version()
     if latest and _version_tuple(latest) > _version_tuple(__version__):
         payload.update(update_available=True, latest=latest, how=how, url=DOWNLOAD_PAGE)
@@ -435,7 +437,10 @@ def api_whats_new():
         notes = notes[:1]  # updated from an unknown version: just the latest
     if not notes:
         _mark_seen()
-    return jsonify({"current": __version__, "notes": notes})
+    payload = {"current": __version__, "notes": notes}
+    if sys.platform == "darwin" and not IS_BUNDLED:
+        payload["get_app_url"] = DOWNLOAD_PAGE  # a Terminal install: offer the real app
+    return jsonify(payload)
 
 
 def _mark_seen():

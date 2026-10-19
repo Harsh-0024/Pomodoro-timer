@@ -30,7 +30,21 @@
     const actions = el("div", "modal-actions");
     const ok = el("button", "btn btn-primary", "Got it");
     ok.type = "button";
-    actions.append(ok);
+    if (data.get_app_url) {
+      // Running the Terminal install on a Mac: point the way to the app.
+      sheet.append(
+        el("p", "modal-copy whats-new-switch",
+          "You installed with the Terminal. Switch to the app whenever you like: it uses " +
+          "the same history on this computer, so nothing is lost."));
+      ok.className = "btn btn-quiet";
+      const get = el("a", "btn btn-primary", "Get the Mac app");
+      get.href = data.get_app_url;
+      get.target = "_blank";
+      get.rel = "noopener";
+      actions.append(ok, get);
+    } else {
+      actions.append(ok);
+    }
     sheet.append(actions);
     modal.append(backdrop, sheet);
 

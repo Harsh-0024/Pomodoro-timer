@@ -23,6 +23,7 @@ import json
 import logging
 import logging.handlers
 import os
+import shlex
 import shutil
 import socket
 import subprocess
@@ -492,6 +493,82 @@ def _quit_when_closed(server, data_dir: Path):
     server.shutdown()
 
 
+# --------------------------------------------------------------------------- #
+# the downloaded Mac app updating itself
+# --------------------------------------------------------------------------- #
+UPDATE_DMG_URL = os.environ.get(  # overridable for tests
+    "MUHURATA_UPDATE_URL",
+    "https://github.com/Harsh-0024/muhurta-pomodoro/releases/latest/download/Muhurta-Pomodoro-macos-arm64.dmg",
+)
+
+
+def _this_app() -> Path | None:
+    """The .app this copy runs from, if it can be replaced where it is."""
+    if not NATIVE_WINDOW:
+        return None
+    app = Path(sys.executable).resolve().parents[2]
+    if app.suffix != ".app":
+        return None
+    # Opened straight from the disk image, or from the read-only copy macOS
+    # makes of an app that was never moved out of Downloads: nothing to replace.
+    if str(app).startswith("/Volumes/") or "AppTranslocation" in str(app):
+        return None
+    return app if os.access(app.parent, os.W_OK) else None
+
+
+def _old_app(app: Path) -> Path:
+    return app.with_name(f".{app.name}.old")
+
+
+def _install_app_update(app: Path, data_dir: Path):
+    """Download the newest .dmg and swap its app in for this one.
+
+    The running copy keeps working after the swap (its files stay open), so
+    it can finish up, quit and reopen as the new version. A download made
+    by the app itself carries no "downloaded from the internet" mark, so the
+    new version opens without the first-launch warning.
+    """
+    import ssl
+
+    import certifi
+
+    work = data_dir / "update"
+    shutil.rmtree(work, ignore_errors=True)
+    work.mkdir(parents=True)
+    dmg, mount = work / "update.dmg", work / "disk"
+    context = ssl.create_default_context(cafile=certifi.where())
+    with urllib.request.urlopen(UPDATE_DMG_URL, timeout=60, context=context) as res, open(dmg, "wb") as out:
+        shutil.copyfileobj(res, out)
+    mount.mkdir()
+    attach = _run(["hdiutil", "attach", "-nobrowse", "-readonly", "-noautoopen", "-mountpoint", str(mount), str(dmg)])
+    if attach.returncode != 0:
+        raise RuntimeError(f"could not open the update: {attach.stderr.strip()}")
+    staged = app.with_name(f".{app.name}.new")
+    try:
+        source = next(mount.glob("*.app"))
+        shutil.rmtree(staged, ignore_errors=True)
+        copy = _run(["ditto", str(source), str(staged)])
+        if copy.returncode != 0:
+            raise RuntimeError(f"could not copy the update: {copy.stderr.strip()}")
+    finally:
+        _run(["hdiutil", "detach", "-quiet", str(mount)])
+    old = _old_app(app)
+    shutil.rmtree(old, ignore_errors=True)
+    app.rename(old)
+    try:
+        staged.rename(app)
+    except OSError:
+        old.rename(app)  # put it back: never leave the app missing
+        raise
+    shutil.rmtree(work, ignore_errors=True)
+
+
+def _tidy_after_app_update():
+    app = _this_app()
+    if app:
+        shutil.rmtree(_old_app(app), ignore_errors=True)
+
+
 class _WindowApi:
     """What the page in the app's own window can ask of the app (static/js/native.js)."""
 
@@ -738,6 +815,47 @@ def main(argv: list[str]) -> int:
         # The window needs this (main) thread, so the server runs beside it.
         threading.Thread(target=server.serve_forever, daemon=True).start()
         log.info("Muhurta Pomodoro is running at %s  (close the timer window to stop it)", url)
+        _tidy_after_app_update()
+        this_app = _this_app()
+        if this_app:
+            updating = threading.Event()
+
+            def update_and_reopen():
+                if updating.is_set():
+                    return
+                updating.set()
+                app.config.pop("MUHURATA_UPDATE_ERROR", None)
+
+                def work():
+                    import webview
+
+                    log.info("Updating the app...")
+                    try:
+                        _install_app_update(this_app, data_dir)
+                    except Exception as exc:
+                        log.warning("Update failed: %s", exc, exc_info=True)
+                        app.config["MUHURATA_UPDATE_ERROR"] = "Could not download the update just now. Try again later."
+                        updating.clear()
+                        return
+                    _final_sync()
+                    # Reopen once this copy has quit (open would only bring
+                    # a still-running copy to the front). A test copy keeps
+                    # its own data folder and update source.
+                    env_args = [f"--env {k}={shlex.quote(os.environ[k])}" for k in
+                                ("MUHURATA_DATA_DIR", "MUHURATA_UPDATE_URL") if os.environ.get(k)]
+                    subprocess.Popen(
+                        ["/bin/sh", "-c",
+                         'while kill -0 "$1" 2>/dev/null; do sleep 0.3; done; open ' + " ".join(env_args) + ' "$2"',
+                         "sh", str(os.getpid()), str(this_app)],
+                        start_new_session=True, stdin=subprocess.DEVNULL,
+                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    log.info("Updated - reopening.")
+                    for window in list(webview.windows):
+                        window.destroy()
+
+                threading.Thread(target=work, daemon=True).start()
+
+            app.config["MUHURATA_RESTART"] = update_and_reopen
         try:
             _native_window(url, data_dir)
         finally:

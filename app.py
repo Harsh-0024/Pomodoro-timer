@@ -102,10 +102,6 @@ INITIAL_QUOTE = random.choice(FALLBACK_QUOTES)
 SOUND_CHOICES = {
     "soothing-bell",
     "opening-bells",
-    "temple-gong",
-    "ghanta-trio",
-    "soft-bell",
-    "bamboo-tick",
 }
 SOUND_SETTING_KEYS = (
     "manual_sound_rest_end",

@@ -223,7 +223,9 @@ def sign_out() -> dict:
         session = _load()
         if session:
             try:
-                _request("POST", "/auth/v1/logout", {}, token=session["access_token"])
+                # scope=local: sign out this computer only. Supabase's default
+                # signs out every computer on the account.
+                _request("POST", "/auth/v1/logout?scope=local", {}, token=session["access_token"])
             except CloudError:
                 pass  # offline or already invalid: forgetting locally is what matters
         _forget()

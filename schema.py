@@ -110,6 +110,7 @@ activity_segments = Table(
     Column("details_json", Text, nullable=False, server_default=text("'{}'")),
     Column("created_at", Text, nullable=False, server_default=text("(datetime('now'))")),
     *_sync_columns(),
+    Column("device_id", Text),  # the computer that recorded it (0003)
     Index("idx_activity_segments_day", "day", "started_at"),
     Index("ux_activity_segments_uuid", "uuid", unique=True),
     sqlite_autoincrement=True,

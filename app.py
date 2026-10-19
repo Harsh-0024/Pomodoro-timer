@@ -16,6 +16,7 @@ from flask import Flask, jsonify, render_template, request
 
 import cloud
 import db
+import sync
 from presets import BUILTINS
 from version import __version__
 
@@ -272,9 +273,31 @@ def _cloud_call(fn, *args):
         return jsonify({"error": str(exc)}), exc.status
 
 
+@app.after_request
+def _sync_after_change(response):
+    # Any saved change (a session, an edit, a preset, a setting) syncs a few
+    # seconds later. Cheap when signed out: the sync thread just looks and stops.
+    if request.method in ("POST", "PUT", "PATCH", "DELETE") and request.path.startswith("/api/") \
+            and not request.path.startswith("/api/cloud/") and response.status_code < 400:
+        sync.nudge()
+    return response
+
+
+def _cloud_status() -> dict:
+    st = cloud.status()
+    st["sync"] = sync.status() if st["signed_in"] else None
+    return st
+
+
 @app.get("/api/cloud/status")
 def api_cloud_status():
-    return jsonify(cloud.status())
+    return jsonify(_cloud_status())
+
+
+@app.post("/api/cloud/sync-now")
+def api_cloud_sync_now():
+    sync.run_once()
+    return jsonify(_cloud_status())
 
 
 @app.post("/api/cloud/send-code")
@@ -286,7 +309,9 @@ def api_cloud_send_code():
 @app.post("/api/cloud/verify")
 def api_cloud_verify():
     body = request.get_json(silent=True) or {}
-    return _cloud_call(cloud.verify_code, str(body.get("email") or ""), str(body.get("code") or ""))
+    result = _cloud_call(cloud.verify_code, str(body.get("email") or ""), str(body.get("code") or ""))
+    sync.nudge()  # first sync right after signing in
+    return result
 
 
 @app.post("/api/cloud/sign-out")
@@ -640,4 +665,7 @@ def api_dashboard():
 
 
 if __name__ == "__main__":
+    # With the debug reloader, only the child process that serves requests syncs.
+    if os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+        sync.start()
     app.run(port=8000, debug=True)

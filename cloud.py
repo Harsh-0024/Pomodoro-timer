@@ -73,11 +73,11 @@ def _session_path() -> Path:
 # --------------------------------------------------------------------------- #
 # HTTP
 # --------------------------------------------------------------------------- #
-def _request(method: str, path: str, body: dict | None = None, token: str | None = None):
-    """Call Supabase Auth. Returns (status, parsed JSON or None)."""
+def _request(method: str, path: str, body=None, token: str | None = None, headers: dict | None = None):
+    """Call Supabase (Auth or the data API). Returns (status, parsed JSON or None)."""
     if not configured():
         raise CloudError("Sync is not available in this version of the app.", 503)
-    headers = {"apikey": SUPABASE_KEY, "Accept": "application/json"}
+    headers = {"apikey": SUPABASE_KEY, "Accept": "application/json", **(headers or {})}
     data = None
     if body is not None:
         headers["Content-Type"] = "application/json"

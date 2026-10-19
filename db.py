@@ -386,6 +386,42 @@ def _activity_public(row: sqlite3.Row) -> dict:
     return item
 
 
+def _count_shared_time_once(rows) -> list[tuple[dict, datetime, datetime]]:
+    """Trim time two *computers* both recorded, so it is counted once.
+
+    With sync, two computers timing at the same moment both send their
+    sessions. Rows must be sorted by start; the session that started first
+    keeps the shared time and the later one keeps only what is left, with
+    its focus and rest scaled to match. Overlaps between sessions from the
+    same computer are left exactly as they were.
+
+    Returns (row as dict, start, end) with the trimmed start, skipping rows
+    that are entirely shared and rows with unreadable times.
+    """
+    out = []
+    covered_until: dict[str, datetime] = {}  # per computer: latest end so far
+    for row in rows:
+        item = dict(row)
+        started_at = _parse_segment_time(item["started_at"])
+        ended_at = _parse_segment_time(item["ended_at"])
+        if started_at is None or ended_at is None or ended_at <= started_at:
+            continue
+        device = item.get("device_id") or ""
+        others = [end for dev, end in covered_until.items() if dev != device]
+        covered_until[device] = max(covered_until.get(device, ended_at), ended_at)
+        other_end = max(others, default=None)
+        if other_end is not None and other_end > started_at:
+            if other_end >= ended_at:
+                continue  # all of it was already counted from another computer
+            keep = (ended_at - other_end) / (ended_at - started_at)
+            for key in ("duration_sec", "productive_sec", "rest_sec"):
+                if key in item:
+                    item[key] = float(item[key] or 0) * keep
+            started_at = other_end
+        out.append((item, started_at, ended_at))
+    return out
+
+
 def activity_for_day(day_iso: str) -> dict:
     init_db()
     conn = sqlite3.connect(DB_PATH)
@@ -395,7 +431,7 @@ def activity_for_day(day_iso: str) -> dict:
             """
             SELECT id, day, kind, started_at, ended_at, duration_sec,
                    productive_sec, rest_sec, preset_id, preset_name,
-                   phase_index, details_json, created_at
+                   phase_index, details_json, created_at, device_id
             FROM activity_segments
             WHERE day = ?
             ORDER BY started_at ASC, id ASC
@@ -403,8 +439,11 @@ def activity_for_day(day_iso: str) -> dict:
             (day_iso,),
         ).fetchall()
         segments = [_activity_public(row) for row in rows]
-        productive = sum(float(s["productive_sec"]) for s in segments)
-        rest = sum(float(s["rest_sec"]) for s in segments)
+        for seg in segments:
+            seg.pop("device_id", None)
+        counted = [item for item, _, _ in _count_shared_time_once(rows)]
+        productive = sum(float(s["productive_sec"]) for s in counted)
+        rest = sum(float(s["rest_sec"]) for s in counted)
         tracked = productive + rest
         return {
             "day": day_iso,
@@ -931,7 +970,7 @@ def dashboard_summary(
         years = _dashboard_years(first_year, selected_year)
         segment_rows = conn.execute(
             """
-            SELECT kind, started_at, ended_at, duration_sec, productive_sec, rest_sec
+            SELECT kind, started_at, ended_at, duration_sec, productive_sec, rest_sec, device_id
             FROM activity_segments
             WHERE julianday(started_at) < julianday(?)
               AND julianday(ended_at) > julianday(?)
@@ -957,12 +996,7 @@ def dashboard_summary(
         current_bout_sec = 0.0
         current_bout_end = None
 
-    for row in segment_rows:
-        started_at = _parse_segment_time(row["started_at"])
-        ended_at = _parse_segment_time(row["ended_at"])
-        if started_at is None or ended_at is None or ended_at <= started_at:
-            continue
-
+    for row, started_at, ended_at in _count_shared_time_once(segment_rows):
         productive_sec = max(0.0, float(row["productive_sec"] or 0))
         if productive_sec > 0:
             # Use productive seconds, not wall-clock duration: a paused or

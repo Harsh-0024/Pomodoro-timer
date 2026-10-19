@@ -884,6 +884,7 @@
     $("syncEmailForm").hidden = state !== "email";
     $("syncCodeForm").hidden = state !== "code";
     $("syncSignedIn").hidden = state !== "signedin";
+    $("syncStatusRow").hidden = state !== "signedin";
     if (state === "code") {
       $("syncCodeHint").textContent = `Sent to ${syncEmail}. It can take a minute; check spam too.`;
       $("syncCode").value = "";
@@ -917,12 +918,63 @@
     }
   }
 
+  function ago(iso) {
+    const sec = Math.max(0, (Date.now() - Date.parse(iso)) / 1000);
+    if (sec < 60) return "just now";
+    if (sec < 3600) return `${Math.round(sec / 60)} min ago`;
+    if (sec < 86400) return `${Math.round(sec / 3600)} h ago`;
+    return new Date(iso).toLocaleDateString();
+  }
+
+  function renderSyncStatus(sync) {
+    const row = $("syncStatusRow");
+    const text = $("syncStatus");
+    if (!row || !sync) return;
+    let tone = "ok";
+    let msg;
+    if (sync.running) {
+      msg = "Syncing…";
+    } else if (sync.error === "offline") {
+      tone = "warn";
+      msg = "Waiting for internet. Your sessions are safe here and will sync when you're back online.";
+    } else if (sync.error) {
+      tone = "warn";
+      msg = sync.error;
+    } else if (!sync.last_sync) {
+      msg = "First sync starting…";
+    } else {
+      msg = `Last synced ${ago(sync.last_sync)}.`;
+    }
+    if (sync.pending && !sync.running) {
+      msg += ` ${sync.pending} change${sync.pending === 1 ? "" : "s"} waiting to upload.`;
+    }
+    row.dataset.tone = tone;
+    text.textContent = msg;
+  }
+
+  let syncPoll = null;
+  function pollSync() {
+    if (syncPoll) clearInterval(syncPoll);
+    // Gentle refresh while the page is open, so "Last synced" stays true.
+    syncPoll = setInterval(async () => {
+      if (document.hidden || $("syncStatusRow").hidden) return;
+      try {
+        const st = await api("/api/cloud/status");
+        renderSyncStatus(st.sync);
+      } catch (_) {}
+    }, 15000);
+  }
+
   async function renderSync() {
     if (!$("syncGroup")) return;
     try {
       const st = await api("/api/cloud/status");
       if (!st.configured) showSync("unavailable");
-      else if (st.signed_in) showSync("signedin", st.email);
+      else if (st.signed_in) {
+        showSync("signedin", st.email);
+        renderSyncStatus(st.sync);
+        pollSync();
+      }
       else showSync("email");
     } catch (_) {
       showSync("unavailable");
@@ -946,13 +998,26 @@
       );
       if (st) {
         showSync("signedin", st.email);
+        renderSyncStatus({ running: true });
         toast("Signed in");
+        // The first sync starts a few seconds after signing in.
+        setTimeout(renderSync, 8000);
       }
     });
     $("btnResendCode").addEventListener("click", (ev) => sendCode(ev.currentTarget));
     $("btnChangeEmail").addEventListener("click", () => {
       showSync("email");
       $("syncEmail").focus();
+    });
+    $("btnSyncNow").addEventListener("click", async (ev) => {
+      renderSyncStatus({ running: true });
+      const st = await busy(ev.currentTarget, "Syncing…", () => api("/api/cloud/sync-now", { method: "POST" }));
+      if (st) {
+        if (!st.signed_in) return showSync("email");
+        renderSyncStatus(st.sync);
+      } else {
+        renderSync();
+      }
     });
     $("btnSignOut").addEventListener("click", async (ev) => {
       const ok = await askConfirm({

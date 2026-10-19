@@ -464,6 +464,9 @@ def main(argv: list[str]) -> int:
         )
 
     db.init_db()  # applies any pending migrations (with backup)
+    import sync  # noqa: E402  (after the requirements check, like the app itself)
+
+    sync.start()  # background cloud sync; does nothing until signed in
 
     port = free_port()
     url = f"http://{HOST}:{port}/"

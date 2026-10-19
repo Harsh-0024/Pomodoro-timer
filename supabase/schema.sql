@@ -43,6 +43,10 @@ create table if not exists public.activity_segments (
     primary key (user_id, uuid)
 );
 
+-- The computer that recorded the session (added later, so it is an
+-- ALTER: running this file again upgrades an existing project).
+alter table public.activity_segments add column if not exists device_id uuid;
+
 create table if not exists public.custom_presets (
     user_id           uuid not null default auth.uid() references auth.users (id) on delete cascade,
     uuid              uuid not null,

@@ -129,7 +129,7 @@ def _ensure_db():
 # the launcher's and updater's own checks.
 OPEN_ENDPOINTS = {
     "static", "sign_in_page", "api_cloud_status", "api_cloud_sign_in", "api_cloud_send_code",
-    "api_cloud_verify", "api_cloud_set_password", "api_cloud_cancel",
+    "api_cloud_verify", "api_cloud_set_password", "api_cloud_cancel", "api_cloud_username_available",
     "api_alive", "api_version", "api_update_restart",
 }
 
@@ -142,6 +142,17 @@ def _require_sign_in():
     if request.path.startswith("/api/"):
         return jsonify({"error": "Please sign in first."}), 401, {"X-Signed-Out": "1"}
     return redirect(url_for("sign_in_page"))
+
+
+@app.context_processor
+def _inject_account():
+    st = cloud.status()
+    if not st["signed_in"]:
+        return {"account": None}
+    profile = st["profile"] or {}
+    name = profile.get("first_name") or (st["email"] or "").split("@")[0]
+    return {"account": {"name": name, "initial": (name or "?")[0].upper(),
+                        "title": f"@{profile['username']} · {st['email']}" if profile else st["email"]}}
 
 
 @app.context_processor
@@ -213,7 +224,8 @@ def sign_in_page():
         return redirect(url_for("index"))
     # Stopped after the code, before choosing a password: carry on from there.
     return render_template("sign_in.html", bare=True,
-                           pending_email=st["email"] if st["password_pending"] else "")
+                           pending_email=st["email"] if st["password_pending"] else "",
+                           pending_has_profile=bool(st["profile"]))
 
 
 @app.route("/flow")
@@ -365,7 +377,38 @@ def api_cloud_send_code():
     """A code to create an account, or (reset) to choose a new password."""
     body = request.get_json(silent=True) or {}
     new_account = body.get("purpose") != "reset"
-    return _cloud_call(lambda e: cloud.send_code(e, new_account) or {"sent": True}, str(body.get("email") or ""))
+    try:
+        if new_account:
+            # Check the details before emailing, so a mistake shows now and
+            # not after the code.
+            profile = _profile_from(body)
+            if not cloud.username_available(profile["username"]):
+                return jsonify({"error": "That username is taken. Choose another.", "field": "username"}), 409
+        cloud.send_code(str(body.get("email") or ""), new_account)
+    except cloud.CloudError as exc:
+        return jsonify({"error": str(exc)}), exc.status
+    return jsonify({"sent": True})
+
+
+def _profile_from(body: dict) -> dict:
+    return cloud.clean_profile(str(body.get("first_name") or ""), str(body.get("last_name") or ""),
+                               str(body.get("username") or ""))
+
+
+@app.get("/api/cloud/username-available")
+def api_cloud_username_available():
+    name = str(request.args.get("name") or "")
+    try:
+        return jsonify({"available": cloud.username_available(name)})
+    except cloud.CloudError as exc:
+        return jsonify({"error": str(exc)}), exc.status
+
+
+@app.put("/api/cloud/profile")
+def api_cloud_profile():
+    body = request.get_json(silent=True) or {}
+    return _cloud_call(cloud.update_profile, str(body.get("first_name") or ""), str(body.get("last_name") or ""),
+                       str(body.get("username") or ""))
 
 
 @app.post("/api/cloud/verify")
@@ -378,7 +421,9 @@ def api_cloud_verify():
 def api_cloud_set_password():
     body = request.get_json(silent=True) or {}
     try:
-        cloud.set_password(str(body.get("password") or ""))
+        # A new account brings its name and username; a password reset doesn't.
+        profile = _profile_from(body) if body.get("username") else None
+        cloud.set_password(str(body.get("password") or ""), profile)
     except cloud.CloudError as exc:
         return jsonify({"error": str(exc)}), exc.status
     sync.enter_account()

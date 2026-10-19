@@ -5,7 +5,7 @@
 {% block content %}
 <section class="settings-hero">
   <h1 class="title title-settings">Refine the ritual.</h1>
-  <p class="lede lede-narrow">Every preference saves itself on this device the moment you change it.</p>
+  <p class="lede lede-narrow">Every preference saves itself to your account the moment you change it.</p>
 </section>
 
 <div class="settings-layout">
@@ -217,12 +217,40 @@
       </header>
       <div class="pref-group" id="syncGroup">
         <div class="pref-row" id="syncSignedIn">
+          <span class="account-avatar" id="accountAvatar" aria-hidden="true"></span>
           <div class="pref-text">
-            <span class="pref-name">Signed in</span>
+            <span class="pref-name" id="accountName">Signed in</span>
             <span class="pref-desc" id="syncSignedInAs"></span>
           </div>
-          <button type="button" class="btn btn-quiet btn-small" id="btnSignOut">Sign out</button>
+          <div class="account-actions">
+            <button type="button" class="btn btn-quiet btn-small" id="btnEditProfile">Edit profile</button>
+            <button type="button" class="btn btn-quiet btn-small" id="btnSignOut">Sign out</button>
+          </div>
         </div>
+        <form class="pref-row profile-form" id="profileForm" novalidate hidden>
+          <div class="field-row">
+            <div class="field">
+              <label class="signin-label" for="profileFirst">First name</label>
+              <input type="text" id="profileFirst" class="input" autocomplete="given-name" maxlength="50" required />
+            </div>
+            <div class="field">
+              <label class="signin-label" for="profileLast">Last name <span class="optional">optional</span></label>
+              <input type="text" id="profileLast" class="input" autocomplete="family-name" maxlength="50" />
+            </div>
+          </div>
+          <div class="field">
+            <label class="signin-label" for="profileUsername">Username</label>
+            <div class="username-wrap">
+              <span class="username-at" aria-hidden="true">@</span>
+              <input type="text" id="profileUsername" class="input" autocapitalize="none" spellcheck="false" maxlength="20" required />
+            </div>
+            <p class="field-note">3–20 letters, numbers, _ or . — starting with a letter.</p>
+          </div>
+          <div class="profile-actions">
+            <button type="button" class="btn btn-quiet btn-small" id="btnProfileCancel">Cancel</button>
+            <button type="submit" class="btn btn-primary btn-small" id="btnProfileSave">Save</button>
+          </div>
+        </form>
         <div class="pref-row pref-status" id="syncStatusRow">
           <p class="pref-status-text" id="syncStatus" aria-live="polite"></p>
           <button type="button" class="btn btn-quiet btn-small" id="btnSyncNow">Sync now</button>

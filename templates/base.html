@@ -30,6 +30,12 @@
       <a href="{{ url_for('flow_page') }}" class="nav-link{% if request.endpoint == 'flow_page' %} is-active{% endif %}">Flow</a>
       <a href="{{ url_for('dashboard_page') }}" class="nav-link{% if request.endpoint == 'dashboard_page' %} is-active{% endif %}">Dashboard</a>
       <a href="{{ url_for('settings_page') }}" class="nav-link{% if request.endpoint in ('settings_page', 'history_page') %} is-active{% endif %}">Settings</a>
+      {% if account %}
+      <a href="{{ url_for('settings_page') }}#sync" class="account-chip" id="accountChip" title="{{ account.title }}">
+        <span class="account-chip-initial" aria-hidden="true">{{ account.initial }}</span>
+        <span class="account-chip-name">{{ account.name }}</span>
+      </a>
+      {% endif %}
     </nav>
     {% endif %}
   </header>

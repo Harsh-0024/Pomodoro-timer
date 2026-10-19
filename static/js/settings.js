@@ -880,8 +880,24 @@
   // the account that started it, so it goes when that account signs out.
   const SESSION_KEYS = ["muhurat_timer_session_v1", "muhurat_flow_session_v1", "muhurat_session_command_v1"];
 
-  function showAccount(email) {
-    $("syncSignedInAs").textContent = email ? `As ${email}.` : "";
+  let accountProfile = null;
+
+  function showAccount(email, profile) {
+    accountProfile = profile || null;
+    const full = profile ? [profile.first_name, profile.last_name].filter(Boolean).join(" ") : "";
+    $("accountName").textContent = full || "Signed in";
+    $("syncSignedInAs").textContent = profile ? `@${profile.username} · ${email}` : `${email || ""} · no name added yet`;
+    $("accountAvatar").textContent = ((profile && profile.first_name) || email || "?").charAt(0).toUpperCase();
+    $("btnEditProfile").textContent = profile ? "Edit profile" : "Add your name";
+  }
+
+  function openProfile(open) {
+    $("profileForm").hidden = !open;
+    if (!open) return;
+    $("profileFirst").value = accountProfile?.first_name || "";
+    $("profileLast").value = accountProfile?.last_name || "";
+    $("profileUsername").value = accountProfile?.username || "";
+    $("profileFirst").focus();
   }
 
   async function busy(button, label, work) {
@@ -951,7 +967,7 @@
     try {
       const st = await api("/api/cloud/status");
       if (st.configured && !st.signed_in) return window.location.replace("/sign-in");
-      showAccount(st.email);
+      showAccount(st.email, st.profile);
       renderSyncStatus(st.sync);
       pollSync();
     } catch (_) {}
@@ -971,6 +987,34 @@
 
   function wireSync() {
     if (!$("syncGroup")) return;
+    $("btnEditProfile").addEventListener("click", () => openProfile($("profileForm").hidden));
+    $("btnProfileCancel").addEventListener("click", () => openProfile(false));
+    $("profileUsername").addEventListener("input", (ev) => {
+      const v = ev.target.value.toLowerCase().replace(/^@/, "").replace(/[^a-z0-9_.]/g, "");
+      if (v !== ev.target.value) ev.target.value = v;
+    });
+    $("profileForm").addEventListener("submit", async (ev) => {
+      ev.preventDefault();
+      const body = {
+        first_name: $("profileFirst").value,
+        last_name: $("profileLast").value,
+        username: $("profileUsername").value,
+      };
+      const st = await busy($("btnProfileSave"), "Saving…", () =>
+        api("/api/cloud/profile", { method: "PUT", body: JSON.stringify(body) })
+      );
+      if (st) {
+        showAccount(st.email, st.profile);
+        openProfile(false);
+        toast("Profile saved");
+        const chip = document.getElementById("accountChip");
+        if (chip && st.profile) {
+          chip.querySelector(".account-chip-name").textContent = st.profile.first_name;
+          chip.querySelector(".account-chip-initial").textContent = st.profile.first_name.charAt(0).toUpperCase();
+          chip.title = `@${st.profile.username} · ${st.email}`;
+        }
+      }
+    });
     $("btnSyncNow").addEventListener("click", async (ev) => {
       renderSyncStatus({ running: true });
       const st = await busy(ev.currentTarget, "Syncing…", () => api("/api/cloud/sync-now", { method: "POST" }));

@@ -398,7 +398,7 @@
 
   function sendTestNotification() {
     try {
-      new Notification("Muhurata Timer", { body: "Notifications are working.", silent: true });
+      new Notification("Muhurta Pomodoro", { body: "Notifications are working.", silent: true });
       toast("Test sent");
     } catch (_) {
       toast("Could not show a notification", "error");

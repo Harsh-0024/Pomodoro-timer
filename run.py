@@ -1,4 +1,4 @@
-"""Muhurata launcher: update, install, migrate, serve, open the app window.
+"""Muhurta Pomodoro launcher: update, install, migrate, serve, open the app window.
 
 Double-clicked via the Desktop app/shortcut the installer writes, which
 starts it in the background with no Terminal window, or run directly with
@@ -44,12 +44,16 @@ FIRST_PORT = 8000
 HOST = "127.0.0.1"
 # Started from a Terminal (developer, installer) rather than double-clicked.
 INTERACTIVE = bool(sys.stdin and sys.stdin.isatty())
+# The downloaded Mac app draws its own window (macOS's web view, through
+# pywebview), so it has its own Dock icon. Everything else opens the timer
+# in a browser's app window.
+NATIVE_WINDOW = FROZEN and sys.platform == "darwin"
 # Programs run from a no-console app on Windows would each flash a black
 # console window; this keeps them hidden.
 NO_WINDOW = {"creationflags": subprocess.CREATE_NO_WINDOW} if sys.platform == "win32" else {}
 # Bump when the Desktop launcher changes; installs older than this get theirs
 # rewritten on the next start. Keep in step with packaging/make_macos_app.sh.
-LAUNCHER_VERSION = "2"
+LAUNCHER_VERSION = "3"
 SITE = "https://harsh-0024.github.io/Pomodoro-timer/"
 
 log = logging.getLogger("muhurata.launcher")
@@ -109,7 +113,7 @@ def _notice(text: str):
     if INTERACTIVE:
         return
     if sys.platform == "darwin":
-        script = f'display notification {json.dumps(text)} with title "Muhurata Timer"'
+        script = f'display notification {json.dumps(text)} with title "Muhurta Pomodoro"'
         subprocess.Popen(["osascript", "-e", script], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
@@ -119,18 +123,18 @@ def _alert(message: str, copyable: str | None = None):
         return  # nobody would click OK on a build machine; the log has it all
     try:
         if sys.platform == "darwin":
-            script = f'display alert "Muhurata Timer could not start" message {json.dumps(message)} as critical'
+            script = f'display alert "Muhurta Pomodoro could not start" message {json.dumps(message)} as critical'
             if copyable:
                 script = (f'display dialog {json.dumps(message)} default answer {json.dumps(copyable)} '
-                          'with title "Muhurata Timer could not start" with icon caution buttons {"OK"} default button 1')
+                          'with title "Muhurta Pomodoro could not start" with icon caution buttons {"OK"} default button 1')
             subprocess.run(["osascript", "-e", script], capture_output=True, timeout=3600)
         elif sys.platform == "win32":
             import ctypes
             # Ctrl+C in a Windows message box copies all of its text.
             text = message + (f"\n\n{copyable}\n\n(Press Ctrl+C to copy this message.)" if copyable else "")
-            ctypes.windll.user32.MessageBoxW(None, text, "Muhurata Timer could not start", 0x10)
+            ctypes.windll.user32.MessageBoxW(None, text, "Muhurta Pomodoro could not start", 0x10)
         elif shutil.which("zenity"):
-            subprocess.run(["zenity", "--error", "--title=Muhurata Timer", f"--text={message}\n\n{copyable or ''}"],
+            subprocess.run(["zenity", "--error", "--title=Muhurta Pomodoro", f"--text={message}\n\n{copyable or ''}"],
                            capture_output=True, timeout=3600)
     except Exception:  # a pop-up that fails must not hide the real problem
         log.debug("could not show a pop-up", exc_info=True)
@@ -412,7 +416,7 @@ def _open_when_ready(url: str, open_browser: bool):
     else:
         log.warning("Server did not respond in time; open %s manually.", url)
         return
-    log.info("Muhurata is running at %s  (close the timer window to stop it)", url)
+    log.info("Muhurta Pomodoro is running at %s  (close the timer window to stop it)", url)
     if open_browser:
         open_app_window(url)
 
@@ -436,30 +440,68 @@ def _already_running(data_dir: Path) -> str | None:
     return None
 
 
+def _final_sync():
+    """One last sync so a session finished just before closing is not left
+    waiting for the next start. Bounded: closing must never hang."""
+    import sync
+
+    final = threading.Thread(target=sync.run_once, daemon=True)
+    final.start()
+    final.join(timeout=20)
+
+
 def _quit_when_closed(server, data_dir: Path):
     """Stop the server once every timer window has been closed (see presence.py)."""
     import presence
-    import sync
 
     while True:
         time.sleep(5)
         if presence.should_quit():
             break
     log.info("The timer window was closed - stopping.")
-    # One last sync so a session finished just before closing is not left
-    # waiting for the next start. Bounded: closing must never hang.
-    final = threading.Thread(target=sync.run_once, daemon=True)
-    final.start()
-    final.join(timeout=20)
+    _final_sync()
     server.shutdown()
+
+
+class _WindowApi:
+    """What the page in the app's own window can ask of the app (static/js/native.js)."""
+
+    def notify(self, title: str, body: str = ""):
+        # The web view has no web notifications of its own.
+        script = f"display notification {json.dumps(str(body))} with title {json.dumps(str(title))}"
+        subprocess.Popen(["osascript", "-e", script], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+def _native_window(url: str, data_dir: Path):
+    """Show the timer in the app's own window; returns once it is closed."""
+    import webview
+
+    window = webview.create_window(APP_NAME, url, width=1180, height=820, min_size=(420, 560),
+                                   background_color="#070605", js_api=_WindowApi())
+
+    def closing():
+        # Runs before the window closes, for the close button and for ⌘Q
+        # alike; ⌘Q ends the process straight after, so finish up here.
+        log.info("The timer window was closed - stopping.")
+        _final_sync()
+        _running_file(data_dir).unlink(missing_ok=True)
+
+    window.events.closing += closing
+    # Not private: the page keeps a running session in localStorage, which
+    # has to survive closing the window.
+    webview.start(private_mode=False, storage_path=str(data_dir / "window"))
 
 
 # --------------------------------------------------------------------------- #
 # the Desktop launcher
 # --------------------------------------------------------------------------- #
+APP_NAME = "Muhurta Pomodoro"
+OLD_APP_NAME = "Muhurata Timer"  # before v1.5.0; renamed on the next start
+
+
 def _mac_apps() -> list[Path]:
-    name = "Muhurata Timer.app"
-    return [d / name for d in (Path.home() / "Desktop", Path("/Applications"), Path.home() / "Applications")]
+    folders = (Path.home() / "Desktop", Path("/Applications"), Path.home() / "Applications")
+    return [d / f"{n}.app" for d in folders for n in (APP_NAME, OLD_APP_NAME)]
 
 
 def refresh_launcher():
@@ -482,13 +524,17 @@ def refresh_launcher():
                     # Made for another copy of the timer (say, a developer's
                     # checkout next to a normal install): that copy's job, not ours.
                     continue
-                if marker.exists() and marker.read_text().strip() == LAUNCHER_VERSION:
+                renamed = app.name == f"{OLD_APP_NAME}.app"
+                if not renamed and marker.exists() and marker.read_text().strip() == LAUNCHER_VERSION:
                     continue
                 done = _run(["bash", str(PROJECT_ROOT / "packaging" / "make_macos_app.sh"),
                              str(PROJECT_ROOT), str(app.parent)])
-                log.info("Updated the Muhurata app in %s: it now starts without a Terminal window.", app.parent)
                 if done.returncode != 0:
                     log.debug("make_macos_app.sh failed: %s", done.stderr)
+                    continue
+                if renamed:  # the script made the new-name app beside it
+                    shutil.rmtree(app, ignore_errors=True)
+                log.info("Updated the %s app in %s.", APP_NAME, app.parent)
         elif sys.platform == "win32":
             marker = _data_dir() / "launcher-version"
             if marker.exists() and marker.read_text().strip() == LAUNCHER_VERSION:
@@ -497,7 +543,8 @@ def refresh_launcher():
             if not pythonw.exists():
                 return
             script = (
-                "$d = [Environment]::GetFolderPath('Desktop'); $p = Join-Path $d 'Muhurata Timer.lnk';"
+                "$d = [Environment]::GetFolderPath('Desktop'); $p = Join-Path $d 'Muhurta Pomodoro.lnk';"
+                f"$o = Join-Path $d '{OLD_APP_NAME}.lnk'; if (Test-Path $o) {{ Move-Item -Force $o $p }};"
                 "if (Test-Path $p) { $l = (New-Object -ComObject WScript.Shell).CreateShortcut($p);"
                 f"$l.TargetPath = '{pythonw}'; $l.Arguments = 'run.py'; $l.WorkingDirectory = '{PROJECT_ROOT}';"
                 "$l.Save() }"
@@ -524,6 +571,19 @@ def _load_app():
     return db, app, make_server
 
 
+def _skip_host_lookup():
+    """Starting a server makes http.server look up this computer's network
+    name. Nothing here uses it, and on some networks it stalls for ~30 s."""
+    import http.server
+    import socketserver
+
+    def server_bind(self):
+        socketserver.TCPServer.server_bind(self)
+        self.server_name, self.server_port = self.server_address[:2]
+
+    http.server.HTTPServer.server_bind = server_bind
+
+
 def doctor(data_dir: Path) -> int:
     """Print what a friend would need to paste into a bug report."""
     import platform
@@ -531,7 +591,7 @@ def doctor(data_dir: Path) -> int:
 
     from version import __version__
 
-    print(f"Muhurata {__version__}{' (bundled)' if FROZEN else ''}")
+    print(f"Muhurta Pomodoro {__version__}{' (bundled)' if FROZEN else ''}")
     print(f"Python    : {sys.version.split()[0]}  ({sys.executable})")
     print(f"OS        : {platform.platform()}")
     print(f"Code dir  : {PROJECT_ROOT}")
@@ -581,16 +641,16 @@ def main(argv: list[str]) -> int:
     _setup_logging(data_dir)
     from version import __version__  # noqa: E402
 
-    log.info("---- Muhurata %s start (python %s%s) ----", __version__, sys.version.split()[0], ", bundled" if FROZEN else "")
+    log.info("---- Muhurta Pomodoro %s start (python %s%s) ----", __version__, sys.version.split()[0], ", bundled" if FROZEN else "")
 
     running = _already_running(data_dir)
     if running:
-        log.info("Muhurata is already running at %s - opening its window.", running)
+        log.info("Muhurta Pomodoro is already running at %s - opening its window.", running)
         if open_browser:
             open_app_window(running)
         return 0
 
-    if sys.platform == "darwin" and not INTERACTIVE and "--background" not in argv:
+    if sys.platform == "darwin" and not INTERACTIVE and not NATIVE_WINDOW and "--background" not in argv:
         # Started by double-clicking the app. Carry on in a separate process
         # and let this one end at once: while the app's own process lives,
         # macOS treats the app as open, and double-clicking it again would only
@@ -639,8 +699,21 @@ def main(argv: list[str]) -> int:
     url = f"http://{HOST}:{port}/"
     # make_server rather than app.run: no "development server" banner, and
     # the request log goes through logging (file) instead of raw stderr.
+    _skip_host_lookup()
     server = make_server(HOST, port, app, threaded=True)
     _running_file(data_dir).write_text(json.dumps({"url": url, "pid": os.getpid()}))
+    if NATIVE_WINDOW and open_browser:
+        # The window needs this (main) thread, so the server runs beside it.
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        log.info("Muhurta Pomodoro is running at %s  (close the timer window to stop it)", url)
+        try:
+            _native_window(url, data_dir)
+        finally:
+            server.shutdown()
+            server.server_close()
+            _running_file(data_dir).unlink(missing_ok=True)
+        log.info("Stopped.")
+        return 0
     threading.Thread(target=_open_when_ready, args=(url, open_browser), daemon=True).start()
     if open_browser:
         threading.Thread(target=_quit_when_closed, args=(server, data_dir), daemon=True).start()
@@ -680,7 +753,7 @@ def _explain_failure():
     line = "-" * 64
     print(
         f"\n{line}\n"
-        "  Muhurata could not start.\n\n"
+        "  Muhurta Pomodoro could not start.\n\n"
         "  This almost always fixes it - copy the line below, paste it\n"
         "  into this window and press Enter:\n\n"
         f"    {REPAIR_CMD}\n\n"

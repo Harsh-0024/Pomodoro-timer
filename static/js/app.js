@@ -2,7 +2,7 @@
   "use strict";
 
   const RING_LEN = 2 * Math.PI * 96;
-  const baseTitle = "Muhurata timer";
+  const baseTitle = "Muhurta Pomodoro";
   const SESSION_STORAGE_KEY = "muhurat_timer_session_v1";
   const FLOW_STORAGE_KEY = "muhurat_flow_session_v1";
   const SESSION_COMMAND_KEY = "muhurat_session_command_v1";

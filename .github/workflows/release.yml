@@ -54,10 +54,10 @@ jobs:
         shell: bash
         run: |
           if [ "$RUNNER_OS" = "Windows" ]; then
-            exe="dist/Muhurata Timer/Muhurata Timer.exe"
+            exe="dist/Muhurta Pomodoro/Muhurta Pomodoro.exe"
             logfile="$(cygpath "$LOCALAPPDATA")/MuhurataTimer/launcher.log"
           else
-            exe="dist/Muhurata Timer.app/Contents/MacOS/Muhurata Timer"
+            exe="dist/Muhurta Pomodoro.app/Contents/MacOS/Muhurta Pomodoro"
             logfile="$HOME/Library/Application Support/MuhurataTimer/launcher.log"
           fi
           "$exe" --no-browser > /dev/null 2>&1 &
@@ -84,18 +84,25 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           cd dist
-          ditto -c -k --sequesterRsrc --keepParent "Muhurata Timer.app" "../Muhurata-Timer-${{ matrix.label }}.zip"
+          ditto -c -k --sequesterRsrc --keepParent "Muhurta Pomodoro.app" "../Muhurta-Pomodoro-${{ matrix.label }}.zip"
+
+      # The usual Mac download: open it, drag the app onto Applications.
+      - name: Disk image (macOS)
+        if: runner.os == 'macOS'
+        run: bash packaging/make_dmg.sh "dist/Muhurta Pomodoro.app" "Muhurta-Pomodoro-${{ matrix.label }}.dmg"
 
       - name: Zip (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          Compress-Archive -Path "dist/Muhurata Timer" -DestinationPath "Muhurata-Timer-${{ matrix.label }}.zip"
+          Compress-Archive -Path "dist/Muhurta Pomodoro" -DestinationPath "Muhurta-Pomodoro-${{ matrix.label }}.zip"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: Muhurata-Timer-${{ matrix.label }}
-          path: Muhurata-Timer-*.zip
+          name: Muhurta-Pomodoro-${{ matrix.label }}
+          path: |
+            Muhurta-Pomodoro-*.zip
+            Muhurta-Pomodoro-*.dmg
 
   release:
     needs: build
@@ -108,7 +115,9 @@ jobs:
           merge-multiple: true
       - uses: softprops/action-gh-release@v2
         with:
-          files: artifacts/*.zip
+          files: |
+            artifacts/*.zip
+            artifacts/*.dmg
           generate_release_notes: true
           body: |
             **Easiest way to install:** https://harsh-0024.github.io/Pomodoro-timer/
@@ -119,11 +128,12 @@ jobs:
 
             | | |
             |---|---|
-            | `Muhurata-Timer-macos-arm64.zip` | Mac with Apple Silicon |
-            | `Muhurata-Timer-windows-x64.zip` | Windows, 64-bit |
+            | `Muhurta-Pomodoro-macos-arm64.dmg` | Mac with Apple Silicon (open it, drag the app to Applications) |
+            | `Muhurta-Pomodoro-macos-arm64.zip` | the same Mac app, zipped |
+            | `Muhurta-Pomodoro-windows-x64.zip` | Windows, 64-bit |
 
             Both are unsigned, so your computer shows a warning the first time —
-            **Windows:** More info → Run anyway. **Mac:** see the website, Apple needs
-            one Terminal command.
+            **Windows:** More info → Run anyway. **Mac:** System Settings → Privacy &
+            Security → Open Anyway (the website shows where).
 
             Your data lives outside the app folder, so replacing the folder with a newer version keeps your history.

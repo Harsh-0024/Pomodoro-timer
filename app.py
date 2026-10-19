@@ -361,7 +361,8 @@ def api_quote():
 # on every launch, so nagging them about a release would be noise.
 IS_BUNDLED = getattr(sys, "frozen", False)
 RELEASES_API = "https://api.github.com/repos/Harsh-0024/Pomodoro-timer/releases/latest"
-RELEASES_PAGE = "https://github.com/Harsh-0024/Pomodoro-timer/releases/latest"
+# The download page picks the right file for the computer and shows the steps.
+DOWNLOAD_PAGE = "https://harsh-0024.github.io/Pomodoro-timer/download.html"
 UPDATE_CHECK_INTERVAL = 24 * 60 * 60  # once a day is plenty
 
 
@@ -404,7 +405,7 @@ def api_version():
         return jsonify(payload)
     latest = _cached_latest_version()
     if latest and _version_tuple(latest) > _version_tuple(__version__):
-        payload.update(update_available=True, latest=latest, url=RELEASES_PAGE)
+        payload.update(update_available=True, latest=latest, url=DOWNLOAD_PAGE)
     return jsonify(payload)
 
 

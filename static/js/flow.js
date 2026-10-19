@@ -5,7 +5,7 @@
   const TIMER_STORAGE_KEY = "muhurat_timer_session_v1";
   const SESSION_COMMAND_KEY = "muhurat_session_command_v1";
   const ACTIVE_TIMER_MODES = new Set(["work", "extend", "rest", "cumulative"]);
-  const baseTitle = "Muhurata timer";
+  const baseTitle = "Muhurta Pomodoro";
   let tickTimer = null;
   let quoteLoadId = 0;
   let settings = null;

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build "Muhurata Timer.app" — a proper Mac app bundle (real name, real icon)
+# Build "Muhurta Pomodoro.app" — a proper Mac app bundle (real name, real icon)
 # that opens the timer. Called by install.sh; safe to run again to rebuild.
 #
 #   packaging/make_macos_app.sh <install-dir> <output-dir>
@@ -7,7 +7,7 @@ set -euo pipefail
 
 INSTALL_DIR="${1:?install dir required}"
 OUT_DIR="${2:?output dir required}"
-APP="$OUT_DIR/Muhurata Timer.app"
+APP="$OUT_DIR/Muhurta Pomodoro.app"
 VERSION="$(sed -n 's/.*"\(.*\)".*/\1/p' "$INSTALL_DIR/version.py" 2>/dev/null || echo 1.0.0)"
 
 rm -rf "$APP"
@@ -15,7 +15,7 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
 # Bump with LAUNCHER_VERSION in run.py: an install whose app is older gets it
 # rebuilt on its next start.
-LAUNCHER_VERSION=2
+LAUNCHER_VERSION=3
 
 # The bundle's executable starts the launcher in the background - no
 # Terminal window. Closing the timer's window stops it; anything worth
@@ -35,8 +35,8 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>CFBundleName</key><string>Muhurata Timer</string>
-  <key>CFBundleDisplayName</key><string>Muhurata Timer</string>
+  <key>CFBundleName</key><string>Muhurta Pomodoro</string>
+  <key>CFBundleDisplayName</key><string>Muhurta Pomodoro</string>
   <key>CFBundleIdentifier</key><string>com.muhurata.timer.launcher</string>
   <key>CFBundleExecutable</key><string>muhurata</string>
   <key>CFBundleIconFile</key><string>icon</string>

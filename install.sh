@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Muhurata Focus Timer — one-line installer / updater for macOS and Linux.
+# Muhurta Pomodoro — one-line installer / updater for macOS and Linux.
 #
 #   curl -fsSL https://raw.githubusercontent.com/Harsh-0024/Pomodoro-timer/main/install.sh | bash
 #
@@ -37,7 +37,7 @@ if [[ -d "$INSTALL_DIR/.git" ]]; then
   git -C "$INSTALL_DIR" fetch --quiet origin
   git -C "$INSTALL_DIR" reset --hard --quiet origin/main
 else
-  say "Downloading Muhurata into $INSTALL_DIR"
+  say "Downloading Muhurta Pomodoro into $INSTALL_DIR"
   git clone --quiet "$REPO_URL" "$INSTALL_DIR"
 fi
 cd "$INSTALL_DIR"
@@ -96,7 +96,7 @@ fi
 # Packages themselves are installed by run.py (only when requirements change).
 
 # ---------------------------------------------------------------- launcher
-LAUNCHER="$INSTALL_DIR/Muhurata Timer.command"
+LAUNCHER="$INSTALL_DIR/Muhurta Pomodoro.command"
 cat > "$LAUNCHER" <<LAUNCH
 #!/usr/bin/env bash
 cd "$INSTALL_DIR" && exec ".venv/bin/python" run.py "\$@"
@@ -108,16 +108,21 @@ if [[ -d "$HOME/Desktop" ]]; then
     # A real .app bundle: proper name and icon in Finder and the Dock.
     bash "$INSTALL_DIR/packaging/make_macos_app.sh" "$INSTALL_DIR" "$HOME/Desktop"
     rm -f "$HOME/Desktop/Muhurata Timer.command"   # tidy up pre-.app installs
-    say "App placed on your Desktop: 'Muhurata Timer' (double-click it next time)"
+    # The app was called "Muhurata Timer" before v1.5.0: remove that launcher
+    # if it starts this install (one for another copy is left alone).
+    OLD_APP="$HOME/Desktop/Muhurata Timer.app"
+    if grep -qs "\"$INSTALL_DIR\"" "$OLD_APP/Contents/MacOS/muhurata"; then rm -rf "$OLD_APP"; fi
+    say "App placed on your Desktop: 'Muhurta Pomodoro' (double-click it next time)"
   else
-    cp "$LAUNCHER" "$HOME/Desktop/Muhurata Timer.command"
-    chmod +x "$HOME/Desktop/Muhurata Timer.command"
-    say "Launcher placed on your Desktop: 'Muhurata Timer.command' (double-click it next time)"
+    rm -f "$HOME/Desktop/Muhurata Timer.command"   # its name before v1.5.0
+    cp "$LAUNCHER" "$HOME/Desktop/Muhurta Pomodoro.command"
+    chmod +x "$HOME/Desktop/Muhurta Pomodoro.command"
+    say "Launcher placed on your Desktop: 'Muhurta Pomodoro.command' (double-click it next time)"
   fi
 fi
 
 # ---------------------------------------------------------------- run
-say "Starting Muhurata..."
+say "Starting Muhurta Pomodoro..."
 # Reattach stdin to the terminal (we were piped from curl) so Ctrl+C / prompts work.
 if { : </dev/tty; } 2>/dev/null; then
   exec ".venv/bin/python" run.py "$@" </dev/tty

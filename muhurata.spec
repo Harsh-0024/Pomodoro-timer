@@ -3,8 +3,8 @@
 # is slow and trips antivirus). No console window: the timer opens in its own
 # window, closing that window stops it, and problems appear in a pop-up.
 #
-#   python -m PyInstaller muhurata.spec        ->  dist/Muhurata Timer/
-#                                                  (+ dist/Muhurata Timer.app on a Mac)
+#   python -m PyInstaller muhurata.spec        ->  dist/Muhurta Pomodoro/
+#                                                  (+ dist/Muhurta Pomodoro.app on a Mac)
 import re
 import sys
 
@@ -39,7 +39,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name="Muhurata Timer",
+    name="Muhurta Pomodoro",
     debug=False,
     strip=False,
     upx=False,
@@ -52,22 +52,21 @@ coll = COLLECT(
     a.datas,
     strip=False,
     upx=False,
-    name="Muhurata Timer",
+    name="Muhurta Pomodoro",
 )
 
 if sys.platform == "darwin":
     VERSION = re.search(r'"(.+)"', open("version.py").read()).group(1)
     app = BUNDLE(
         coll,
-        name="Muhurata Timer.app",
+        name="Muhurta Pomodoro.app",
         icon="packaging/icon.icns",
         bundle_identifier="com.muhurata.timer",
         version=VERSION,
         info_plist={
-            "CFBundleDisplayName": "Muhurata Timer",
+            "CFBundleDisplayName": "Muhurta Pomodoro",
             "NSHighResolutionCapable": True,
-            # The timer's window is the app; the launcher underneath has no
-            # window, so no Dock icon or "not responding" for it.
-            "LSUIElement": True,
+            # The app draws the timer's window itself (pywebview), so it gets
+            # a Dock icon and a menu bar like any other app.
         },
     )

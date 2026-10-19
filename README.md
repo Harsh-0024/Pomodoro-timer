@@ -1,7 +1,9 @@
-# Muhurata Focus Timer
+# Muhurta Pomodoro
 
-A focus/pomodoro timer with a history dashboard. It runs on your own computer
-(nothing is uploaded anywhere) and opens in a window of its own.
+A focus/pomodoro timer with a history dashboard. It runs on your own computer,
+works offline, and opens in a window of its own. Sign in (Settings → Back up &
+sync) to have your history backed up online and synced between computers;
+without signing in, nothing leaves your computer.
 
 > 1 Muhurat = 48 min · 1 Ghadi = 24 min
 
@@ -29,8 +31,8 @@ irm https://raw.githubusercontent.com/Harsh-0024/Pomodoro-timer/main/install.ps1
 ```
 
 What it does: downloads the app into `~/MuhurataTimer`, sets up Python
-packages, puts a **Muhurata Timer** launcher on your Desktop, and starts the
-app. From then on just double-click **Muhurata Timer** on your Desktop (a real
+packages, puts a **Muhurta Pomodoro** launcher on your Desktop, and starts the
+app. From then on just double-click **Muhurta Pomodoro** on your Desktop (a real
 app icon on macOS) — it checks for updates every time it starts, so you never
 need to update by hand.
 
@@ -44,25 +46,28 @@ Windows: [git for Windows](https://git-scm.com/download/win), or `winget install
 
 ### Option B — download a ready-made app (no terminal needed)
 
-Grab the zip for your system from the
-[latest release](https://github.com/Harsh-0024/Pomodoro-timer/releases/latest),
-unzip it, and open the `Muhurata Timer` folder.
+Open **https://harsh-0024.github.io/Pomodoro-timer/download.html** — it
+downloads the right file for your computer and shows each step. Or grab it
+yourself from the
+[latest release](https://github.com/Harsh-0024/Pomodoro-timer/releases/latest).
 
-- **Windows:** double-click `Muhurata Timer.exe`. SmartScreen will say
-  *Windows protected your PC* — click **More info → Run anyway** (first time
-  only; the app isn't signed with a paid certificate, that's all).
-- **macOS (Apple Silicon):** macOS blocks unsigned apps. Open *Terminal*,
-  type `xattr -dr com.apple.quarantine ` (note the trailing space), drag the
-  `Muhurata Timer` folder into the window, press Enter. Then double-click
-  `Muhurata Timer` inside the folder. If you have Python anyway, Option A is
-  smoother on a Mac.
+- **macOS (Apple Silicon):** open `Muhurta-Pomodoro-macos-arm64.dmg` and drag
+  **Muhurta Pomodoro** onto **Applications**. The first time you open it, macOS
+  says it could not check the app: click **Done**, then **System Settings →
+  Privacy & Security → Open Anyway**. After that it opens like any other app
+  (the warning is only because the app isn't registered with Apple).
+- **Windows:** unzip `Muhurta-Pomodoro-windows-x64.zip` and double-click
+  `Muhurta Pomodoro.exe`. SmartScreen will say *Windows protected your PC* —
+  click **More info → Run anyway** (first time only; the app isn't signed with
+  a paid certificate, that's all).
 
-To update, download the newer zip and replace the folder. Your data is kept.
-The app shows a small note in its footer when a newer version exists.
+To update, download the newer version and replace the app (on a Mac, drag it
+onto Applications again and choose **Replace**). Your data is kept. The app
+shows a small note in its footer when a newer version exists.
 
 ## Using it
 
-Double-click **Muhurata Timer** and the timer opens in its own window, with no
+Double-click **Muhurta Pomodoro** and the timer opens in its own window, with no
 Terminal window. **Close the timer's window to stop the app** (it stops a few
 seconds later, after a last sync). Double-clicking again while it runs just
 brings the window back. If something goes wrong, a pop-up says what to do.
@@ -93,7 +98,7 @@ Run the doctor and send the output along with `launcher.log`:
 & "$HOME\MuhurataTimer\.venv\Scripts\python.exe" "$HOME\MuhurataTimer\run.py" --doctor   # Windows
 ```
 
-(For the zip version: run `Muhurata Timer --doctor` from inside the folder.)
+(For the zip version: run `Muhurta Pomodoro --doctor` from inside the folder.)
 
 ---
 

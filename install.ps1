@@ -1,9 +1,9 @@
-# Muhurata Focus Timer — one-line installer / updater for Windows.
+# Muhurta Pomodoro — one-line installer / updater for Windows.
 #
 #   irm https://raw.githubusercontent.com/Harsh-0024/Pomodoro-timer/main/install.ps1 | iex
 #
 # Installs into %USERPROFILE%\MuhurataTimer (override with $env:MUHURATA_DIR),
-# writes a "Muhurata Timer" shortcut on the Desktop, and starts the app.
+# writes a "Muhurta Pomodoro" shortcut on the Desktop, and starts the app.
 # Running the same line again updates an existing install.
 #
 # Python is not assumed to exist: uv fetches the exact version pinned in
@@ -33,7 +33,7 @@ if (Test-Path (Join-Path $InstallDir ".git")) {
     git -C $InstallDir fetch --quiet origin
     git -C $InstallDir reset --hard --quiet origin/main
 } else {
-    Say "Downloading Muhurata into $InstallDir"
+    Say "Downloading Muhurta Pomodoro into $InstallDir"
     git clone --quiet $RepoUrl $InstallDir
 }
 Set-Location $InstallDir
@@ -111,7 +111,7 @@ if ($needVenv) {
 # Packages themselves are installed by run.py (only when requirements change).
 
 # ---------------------------------------------------------------- launcher
-$Bat = Join-Path $InstallDir "Muhurata Timer.bat"
+$Bat = Join-Path $InstallDir "Muhurta Pomodoro.bat"
 @"
 @echo off
 cd /d "$InstallDir"
@@ -121,8 +121,10 @@ if errorlevel 1 pause
 
 $Desktop = [Environment]::GetFolderPath("Desktop")
 if (Test-Path $Desktop) {
+    # Called "Muhurata Timer" before v1.5.0.
+    Remove-Item -Force -ErrorAction SilentlyContinue (Join-Path $Desktop "Muhurata Timer.lnk")
     $Shell = New-Object -ComObject WScript.Shell
-    $Lnk = $Shell.CreateShortcut((Join-Path $Desktop "Muhurata Timer.lnk"))
+    $Lnk = $Shell.CreateShortcut((Join-Path $Desktop "Muhurta Pomodoro.lnk"))
     # pythonw: no console window. Closing the timer's window stops it, and
     # problems appear in a pop-up. The .bat stays for starting it by hand.
     $VenvPyw = Join-Path $InstallDir ".venv\Scripts\pythonw.exe"
@@ -133,11 +135,11 @@ if (Test-Path $Desktop) {
         $Lnk.TargetPath = $Bat
     }
     $Lnk.WorkingDirectory = $InstallDir
-    $Lnk.Description = "Muhurata Focus Timer"
+    $Lnk.Description = "Muhurta Pomodoro"
     $Lnk.Save()
-    Say "Shortcut placed on your Desktop: 'Muhurata Timer' (double-click it next time)"
+    Say "Shortcut placed on your Desktop: 'Muhurta Pomodoro' (double-click it next time)"
 }
 
 # ---------------------------------------------------------------- run
-Say "Starting Muhurata..."
+Say "Starting Muhurta Pomodoro..."
 & $VenvPy run.py

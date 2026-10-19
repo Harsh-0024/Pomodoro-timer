@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Downloading Muhurata Timer</title>
-<meta name="description" content="Your Muhurata Timer download, and what to do once it finishes." />
+<title>Downloading Muhurta Pomodoro</title>
+<meta name="description" content="Your Muhurta Pomodoro download, and what to do once it finishes." />
 <meta name="robots" content="noindex" />
 <meta name="theme-color" content="#070605" media="(prefers-color-scheme: dark)" />
 <meta name="theme-color" content="#f2f0ea" media="(prefers-color-scheme: light)" />
@@ -28,7 +28,7 @@
       </g>
     </svg>
     <h1 id="title">Downloading…</h1>
-    <p class="lede" id="lede">Your copy of <strong>Muhurata Timer</strong> is on its way.</p>
+    <p class="lede" id="lede">Your copy of <strong>Muhurta Pomodoro</strong> is on its way.</p>
   </header>
 
   <p class="dl-status" id="status"><span class="dot"></span><span id="statusText">Starting the download…</span></p>
@@ -46,8 +46,10 @@
     <ol class="walk">
       <li>Your sessions are saved <b>outside</b> the app folder, so replacing the app
         with a newer version never loses your history.</li>
-      <li>The app runs <b>only on your computer</b>. Nothing is uploaded anywhere.</li>
-      <li>When a newer version exists, the app quietly tells you in its footer.</li>
+      <li>The app works <b>on your computer, even offline</b>. Your history stays there
+        unless you sign in under <b>Settings → Back up &amp; sync</b>; then it is also
+        backed up online and shared with your other computers.</li>
+      <li>When a newer version exists, the app shows a link in its footer that brings you back here.</li>
     </ol>
   </div>
 
@@ -62,41 +64,46 @@
   // so this page never needs updating when a new version ships.
   const BUILDS = {
     mac: {
-      file: "Muhurata-Timer-macos-arm64.zip",
+      file: "Muhurta-Pomodoro-macos-arm64.dmg",
       title: "Downloading for Mac",
       steps: [
         `Open your <b>Downloads</b> folder and double-click
-         <span class="inline-code">Muhurata-Timer-macos-arm64.zip</span> to unzip it.`,
-        `Drag the unzipped <b>Muhurata Timer</b> app into your <b>Applications</b>
-         folder.`,
-        `Apple blocks apps that are not from the App Store, so the first launch needs
-         one command. Open <b>Terminal</b> (⌘ + Space, type "Terminal"), type
-         <span class="inline-code">xattr -dr com.apple.quarantine&nbsp;</span>
-         with a space at the end, then <b>drag the Muhurata Timer app into the
-         Terminal window</b> and press Enter.`,
-        `Double-click <b>Muhurata Timer</b>. The timer opens in its own window; close
-         that window when you are done and the app stops by itself.`,
+         <span class="inline-code">Muhurta-Pomodoro-macos-arm64.dmg</span>. A small
+         window opens with the app and an <b>Applications</b> folder.`,
+        `Drag <b>Muhurta Pomodoro</b> onto the <b>Applications</b> folder in that
+         window. That installs it. You can then close the window and eject
+         <b>Muhurta Pomodoro</b> from the Finder sidebar.`,
+        `Open <b>Muhurta Pomodoro</b> from Launchpad or Applications. The first time,
+         your Mac says it could not check the app. Click <b>Done</b>.`,
+        `Open <b>System Settings</b> → <b>Privacy &amp; Security</b>, scroll down to
+         <i>"Muhurta Pomodoro" was blocked</i> and click <b>Open Anyway</b>. Confirm
+         with your password or Touch ID if asked, then click <b>Open Anyway</b> once
+         more.`,
+        `The timer opens in its own window. From now on it opens normally, like
+         any other app. Close the window when you are done and the app stops by
+         itself.`,
       ],
-      note: `Step 3 feels fiddly because the app is not signed with Apple's paid
-             certificate. If you would rather skip it, the one-line installer on the
-             previous page does everything for you.`,
+      note: `Steps 3 and 4 happen only the first time. The warning appears because the
+             app is not registered with Apple (that costs $99 a year), not because
+             anything is wrong. Updating later: download the new version and drag it
+             onto Applications again. Choose <b>Replace</b>; your history is kept.`,
     },
     win: {
-      file: "Muhurata-Timer-windows-x64.zip",
+      file: "Muhurta-Pomodoro-windows-x64.zip",
       title: "Downloading for Windows",
       steps: [
         `Open your <b>Downloads</b> folder, right-click
-         <span class="inline-code">Muhurata-Timer-windows-x64.zip</span> and choose
+         <span class="inline-code">Muhurta-Pomodoro-windows-x64.zip</span> and choose
          <b>Extract All</b>.`,
-        `Open the extracted <b>Muhurata Timer</b> folder and double-click
-         <b>Muhurata Timer.exe</b>.`,
+        `Open the extracted <b>Muhurta Pomodoro</b> folder and double-click
+         <b>Muhurta Pomodoro.exe</b>.`,
         `Windows will show <b>"Windows protected your PC"</b>. Click <b>More info</b>,
          then <b>Run anyway</b>. You only do this the first time — it appears because
          the app has no paid publisher certificate, not because anything is wrong.`,
         `The timer opens in its own window. Close that window when you are done and
          the app stops by itself.`,
       ],
-      note: `Want a shortcut on your Desktop? Right-click <b>Muhurata Timer.exe</b> →
+      note: `Want a shortcut on your Desktop? Right-click <b>Muhurta Pomodoro.exe</b> →
              <b>Send to</b> → <b>Desktop</b>.`,
     },
   };
@@ -107,7 +114,7 @@
   const build = BUILDS[os];
   const url = `${REPO}/releases/latest/download/${build.file}`;
 
-  document.title = `${build.title} — Muhurata Timer`;
+  document.title = `${build.title} — Muhurta Pomodoro`;
   document.getElementById("title").textContent = build.title;
   document.getElementById("manual").href = url;
 

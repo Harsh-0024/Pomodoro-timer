@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import ssl
 import threading
 import time
 import urllib.error
@@ -34,6 +35,16 @@ TIMEOUT = 15  # seconds; a slow connection should fail, not hang
 REFRESH_EARLY = 120  # renew the access token this many seconds before it expires
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 CODE_RE = re.compile(r"^\d{6,10}$")
+
+# Our own list of trusted certificates, so HTTPS works however Python was
+# installed. The python.org Mac installer and some frozen builds ship
+# without one, and every secure connection then fails.
+try:
+    import certifi
+
+    _SSL = ssl.create_default_context(cafile=certifi.where())
+except ImportError:  # pragma: no cover - certifi is in requirements.txt
+    _SSL = ssl.create_default_context()
 
 _lock = threading.Lock()  # one refresh at a time (the sync thread and a page may race)
 
@@ -75,7 +86,7 @@ def _request(method: str, path: str, body: dict | None = None, token: str | None
         headers["Authorization"] = f"Bearer {token}"
     req = urllib.request.Request(f"{SUPABASE_URL}{path}", data=data, headers=headers, method=method)
     try:
-        with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
+        with urllib.request.urlopen(req, timeout=TIMEOUT, context=_SSL) as resp:
             raw = resp.read()
             return resp.status, (json.loads(raw) if raw else None)
     except urllib.error.HTTPError as exc:
@@ -84,7 +95,13 @@ def _request(method: str, path: str, body: dict | None = None, token: str | None
             return exc.code, json.loads(raw) if raw else None
         except ValueError:
             return exc.code, None
-    except (urllib.error.URLError, TimeoutError, OSError):
+    except urllib.error.URLError as exc:
+        if isinstance(exc.reason, ssl.SSLError):
+            # Online, but the connection could not be verified as secure.
+            raise CloudError("Couldn't make a secure connection to the sync service. "
+                             "Check the date and time on this computer, then try again.", 502) from None
+        raise Offline() from None
+    except (TimeoutError, OSError):
         raise Offline() from None
 
 

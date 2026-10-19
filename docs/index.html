@@ -81,12 +81,16 @@
       <p class="cta-meta" id="heroMeta">Free · Apple Silicon Macs · <a href="download.html?os=win">Windows version</a></p>
     </div>
 
+    <div class="theme-switch hero-switch rise" role="group" aria-label="Timer appearance" data-for="heroImg">
+      <button type="button" data-theme="dark" aria-pressed="true">Dark</button>
+      <button type="button" data-theme="light" aria-pressed="false">Light</button>
+    </div>
     <div class="window rise">
       <div class="window-bar">
         <div class="lights"><i></i><i></i><i></i></div>
         <div class="window-title">Muhurta Pomodoro</div>
       </div>
-      <img id="heroImg" src="img/timer.jpg" width="2200" height="1478" alt="The Muhurta Pomodoro timer: a 36-minute deep work session, ready to start" />
+      <img id="heroImg" data-dark="img/timer.jpg" data-light="img/timer-light.jpg" src="img/timer.jpg" width="2200" height="1478" alt="The Muhurta Pomodoro timer: a 36-minute deep work session, ready to start" />
       <script>
         // Light screenshot straight away on a light page (no swap on load).
         if (document.documentElement.dataset.theme === "light") document.getElementById("heroImg").src = "img/timer-light.jpg";
@@ -183,7 +187,7 @@
         <p class="eyebrow">The dashboard</p>
         <h2>See your discipline take shape.</h2>
       </div>
-      <div class="theme-switch reveal" role="group" aria-label="App appearance">
+      <div class="theme-switch reveal" role="group" aria-label="Dashboard appearance" data-for="showcaseImg">
         <button type="button" data-theme="dark" aria-pressed="true">Dark</button>
         <button type="button" data-theme="light" aria-pressed="false">Light</button>
       </div>
@@ -193,7 +197,7 @@
         <div class="lights"><i></i><i></i><i></i></div>
         <div class="window-title">Muhurta Pomodoro: Dashboard</div>
       </div>
-      <img id="showcaseImg" src="img/dashboard.jpg" width="2200" height="1478" loading="lazy" alt="The dashboard: focus this year, current streak, a yearly consistency calendar and a rhythm profile" />
+      <img id="showcaseImg" data-dark="img/dashboard.jpg" data-light="img/dashboard-light.jpg" src="img/dashboard.jpg" width="2200" height="1478" loading="lazy" alt="The dashboard: focus this year, current streak, a yearly consistency calendar and a rhythm profile" />
     </div>
   </div>
 </section>
@@ -314,10 +318,8 @@
   const nav = document.getElementById("nav");
   addEventListener("scroll", () => nav.classList.toggle("scrolled", scrollY > 10), { passive: true });
 
-  // Screenshots match the site's theme; the dashboard's own Dark / Light
-  // buttons can still show the other one.
-  const img = document.getElementById("showcaseImg");
-  const hero = document.getElementById("heroImg");
+  // Screenshots match the site's theme; each screenshot's own Dark / Light
+  // switch can still show the other one.
   const swap = (el, src) => {
     if (el.getAttribute("src") === src) return;
     el.style.opacity = 0;
@@ -326,14 +328,15 @@
       el.src = src;
     }, 200);
   };
-  function showDashboard(theme) {
-    document.querySelectorAll(".theme-switch button").forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.theme === theme)));
-    swap(img, theme === "light" ? "img/dashboard-light.jpg" : "img/dashboard.jpg");
+  const switches = document.querySelectorAll(".theme-switch[data-for]");
+  function show(sw, theme) {
+    sw.querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.theme === theme)));
+    const img = document.getElementById(sw.dataset.for);
+    swap(img, img.dataset[theme]);
   }
-  document.querySelectorAll(".theme-switch button").forEach((b) => b.addEventListener("click", () => showDashboard(b.dataset.theme)));
+  switches.forEach((sw) => sw.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => show(sw, b.dataset.theme))));
   function followTheme(theme) {
-    swap(hero, theme === "light" ? "img/timer-light.jpg" : "img/timer.jpg");
-    showDashboard(theme);
+    switches.forEach((sw) => show(sw, theme));
   }
   followTheme(document.documentElement.dataset.theme);
   document.addEventListener("themechange", (e) => followTheme(e.detail));

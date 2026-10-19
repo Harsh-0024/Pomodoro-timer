@@ -493,6 +493,8 @@ h2 {
 }
 .theme-switch button[aria-pressed="true"] { background: var(--card-strong); color: var(--ink); }
 .showcase .window { margin-top: 40px; }
+.hero-switch { margin-top: 48px; }
+.hero-switch + .window { margin-top: 20px; }
 .window img { transition: opacity 0.35s; }
 
 /* install steps */

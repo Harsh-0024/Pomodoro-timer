@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Muhurta Pomodoro — one-line installer / updater for macOS and Linux.
 #
-#   curl -fsSL https://raw.githubusercontent.com/Harsh-0024/Pomodoro-timer/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/Harsh-0024/muhurta-pomodoro/main/install.sh | bash
 #
 # Installs into ~/MuhurataTimer (override with MUHURATA_DIR), writes a
 # double-clickable launcher on the Desktop, and starts the app. Running the
@@ -13,7 +13,7 @@
 # for when uv cannot be reached.
 set -euo pipefail
 
-REPO_URL="${MUHURATA_REPO:-https://github.com/Harsh-0024/Pomodoro-timer.git}"
+REPO_URL="${MUHURATA_REPO:-https://github.com/Harsh-0024/muhurta-pomodoro.git}"
 INSTALL_DIR="${MUHURATA_DIR:-$HOME/MuhurataTimer}"
 UV_DIR="$HOME/.muhurata/bin"
 FALLBACK_MIN_PY="3.9"
@@ -34,6 +34,11 @@ command -v git >/dev/null 2>&1 || fail "git is not installed. macOS: run 'xcode-
 # ---------------------------------------------------------------- clone / update
 if [[ -d "$INSTALL_DIR/.git" ]]; then
   say "Updating existing install in $INSTALL_DIR"
+  # The repository was called Pomodoro-timer before v1.5.1.
+  case "$(git -C "$INSTALL_DIR" remote get-url origin | tr '[:upper:]' '[:lower:]')" in
+    https://github.com/harsh-0024/pomodoro-timer|https://github.com/harsh-0024/pomodoro-timer.git)
+      git -C "$INSTALL_DIR" remote set-url origin "$REPO_URL" ;;
+  esac
   git -C "$INSTALL_DIR" fetch --quiet origin
   git -C "$INSTALL_DIR" reset --hard --quiet origin/main
 else

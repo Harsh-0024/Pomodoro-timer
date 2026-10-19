@@ -54,7 +54,10 @@ NO_WINDOW = {"creationflags": subprocess.CREATE_NO_WINDOW} if sys.platform == "w
 # Bump when the Desktop launcher changes; installs older than this get theirs
 # rewritten on the next start. Keep in step with packaging/make_macos_app.sh.
 LAUNCHER_VERSION = "3"
-SITE = "https://harsh-0024.github.io/Pomodoro-timer/"
+SITE = "https://harsh-0024.github.io/muhurta-pomodoro/"
+REPO_URL = "https://github.com/Harsh-0024/muhurta-pomodoro.git"
+OLD_REPO_URLS = ("https://github.com/harsh-0024/pomodoro-timer.git",
+                 "https://github.com/harsh-0024/pomodoro-timer")  # the name before v1.5.1
 
 log = logging.getLogger("muhurata.launcher")
 
@@ -151,6 +154,17 @@ def _online(timeout: float = 3.0) -> bool:
         return False
 
 
+def _follow_repo_rename():
+    """Point an install made under the repository's old name at the new one.
+
+    GitHub forwards the old name for now, but only until something else
+    takes that name, so do not rely on it."""
+    current = _run(["git", "remote", "get-url", "origin"]).stdout.strip()
+    if current.lower() in OLD_REPO_URLS:
+        _run(["git", "remote", "set-url", "origin", REPO_URL])
+        log.debug("origin: %s -> %s", current, REPO_URL)
+
+
 def self_update() -> bool:
     """Fast-forward the checkout to origin/main. Returns True if code changed.
 
@@ -175,6 +189,7 @@ def self_update() -> bool:
         return False
 
     log.info("Checking for updates...")
+    _follow_repo_rename()
     before = _run(["git", "rev-parse", "HEAD"]).stdout.strip()
     try:
         fetch = _run(["git", "fetch", "--quiet", "origin"],
@@ -729,9 +744,9 @@ def main(argv: list[str]) -> int:
 
 
 REPAIR_CMD = (
-    "irm https://raw.githubusercontent.com/Harsh-0024/Pomodoro-timer/main/install.ps1 | iex"
+    "irm https://raw.githubusercontent.com/Harsh-0024/muhurta-pomodoro/main/install.ps1 | iex"
     if sys.platform == "win32"
-    else "curl -fsSL https://raw.githubusercontent.com/Harsh-0024/Pomodoro-timer/main/install.sh | bash"
+    else "curl -fsSL https://raw.githubusercontent.com/Harsh-0024/muhurta-pomodoro/main/install.sh | bash"
 )
 
 

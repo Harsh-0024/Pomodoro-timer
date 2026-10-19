@@ -1,6 +1,6 @@
 # Muhurta Pomodoro — one-line installer / updater for Windows.
 #
-#   irm https://raw.githubusercontent.com/Harsh-0024/Pomodoro-timer/main/install.ps1 | iex
+#   irm https://raw.githubusercontent.com/Harsh-0024/muhurta-pomodoro/main/install.ps1 | iex
 #
 # Installs into %USERPROFILE%\MuhurataTimer (override with $env:MUHURATA_DIR),
 # writes a "Muhurta Pomodoro" shortcut on the Desktop, and starts the app.
@@ -12,7 +12,7 @@
 # for when uv cannot be reached.
 $ErrorActionPreference = "Stop"
 
-$RepoUrl    = if ($env:MUHURATA_REPO) { $env:MUHURATA_REPO } else { "https://github.com/Harsh-0024/Pomodoro-timer.git" }
+$RepoUrl    = if ($env:MUHURATA_REPO) { $env:MUHURATA_REPO } else { "https://github.com/Harsh-0024/muhurta-pomodoro.git" }
 $InstallDir = if ($env:MUHURATA_DIR) { $env:MUHURATA_DIR } else { Join-Path $HOME "MuhurataTimer" }
 $UvDir      = Join-Path $HOME ".muhurata\bin"
 $FallbackMinPy = [version]"3.9"
@@ -30,6 +30,11 @@ if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
 # ---------------------------------------------------------------- clone / update
 if (Test-Path (Join-Path $InstallDir ".git")) {
     Say "Updating existing install in $InstallDir"
+    # The repository was called Pomodoro-timer before v1.5.1.
+    $Origin = (git -C $InstallDir remote get-url origin).ToLower()
+    if ($Origin -in @("https://github.com/harsh-0024/pomodoro-timer", "https://github.com/harsh-0024/pomodoro-timer.git")) {
+        git -C $InstallDir remote set-url origin $RepoUrl
+    }
     git -C $InstallDir fetch --quiet origin
     git -C $InstallDir reset --hard --quiet origin/main
 } else {

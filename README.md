@@ -8,7 +8,7 @@ without signing in, nothing leaves your computer.
 > 1 Muhurat = 48 min · 1 Ghadi = 24 min
 
 **Sharing it with someone?** Send them one link:
-**https://harsh-0024.github.io/Pomodoro-timer/** — it has a copy button for the
+**https://harsh-0024.github.io/muhurta-pomodoro/** — it has a copy button for the
 right command and the downloads.
 
 ## Install
@@ -21,13 +21,13 @@ the app, so updating never touches your history.
 **macOS / Linux** — open *Terminal*, paste, press Enter:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Harsh-0024/Pomodoro-timer/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/Harsh-0024/muhurta-pomodoro/main/install.sh | bash
 ```
 
 **Windows** — open *PowerShell*, paste, press Enter:
 
 ```powershell
-irm https://raw.githubusercontent.com/Harsh-0024/Pomodoro-timer/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/Harsh-0024/muhurta-pomodoro/main/install.ps1 | iex
 ```
 
 What it does: downloads the app into `~/MuhurataTimer`, sets up Python
@@ -46,10 +46,10 @@ Windows: [git for Windows](https://git-scm.com/download/win), or `winget install
 
 ### Option B — download a ready-made app (no terminal needed)
 
-Open **https://harsh-0024.github.io/Pomodoro-timer/download.html** — it
+Open **https://harsh-0024.github.io/muhurta-pomodoro/download.html** — it
 downloads the right file for your computer and shows each step. Or grab it
 yourself from the
-[latest release](https://github.com/Harsh-0024/Pomodoro-timer/releases/latest).
+[latest release](https://github.com/Harsh-0024/muhurta-pomodoro/releases/latest).
 
 - **macOS (Apple Silicon):** open `Muhurta-Pomodoro-macos-arm64.dmg` and drag
   **Muhurta Pomodoro** onto **Applications**. The first time you open it, macOS
@@ -105,7 +105,7 @@ Run the doctor and send the output along with `launcher.log`:
 ## Development
 
 ```bash
-git clone https://github.com/Harsh-0024/Pomodoro-timer.git && cd Pomodoro-timer
+git clone https://github.com/Harsh-0024/muhurta-pomodoro.git && cd muhurta-pomodoro
 python3 -m venv .venv && .venv/bin/python -m pip install -r requirements.txt
 .venv/bin/python run.py --no-update      # or: python app.py (debug server on :8000)
 ```

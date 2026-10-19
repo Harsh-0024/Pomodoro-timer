@@ -251,6 +251,13 @@
             <button type="submit" class="btn btn-primary btn-small" id="btnProfileSave">Save</button>
           </div>
         </form>
+        <div class="pref-row">
+          <div class="pref-text">
+            <span class="pref-name">Saving your password</span>
+            <span class="pref-desc">In Passwords or another password manager, file it under the website <span class="save-site">{{ password_site }}</span> with your email.</span>
+          </div>
+          <button type="button" class="btn btn-quiet btn-small" id="btnCopySite" data-site="{{ password_site }}">Copy website</button>
+        </div>
         <div class="pref-row pref-status" id="syncStatusRow">
           <p class="pref-status-text" id="syncStatus" aria-live="polite"></p>
           <button type="button" class="btn btn-quiet btn-small" id="btnSyncNow">Sync now</button>

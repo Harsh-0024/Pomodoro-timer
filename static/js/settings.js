@@ -987,6 +987,15 @@
 
   function wireSync() {
     if (!$("syncGroup")) return;
+    $("btnCopySite").addEventListener("click", async (ev) => {
+      const site = ev.currentTarget.dataset.site;
+      try {
+        await navigator.clipboard.writeText(site);
+        toast("Website copied");
+      } catch (_) {
+        toast(`Website: ${site}`);
+      }
+    });
     $("btnEditProfile").addEventListener("click", () => openProfile($("profileForm").hidden));
     $("btnProfileCancel").addEventListener("click", () => openProfile(false));
     $("profileUsername").addEventListener("input", (ev) => {

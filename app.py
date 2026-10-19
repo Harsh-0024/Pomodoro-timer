@@ -225,7 +225,8 @@ def sign_in_page():
     # Stopped after the code, before choosing a password: carry on from there.
     return render_template("sign_in.html", bare=True,
                            pending_email=st["email"] if st["password_pending"] else "",
-                           pending_has_profile=bool(st["profile"]), email_from=cloud.EMAIL_FROM)
+                           pending_has_profile=bool(st["profile"]), email_from=cloud.EMAIL_FROM,
+                           password_site=cloud.PASSWORD_SITE)
 
 
 @app.route("/flow")
@@ -235,7 +236,7 @@ def flow_page():
 
 @app.route("/settings")
 def settings_page():
-    return render_template("settings.html")
+    return render_template("settings.html", password_site=cloud.PASSWORD_SITE)
 
 
 @app.route("/settings/history")

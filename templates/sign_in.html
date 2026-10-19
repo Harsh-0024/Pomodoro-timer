@@ -111,7 +111,10 @@
         </div>
       </div>
       <div class="field">
-        <label class="signin-label" for="newPassword" id="newPasswordLabel">Password</label>
+        <div class="signin-label-row">
+          <label class="signin-label" for="newPassword" id="newPasswordLabel">Password</label>
+          <button type="button" class="signin-link" id="btnSuggest">Suggest a strong password</button>
+        </div>
         <div class="password-wrap">
           <input type="password" id="newPassword" class="input" autocomplete="new-password" maxlength="72" required aria-describedby="passwordRules" />
           <button type="button" class="password-toggle" data-toggle="newPassword" aria-label="Show password">Show</button>
@@ -135,6 +138,13 @@
           <button type="button" class="password-toggle" data-toggle="newPassword2" aria-label="Show password">Show</button>
         </div>
         <p class="field-note" id="matchNote" aria-live="polite"></p>
+      </div>
+      <div class="save-hint" id="saveHint">
+        <div class="save-hint-text">
+          <strong>Saving it in Passwords or another password manager?</strong>
+          Use the website <span class="save-site">{{ password_site }}</span> and your email.
+        </div>
+        <button type="button" class="btn btn-quiet btn-small" id="btnCopyPassword" hidden>Copy password</button>
       </div>
       <button type="submit" class="btn btn-primary signin-submit" id="btnSavePassword">Create account</button>
       <p class="signin-switch"><button type="button" class="signin-link" id="btnCancelPending">Start over with a different email</button></p>

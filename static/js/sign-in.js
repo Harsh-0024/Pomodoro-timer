@@ -133,6 +133,7 @@
       $("btnSavePassword").textContent = mode === "reset" ? "Save new password" : "Create account";
       $("newPassword").value = "";
       $("newPassword2").value = "";
+      $("btnCopyPassword").hidden = true;
       renderPassword();
       ($("lateDetails").hidden ? $("newPassword") : $("lateFirstName")).focus();
     }
@@ -273,6 +274,89 @@
       note.dataset.tone = "error";
     }
   }
+
+  // A strong password, in the style Apple suggests: three groups of six
+  // easy-to-read characters with dashes, e.g. "kdxmfa-Pqrv7e-hwzbtn". About
+  // 90 bits of randomness, and it always meets the rules above.
+  const LOWER = "abcdefghijkmnpqrstuvwxyz"; // no l or o: easily misread
+  const UPPER = "ABCDEFGHJKLMNPQRSTUVWXYZ"; // no I or O
+  const DIGITS = "23456789"; // no 0 or 1
+
+  function randomIndex(n) {
+    const buf = new Uint32Array(1);
+    const limit = Math.floor(0x100000000 / n) * n; // avoid bias
+    do crypto.getRandomValues(buf);
+    while (buf[0] >= limit);
+    return buf[0] % n;
+  }
+
+  function suggestPassword() {
+    for (;;) {
+      const chars = Array.from({ length: 18 }, () => LOWER[randomIndex(LOWER.length)]);
+      const upperAt = randomIndex(18);
+      let digitAt = randomIndex(18);
+      while (digitAt === upperAt) digitAt = randomIndex(18);
+      chars[upperAt] = UPPER[randomIndex(UPPER.length)];
+      chars[digitAt] = DIGITS[randomIndex(DIGITS.length)];
+      const pw = [0, 6, 12].map((i) => chars.slice(i, i + 6).join("")).join("-");
+      if (Object.values(passwordChecks(pw)).every(Boolean)) return pw;
+    }
+  }
+
+  async function copyText(text) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch (_) {
+      // Older web views: copy through a hidden text box instead.
+      const box = document.createElement("textarea");
+      box.value = text;
+      box.setAttribute("readonly", "");
+      box.style.position = "fixed";
+      box.style.opacity = "0";
+      document.body.appendChild(box);
+      box.select();
+      let ok = false;
+      try {
+        ok = document.execCommand("copy");
+      } catch (_) {}
+      box.remove();
+      return ok;
+    }
+  }
+
+  function setVisible(input, visible) {
+    input.type = visible ? "text" : "password";
+    const btn = document.querySelector(`.password-toggle[data-toggle="${input.id}"]`);
+    if (btn) {
+      btn.textContent = visible ? "Hide" : "Show";
+      btn.setAttribute("aria-label", visible ? "Hide password" : "Show password");
+    }
+  }
+
+  $("btnSuggest").addEventListener("click", () => {
+    const pw = suggestPassword();
+    $("newPassword").value = pw;
+    $("newPassword2").value = pw;
+    // Shown, so it can be read or copied into a password manager.
+    setVisible($("newPassword"), true);
+    setVisible($("newPassword2"), true);
+    renderPassword();
+    $("btnCopyPassword").hidden = false;
+    say("Strong password filled in. Copy it into your password manager before you continue.", "ok");
+  });
+
+  $("btnCopyPassword").addEventListener("click", async () => {
+    const pw = $("newPassword").value;
+    if (!pw) return;
+    say((await copyText(pw)) ? "Password copied." : "Couldn't copy. Select it and copy it by hand.",
+      undefined);
+  });
+
+  // Typing your own: the Copy button is still handy once there is something to copy.
+  $("newPassword").addEventListener("input", () => {
+    $("btnCopyPassword").hidden = !$("newPassword").value;
+  });
 
   /* ---------- small comforts ---------- */
 

@@ -5,6 +5,14 @@ a few short lines per version, about what they will notice. Versions with
 nothing worth telling can be left out.
 """
 NOTES = {
+    "1.9.0": [
+        "On Windows the app now opens in its own window, like on a Mac, with its own icon in the taskbar. "
+        "The time left shows on its taskbar button.",
+        "On Windows, notifications now always arrive as Windows notifications, with nothing to allow first.",
+        "On Windows, opening the app while it's already open brings its window back instead of opening another one.",
+        "Everything fits any window size now, from a small corner of the screen to full screen.",
+        "Fixed: the window's title no longer flickers while the Timer counts down.",
+    ],
     "1.8.0": [
         "New: Timer. Type any length (or tap 5m to 1h), press Start, and it counts down. "
         "It counts as focus, like everything else.",

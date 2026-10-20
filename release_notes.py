@@ -5,6 +5,14 @@ a few short lines per version, about what they will notice. Versions with
 nothing worth telling can be left out.
 """
 NOTES = {
+    "1.10.0": [
+        "New: Muhurta Pomodoro for Android. Get it from the website on your phone, sign in with the same "
+        "account, and your history, combinations and settings are there too.",
+        "Use the phone and the computer side by side: changes go both ways on their own, and time both of "
+        "them timed at once counts only once on the dashboard.",
+        "On the phone, a bell and a notification tell you when focus or rest ends, even with the app "
+        "closed or the screen off.",
+    ],
     "1.9.0": [
         "On Windows the app now opens in its own window, like on a Mac, with its own icon in the taskbar. "
         "The time left shows on its taskbar button.",

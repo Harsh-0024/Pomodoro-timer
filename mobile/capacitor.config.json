@@ -5,6 +5,10 @@
   "plugins": {
     "SystemBars": {
       "initialViewportFitValueHint": "cover"
+    },
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_chakra",
+      "iconColor": "#C9A962"
     }
   },
   "loggingBehavior": "none"

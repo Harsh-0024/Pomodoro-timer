@@ -38,4 +38,6 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- A timer: the end-of-block alert has to arrive on the minute (alerts.js). -->
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
 </manifest>

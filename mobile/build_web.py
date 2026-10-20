@@ -57,7 +57,8 @@ ROUTER = """<script>
 LOCAL_API = """
   <script src="/mobile-data.js"></script>
   <script src="/local-api.js"></script>
-  <script src="/account.js"></script>"""
+  <script src="/account.js"></script>
+  <script src="/alerts.js"></script>"""
 
 
 def url_for(endpoint: str, filename: str | None = None, **_):
@@ -133,7 +134,7 @@ def write_data() -> None:
         f"window.__MUHURTA__ = {json.dumps(data, ensure_ascii=False)};\n",
         encoding="utf-8",
     )
-    for name in ("local-api.js", "account.js"):
+    for name in ("local-api.js", "account.js", "alerts.js"):
         shutil.copy2(MOBILE / "web" / name, WWW / name)
     shutil.copytree(MOBILE / "web" / "fonts", WWW / "fonts")
 

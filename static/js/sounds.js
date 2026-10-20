@@ -4,9 +4,6 @@
   let audioCtx = null;
   const buffers = new Map();
 
-  // Bold is the loudest a sound can play, so every slider position changes
-  // the level instead of hitting the ceiling partway up.
-  const PROFILE_GAIN = { subtle: 0.3, balanced: 0.6, bold: 1 };
   const SOUND_OPTIONS = [
     {
       id: "soothing-bell",
@@ -35,9 +32,7 @@
   }
 
   function masterGain(settings) {
-    const vol = Number(settings?.sound_volume ?? 70) / 100;
-    const profile = PROFILE_GAIN[settings?.sound_profile] ?? 1;
-    return Math.min(1, vol * profile);
+    return Math.min(1, Number(settings?.sound_volume ?? 70) / 100);
   }
 
   function tone(settings, freq, start, dur, vol, type) {

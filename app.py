@@ -494,11 +494,6 @@ def api_put_settings():
         if not (0 <= vol <= 100):
             return jsonify({"error": "Volume must be 0–100"}), 400
         patch["sound_volume"] = vol
-    if "sound_profile" in body:
-        profile = str(body["sound_profile"])
-        if profile not in ("subtle", "balanced", "bold"):
-            return jsonify({"error": "Invalid sound profile"}), 400
-        patch["sound_profile"] = profile
     for key in SOUND_SETTING_KEYS:
         if key in body:
             sound = str(body[key])

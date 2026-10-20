@@ -25,7 +25,6 @@ DEFAULT_SETTINGS = {
     "auto_start_break": False,
     "sound_enabled": True,
     "sound_volume": 70,
-    "sound_profile": "bold",
     "sound_rest_end": "opening-bells",
     "sound_work_begin": "opening-bells",
     "sound_work_end": "soothing-bell",

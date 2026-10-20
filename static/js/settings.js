@@ -324,7 +324,6 @@
     ["setVolume", "setTick"].forEach((id) => {
       if ($(id)) $(id).disabled = !soundOn;
     });
-    $("setProfile")?.querySelectorAll(".segment").forEach((b) => (b.disabled = !soundOn));
     CUES.forEach((cue, i) => {
       const on = cueOn(cue);
       const row = document.querySelector(`.cue-row[data-cue="${i}"]`);
@@ -802,7 +801,6 @@
       if ($(id)) $(id).checked = !!s[key];
     });
     renderVolume();
-    syncSegmented($("setProfile"), s.sound_profile || "bold");
     applyTheme(s.theme);
     renderGoal();
     syncCues();
@@ -829,10 +827,6 @@
       renderVolume();
     });
 
-    wireSegmented($("setProfile"), (value) => {
-      save({ sound_profile: value });
-      syncSegmented($("setProfile"), value);
-    });
 
     wireSegmented($("setTheme"), (value) => {
       save({ theme: value });

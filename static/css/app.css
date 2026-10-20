@@ -4350,3 +4350,14 @@ body.timer-ringing .countdown-ring-wrap .ring-progress {
     padding: 2rem 1.35rem 1.75rem;
   }
 }
+
+/* label + link (e.g. "New password" / "Suggest a strong password"): each
+   stays on one line; on a narrow phone the link drops under the label. */
+.signin-label-row {
+  flex-wrap: wrap;
+  row-gap: 0.25rem;
+}
+
+.signin-label-row > * {
+  white-space: nowrap;
+}

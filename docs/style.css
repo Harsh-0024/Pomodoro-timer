@@ -268,6 +268,7 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
   background: var(--gold);
   box-shadow: 0 0 10px var(--gold);
 }
+h1, h2 { text-wrap: balance; }
 h1 {
   margin: 0 auto;
   max-width: 14ch;
@@ -496,6 +497,18 @@ h2 {
 .hero-switch { margin-top: 48px; }
 .hero-switch + .window { margin-top: 20px; }
 .window img { transition: opacity 0.35s; }
+.pan-hint { display: none; }
+
+/* A whole Mac window is too small to read on a phone: show the timer
+   up close, and let the dashboard pan sideways at a readable size. */
+@media (max-width: 600px) {
+  #heroImg { aspect-ratio: 1 / 1; }
+  .pan { overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; }
+  .pan::-webkit-scrollbar { display: none; }
+  .pan img { width: 220%; max-width: none; display: block; }
+  section { padding-top: 84px; }
+  .pan-hint { display: block; margin-top: 12px; text-align: center; color: var(--faint); font-size: 0.82rem; }
+}
 
 /* install steps */
 .steps {

@@ -378,8 +378,10 @@ h1 em { color: var(--gold); font-style: italic; }
 .seg button[aria-pressed="true"] { background: var(--card-strong); color: var(--ink); }
 .viewer + .window { margin-top: 18px; }
 .window img { transition: opacity 0.35s; }
-.pan-hint { margin: 12px 0 0; color: var(--faint); font-size: 0.82rem; }
-.pan-hint { display: none; }
+.snap { display: none; }
+.pan-hint { display: none; justify-content: center; gap: 8px; margin: 14px 0 0; }
+.pan-hint i { width: 6px; height: 6px; border-radius: 50%; background: var(--line); transition: background-color 0.2s, width 0.2s; }
+.pan-hint i.on { width: 18px; border-radius: 3px; background: var(--gold); }
 
 /* ------------------------------------------------------------------ sections */
 section { padding: 104px 0 0; }
@@ -601,15 +603,30 @@ footer a { color: var(--muted); }
    close and let the dashboard pan sideways; numbers and levels fold into
    tighter grids. */
 @media (max-width: 600px) {
-  section { padding-top: 72px; }
+  section { padding-top: 64px; }
   .hero { padding-top: 56px; }
+  .hero::before { height: 700px; }
   .lede { font-size: 1.05rem; }
   .viewer { margin-top: 40px; }
-  .window[data-view="timer"] img { aspect-ratio: 1 / 1; }
-  .window[data-view="dashboard"] .pan { overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; }
+  /* Timer: just the timer, framed from the screenshot's middle (x 22-78%,
+     y 11-88%), so nothing of the app's own header is half cut. */
+  .window[data-view="timer"] .pan { overflow: hidden; aspect-ratio: 1 / 0.924; }
+  .window[data-view="timer"] img { width: 178.6%; max-width: none; margin: -13.2% 0 0 -39.3%; }
+  /* Dashboard: its content (x 7-93%) in two halves that snap into place. */
+  .window[data-view="dashboard"] .pan {
+    position: relative;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
   .window[data-view="dashboard"] .pan::-webkit-scrollbar { display: none; }
-  .window[data-view="dashboard"] img { width: 220%; max-width: none; }
-  .pan-hint:not([hidden]) { display: block; }
+  .window[data-view="dashboard"] img { width: 230%; max-width: none; margin-top: -17%; }
+  .window[data-view="dashboard"] .snap { display: block; position: absolute; top: 0; width: 100%; height: 1px; scroll-snap-align: start; }
+  .window[data-view="dashboard"] .snap:first-child { left: 16.1%; }
+  .window[data-view="dashboard"] .snap:nth-child(2) { left: 113.85%; }
+  .pan-hint:not([hidden]) { display: flex; }
   .units { grid-template-columns: repeat(3, 1fr); margin-top: 36px; }
   .unit { padding: 0 6px; }
   .unit span { font-size: 1.1rem; }

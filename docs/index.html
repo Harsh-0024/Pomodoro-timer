@@ -23,7 +23,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="style.css?v=1.8.0c" />
+<link rel="stylesheet" href="style.css?v=1.8.2" />
 </head>
 <body>
 
@@ -76,7 +76,7 @@
     </div>
 
     <!-- One window, two screens: the timer and the dashboard, each in dark or light. -->
-    <div class="viewer rise">
+    <div class="viewer rise" id="dashboard">
       <div class="seg" role="group" aria-label="Screen">
         <button type="button" data-view="timer" aria-pressed="true">Timer</button>
         <button type="button" data-view="dashboard" aria-pressed="false">Dashboard</button>
@@ -91,7 +91,8 @@
         <div class="lights"><i></i><i></i><i></i></div>
         <div class="window-title" id="windowTitle">Muhurta Pomodoro</div>
       </div>
-      <div class="pan">
+      <div class="pan" id="pan">
+        <span class="snap"></span><span class="snap"></span>
         <img id="appImg" src="img/timer.jpg" width="2200" height="1478" alt="The Muhurta Pomodoro timer: a 36-minute deep work session, ready to start" />
       </div>
       <script>
@@ -99,7 +100,7 @@
         if (document.documentElement.dataset.theme === "light") document.getElementById("appImg").src = "img/timer-light.jpg";
       </script>
     </div>
-    <p class="pan-hint" id="panHint" hidden>Swipe to see the whole dashboard</p>
+    <p class="pan-hint" id="panHint" hidden aria-hidden="true"><i class="on"></i><i></i></p>
   </div>
 </header>
 
@@ -111,13 +112,13 @@
       <p>Long before the Pomodoro, India counted the working day in these units.</p>
     </div>
     <div class="units reveal">
-      <div class="unit"><b>48<small>min</small></b><span>1 Muhurta</span><p>A full stretch of deep work</p></div>
-      <div class="unit"><b>24<small>min</small></b><span>1 Ghadi</span><p>Half a Muhurta, the classic block</p></div>
+      <div class="unit"><b>48<small>min</small></b><span>One Muhurta</span><p>A full stretch of deep work</p></div>
+      <div class="unit"><b>24<small>min</small></b><span>One Ghadi</span><p>Half a Muhurta, the classic block</p></div>
       <div class="unit"><b>30</b><span>Muhurtas</span><p>Make one day and night</p></div>
     </div>
 
     <div class="ladder-head reveal">
-      <h3>Eight levels. Start gently, grow.</h3>
+      <h3>Eight levels, from gentle to deep.</h3>
       <p>Every level keeps the same balance of work and rest.</p>
     </div>
     <div class="ladder" id="levels"></div>
@@ -275,7 +276,8 @@
     dashboard: { dark: "img/dashboard.jpg", light: "img/dashboard-light.jpg", title: "Muhurta Pomodoro: Dashboard",
       alt: "The dashboard: focus this year, current streak, a yearly consistency calendar and a rhythm profile" },
   };
-  const state = { view: "timer", theme: document.documentElement.dataset.theme };
+  // Old links to #dashboard open the window on the dashboard.
+  const state = { view: location.hash === "#dashboard" ? "dashboard" : "timer", theme: document.documentElement.dataset.theme };
   function render() {
     const shot = SHOTS[state.view];
     document.querySelectorAll(".viewer button").forEach((b) =>
@@ -292,10 +294,21 @@
       img.src = src;
     }, 200);
   }
+  // On a phone the dashboard snaps between its two halves; start on the
+  // first one and show which half is in view.
+  const pan = document.getElementById("pan");
+  const dots = document.querySelectorAll("#panHint i");
+  const toFirstHalf = () => { pan.scrollLeft = pan.querySelector(".snap").offsetLeft; };
+  img.addEventListener("load", () => { if (state.view === "dashboard") toFirstHalf(); });
+  pan.addEventListener("scroll", () => {
+    const second = pan.scrollLeft > pan.querySelectorAll(".snap")[1].offsetLeft - pan.clientWidth / 2;
+    dots.forEach((d, i) => d.classList.toggle("on", i === (second ? 1 : 0)));
+  }, { passive: true });
   document.querySelectorAll(".viewer button").forEach((b) => b.addEventListener("click", () => {
     if (b.dataset.view) state.view = b.dataset.view;
     if (b.dataset.theme) state.theme = b.dataset.theme;
     render();
+    if (b.dataset.view === "dashboard") requestAnimationFrame(toFirstHalf);
   }));
   render();
   document.addEventListener("themechange", (e) => { state.theme = e.detail; render(); });

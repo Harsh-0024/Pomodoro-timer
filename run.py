@@ -734,6 +734,14 @@ def _native_window(url: str, data_dir: Path, flask_app):
 
     window.events.closing += closing
 
+    def loaded():
+        if not loaded.seen:  # every page loads; once is enough to say it works
+            loaded.seen = True
+            log.info("The app's window has opened the timer.")
+
+    loaded.seen = False
+    window.events.loaded += loaded
+
     def bring_to_front():
         if sys.platform == "win32":
             from webview.platforms.winforms import Func, Type, WinForms

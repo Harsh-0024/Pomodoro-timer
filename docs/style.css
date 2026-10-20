@@ -99,6 +99,7 @@
 }
 
 * { box-sizing: border-box; }
+summary, button, a { -webkit-tap-highlight-color: transparent; }
 
 html { scroll-behavior: smooth; overflow-x: clip; }
 
@@ -384,160 +385,133 @@ h1 em { color: var(--gold); font-style: italic; }
 .pan-hint i.on { width: 18px; border-radius: 3px; background: var(--gold); }
 
 /* ------------------------------------------------------------------ sections */
-section { padding: 104px 0 0; }
-.eyebrow {
-  margin: 0 0 12px;
-  color: var(--gold);
-  font-size: 0.74rem;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-}
+/* One idea per screen: a heading, a line at most, then plenty of air.
+   Details wait behind a tap instead of all showing at once. */
+section { padding: 176px 0 0; }
+.container.narrow { width: min(640px, 100% - 48px); }
+.center { text-align: center; }
 h2 {
   margin: 0;
   font-family: var(--serif);
-  font-weight: 500;
-  font-size: clamp(2rem, 4.2vw, 3rem);
-  line-height: 1.08;
+  font-weight: 400;
+  font-size: clamp(2.1rem, 4.4vw, 3rem);
+  line-height: 1.1;
 }
 h3 { margin: 0; font-weight: 500; }
-.section-head { max-width: 620px; }
-.section-head.center { margin-inline: auto; text-align: center; }
-.section-head p { margin: 14px 0 0; color: var(--muted); }
+.quiet { margin: 20px auto 0; max-width: 30em; color: var(--muted); }
+.quiet.small { font-size: 0.92rem; color: var(--faint); }
 
-/* the idea: three numbers, no boxes */
+/* the idea: two numbers */
 .units {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  margin: 48px auto 0;
-  max-width: 880px;
-  text-align: center;
+  display: flex;
+  justify-content: center;
+  gap: clamp(56px, 12vw, 120px);
+  margin-top: 72px;
 }
-.unit { padding: 4px 16px; }
-.unit + .unit { border-left: 1px solid var(--line); }
 .unit b {
   display: block;
   font-family: var(--serif);
-  font-weight: 500;
-  font-size: clamp(3rem, 6vw, 4.2rem);
+  font-weight: 400;
+  font-size: clamp(4rem, 12vw, 5.5rem);
   line-height: 1;
   color: var(--gold);
 }
-.unit b small { font-size: 0.34em; color: var(--muted); margin-left: 4px; }
-.unit span { display: block; margin-top: 8px; font-family: var(--serif); font-size: 1.35rem; }
-.unit p { margin: 2px 0 0; color: var(--faint); font-size: 0.9rem; }
+.unit span { display: block; margin-top: 6px; color: var(--faint); font-size: 0.8rem; letter-spacing: 0.16em; text-transform: uppercase; }
+.unit em { display: block; margin-top: 14px; font-family: var(--serif); font-style: normal; font-size: 1.3rem; }
 
-/* eight levels as one ladder of rising bars */
-.ladder-head { margin: 80px auto 0; text-align: center; }
-.ladder-head h3 { font-family: var(--serif); font-size: 1.6rem; }
-.ladder-head p { margin: 6px 0 0; color: var(--faint); font-size: 0.92rem; }
+/* eight levels: a quiet row of rising bars, the full list on demand */
 .ladder {
-  display: grid;
-  grid-template-columns: repeat(8, 1fr);
-  gap: 10px;
-  max-width: 880px;
-  margin: 32px auto 0;
-  text-align: center;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  height: 120px;
+  max-width: 420px;
+  margin: 72px auto 0;
 }
-.rung-bar {
-  position: relative;
-  height: 96px;
-  margin: 0 auto 10px;
-  width: 10px;
-  border-radius: 999px;
-  background: var(--card-strong);
-  overflow: hidden;
-}
-.rung-bar span {
-  position: absolute;
-  inset: auto 0 0;
+.ladder i {
+  width: 6px;
   height: 0;
   border-radius: 999px;
   background: linear-gradient(0deg, var(--gold-deep), var(--bar-end));
   transition: height 1.2s cubic-bezier(0.2, 0.7, 0.2, 1);
 }
-.ladder.seen .rung-bar span { height: var(--h); }
-.ladder .rung:nth-child(2) span { transition-delay: 0.05s; }
-.ladder .rung:nth-child(3) span { transition-delay: 0.1s; }
-.ladder .rung:nth-child(4) span { transition-delay: 0.15s; }
-.ladder .rung:nth-child(5) span { transition-delay: 0.2s; }
-.ladder .rung:nth-child(6) span { transition-delay: 0.25s; }
-.ladder .rung:nth-child(7) span { transition-delay: 0.3s; }
-.ladder .rung:nth-child(8) span { transition-delay: 0.35s; }
-.rung b { display: block; font-variant-numeric: tabular-nums; font-weight: 500; color: var(--ink); }
-.rung b small { color: var(--faint); font-weight: 400; margin-left: 1px; }
-.rung > span { display: block; font-family: var(--serif); font-size: 1.1rem; line-height: 1.2; }
-.rung > small { display: block; color: var(--faint); font-size: 0.74rem; }
+.ladder.seen i { height: var(--h); }
+.ladder i:nth-child(2) { transition-delay: 0.06s; }
+.ladder i:nth-child(3) { transition-delay: 0.12s; }
+.ladder i:nth-child(4) { transition-delay: 0.18s; }
+.ladder i:nth-child(5) { transition-delay: 0.24s; }
+.ladder i:nth-child(6) { transition-delay: 0.3s; }
+.ladder i:nth-child(7) { transition-delay: 0.36s; }
+.ladder i:nth-child(8) { transition-delay: 0.42s; }
+.ladder-ends {
+  display: flex;
+  justify-content: space-between;
+  max-width: 452px;
+  margin: 18px auto 0;
+  color: var(--faint);
+  font-size: 0.85rem;
+}
 
-/* features: quiet grid, icon beside a short line */
+/* "more" folds: a quiet gold link that opens in place */
+.more { margin-top: 48px; }
+.more summary {
+  display: inline-block;
+  cursor: pointer;
+  color: var(--gold);
+  font-size: 0.92rem;
+  list-style: none;
+}
+.more summary::-webkit-details-marker { display: none; }
+.more summary::after { content: " +"; }
+.more[open] summary::after { content: " \2212"; }
+.level-list {
+  list-style: none;
+  margin: 32px auto 0;
+  padding: 0;
+  max-width: 360px;
+  text-align: left;
+}
+.level-list li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+.level-list b { font-family: var(--serif); font-weight: 400; font-size: 1.2rem; }
+.level-list span { grid-row: 2; color: var(--faint); font-size: 0.82rem; }
+.level-list em { grid-row: span 2; align-self: center; font-style: normal; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* features: names, a few words each, nothing else */
 .features {
+  list-style: none;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 36px 40px;
-  max-width: 980px;
-  margin: 48px auto 0;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 56px 48px;
+  margin: 80px 0 0;
+  padding: 0;
 }
-.feature {
-  display: grid;
-  grid-template-columns: 22px 1fr;
-  column-gap: 14px;
-  align-items: start;
-  align-content: start;
-}
-.feature svg {
-  grid-row: span 2;
-  width: 22px;
-  height: 22px;
-  margin-top: 4px;
-  fill: none;
-  stroke: var(--gold);
-  stroke-width: 1.6;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-.feature h3 { font-family: var(--serif); font-size: 1.35rem; line-height: 1.2; }
-.feature p { margin: 4px 0 0; color: var(--muted); font-size: 0.94rem; line-height: 1.5; }
+.features li, .steps li { display: flex; flex-direction: column; gap: 6px; }
+.features b, .steps b { font-family: var(--serif); font-weight: 400; font-size: 1.45rem; line-height: 1.2; }
+.features span, .steps span { color: var(--faint); font-size: 0.95rem; }
 
-/* install and questions, side by side */
-.split {
-  display: grid;
-  grid-template-columns: 1fr 1.15fr;
-  gap: 72px;
-  align-items: start;
-}
+/* install: three steps, one line each */
 .steps {
   list-style: none;
-  margin: 28px 0 0;
+  display: grid;
+  gap: 40px;
+  margin: 72px 0 0;
   padding: 0;
   counter-reset: step;
-}
-.steps li {
-  position: relative;
-  padding: 0 0 18px 44px;
-  color: var(--muted);
-  font-size: 0.97rem;
 }
 .steps li::before {
   counter-increment: step;
   content: counter(step);
-  position: absolute;
-  left: 0;
-  top: -1px;
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  border: 1px solid var(--accent-strong-line);
+  margin: 0 auto 6px;
   color: var(--gold);
   font-size: 0.8rem;
+  letter-spacing: 0.1em;
 }
-.steps b { color: var(--ink); font-weight: 500; }
-.aside { margin-top: 6px; color: var(--muted); font-size: 0.9rem; }
-.aside summary { cursor: pointer; color: var(--gold); list-style: none; }
-.aside summary::-webkit-details-marker { display: none; }
-.aside summary::after { content: " +"; }
-.aside[open] summary::after { content: " \2212"; }
-.aside p { margin: 8px 0 0; }
+.steps li span { max-width: 22em; margin-inline: auto; }
 .note {
   margin-top: 22px;
   padding: 18px 22px;
@@ -549,8 +523,8 @@ h3 { margin: 0; font-weight: 500; }
 }
 .note b { color: var(--ink); font-weight: 500; }
 
-/* faq */
-.faq { border-top: 1px solid var(--line); }
+/* questions */
+.faq { margin-top: 56px; border-top: 1px solid var(--line); }
 .faq details { border-bottom: 1px solid var(--line); }
 .faq summary {
   list-style: none;
@@ -558,9 +532,9 @@ h3 { margin: 0; font-weight: 500; }
   display: flex;
   justify-content: space-between;
   gap: 20px;
-  padding: 14px 0;
+  padding: 22px 0;
   font-family: var(--serif);
-  font-size: 1.22rem;
+  font-size: 1.25rem;
 }
 .faq summary::-webkit-details-marker { display: none; }
 .faq summary::after {
@@ -571,19 +545,19 @@ h3 { margin: 0; font-weight: 500; }
   transition: transform 0.25s;
 }
 .faq details[open] summary::after { transform: rotate(45deg); }
-.faq details p { margin: -4px 0 16px; color: var(--muted); font-size: 0.94rem; }
+.faq details p { margin: -6px 0 24px; color: var(--muted); font-size: 0.95rem; }
 .faq b { color: var(--ink); font-weight: 500; }
 
 /* closing call */
 .closing {
-  margin-top: 112px;
-  padding: 72px 24px;
+  margin-top: 176px;
+  padding: 120px 24px;
   text-align: center;
   border-top: 1px solid var(--line);
   background: radial-gradient(600px 300px at 50% 0%, var(--hero-glow), transparent 70%);
 }
 .closing h2 { max-width: 16ch; margin-inline: auto; }
-.closing .cta { margin-top: 28px; }
+.closing .cta { margin-top: 36px; }
 
 footer {
   padding: 28px 0 40px;
@@ -594,20 +568,14 @@ footer {
 footer .container { display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
 footer a { color: var(--muted); }
 
-@media (max-width: 860px) {
-  .features { grid-template-columns: repeat(2, 1fr); }
-  .split { grid-template-columns: 1fr; gap: 64px; }
-}
-
-/* Phones: a whole Mac window is too small to read, so show the timer up
-   close and let the dashboard pan sideways; numbers and levels fold into
-   tighter grids. */
+/* Phones: the same calm, scaled down; features in one column. */
 @media (max-width: 600px) {
-  section { padding-top: 64px; }
+  section { padding-top: 128px; }
   .hero { padding-top: 56px; }
   .hero::before { height: 700px; }
   .lede { font-size: 1.05rem; }
   .viewer { margin-top: 40px; }
+  .window { box-shadow: 0 18px 44px rgba(40, 30, 14, 0.14), 0 0 0 1px var(--window-border); }
   /* Timer: just the timer, framed from the screenshot's middle (x 22-78%,
      y 11-88%), so nothing of the app's own header is half cut. */
   .window[data-view="timer"] .pan { overflow: hidden; aspect-ratio: 1 / 0.924; }
@@ -627,19 +595,12 @@ footer a { color: var(--muted); }
   .window[data-view="dashboard"] .snap:first-child { left: 16.1%; }
   .window[data-view="dashboard"] .snap:nth-child(2) { left: 113.85%; }
   .pan-hint:not([hidden]) { display: flex; }
-  .units { grid-template-columns: repeat(3, 1fr); margin-top: 36px; }
-  .unit { padding: 0 6px; }
-  .unit span { font-size: 1.1rem; }
-  .unit p { font-size: 0.8rem; }
-  .ladder-head { margin-top: 56px; }
-  .ladder { grid-template-columns: repeat(4, 1fr); row-gap: 24px; }
-  .rung-bar { height: 64px; }
-  .features { grid-template-columns: 1fr 1fr; gap: 26px 18px; margin-top: 36px; }
-  .feature { grid-template-columns: 1fr; }
-  .feature svg { grid-row: auto; margin: 0 0 8px; }
-  .feature h3 { font-size: 1.15rem; }
-  .feature p { font-size: 0.86rem; }
-  .closing { margin-top: 80px; padding: 56px 16px; }
+  .units { margin-top: 56px; }
+  .ladder { height: 96px; margin-top: 56px; max-width: 280px; }
+  .ladder-ends { max-width: 312px; }
+  .features { grid-template-columns: 1fr; gap: 40px; margin-top: 56px; text-align: center; }
+  .steps { margin-top: 56px; gap: 36px; }
+  .closing { margin-top: 128px; padding: 96px 16px; }
 }
 
 /* the hero's app window rises in on load */
@@ -654,7 +615,7 @@ footer a { color: var(--muted); }
   html { scroll-behavior: auto; }
   .halo svg, .rise { animation: none; }
   .reveal { opacity: 1; transform: none; transition: none; }
-  .rung-bar span { transition: none; }
+  .ladder i { transition: none; }
 }
 
 /* ------------------------------------------------------------------ download page */

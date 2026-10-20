@@ -47,10 +47,13 @@ FIRST_PORT = 8000
 HOST = "127.0.0.1"
 # Started from a Terminal (developer, installer) rather than double-clicked.
 INTERACTIVE = bool(sys.stdin and sys.stdin.isatty())
-# The downloaded Mac app draws its own window (macOS's web view, through
-# pywebview), so it has its own Dock icon. Everything else opens the timer
-# in a browser's app window.
-NATIVE_WINDOW = FROZEN and sys.platform == "darwin"
+# The downloaded Mac and Windows apps draw their own window (macOS's web view
+# or Windows' WebView2, through pywebview), so they have their own Dock or
+# taskbar icon. Everything else opens the timer in a browser's app window.
+NATIVE_WINDOW = FROZEN and sys.platform in ("darwin", "win32")
+# Windows groups windows and notifications under this name (the app's own,
+# rather than "Python" or the browser that showed the timer before).
+WINDOWS_APP_ID = "Muhurta.Pomodoro"
 # Programs run from a no-console app on Windows would each flash a black
 # console window; this keeps them hidden.
 NO_WINDOW = {"creationflags": subprocess.CREATE_NO_WINDOW} if sys.platform == "win32" else {}
@@ -574,6 +577,9 @@ class _WindowApi:
 
     def notify(self, title: str, body: str = ""):
         # The web view has no web notifications of its own.
+        if sys.platform == "win32":
+            _windows_notification(str(title), str(body))
+            return
         script = f"display notification {json.dumps(str(body))} with title {json.dumps(str(title))}"
         subprocess.Popen(["osascript", "-e", script], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
@@ -582,16 +588,142 @@ class _WindowApi:
         if _MENU_BAR is not None:
             _MENU_BAR.update(state if isinstance(state, dict) else None)
 
+    def title(self, text: str = ""):
+        # Windows: the page's title (the time left) on the window and in the
+        # taskbar, as a browser's window showed it.
+        if _WINDOW is not None:
+            _WINDOW.set_title(str(text)[:200] or APP_NAME)
+
 
 _MENU_BAR = None
+_WINDOW = None
 
 
-def _native_window(url: str, data_dir: Path):
+def _native_window_works() -> bool:
+    """Whether this computer can draw the app's own window.
+
+    Windows draws it with Edge's WebView2 (part of Windows 11, and of Windows
+    10 once Edge has updated). Without it pywebview would quietly fall back to
+    Internet Explorer's engine, which cannot run the timer, so a browser's app
+    window is the better home then.
+    """
+    if sys.platform != "win32":
+        return True
+    try:
+        from webview.platforms import winforms
+    except Exception:
+        log.warning("Could not load the app's window - opening the timer in a browser instead.", exc_info=True)
+        return False
+    if not winforms.is_chromium:
+        log.warning("WebView2 is missing - opening the timer in a browser instead.")
+    return bool(winforms.is_chromium)
+
+
+def _register_windows_app():
+    """Tell Windows the app's name and icon, for its notifications and taskbar button."""
+    import ctypes
+    import winreg
+
+    try:
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(WINDOWS_APP_ID)
+        # Notifications from a program without an installer need this entry
+        # to show its name and icon (otherwise Windows drops them).
+        with winreg.CreateKey(winreg.HKEY_CURRENT_USER, rf"Software\Classes\AppUserModelId\{WINDOWS_APP_ID}") as key:
+            winreg.SetValueEx(key, "DisplayName", 0, winreg.REG_SZ, APP_NAME)
+            icon = PROJECT_ROOT / "packaging" / "icon.png"
+            if icon.exists():
+                winreg.SetValueEx(key, "IconUri", 0, winreg.REG_SZ, str(icon))
+    except OSError:
+        log.debug("could not register the app with Windows", exc_info=True)
+
+
+# Windows' own notification, through PowerShell's access to the Windows API,
+# so no extra component has to ship with the app. The text arrives in
+# environment variables, never inside the script.
+_TOAST_SCRIPT = (
+    "$null = [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime];"
+    "$null = [Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime];"
+    "$x = New-Object Windows.Data.Xml.Dom.XmlDocument; $x.LoadXml($env:MUHURTA_TOAST);"
+    "[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($env:MUHURTA_APP_ID)"
+    ".Show([Windows.UI.Notifications.ToastNotification]::new($x))"
+)
+
+
+def _windows_notification(title: str, body: str):
+    from xml.sax.saxutils import escape
+
+    # Silent: the timer rings its own bell.
+    xml = ('<toast><visual><binding template="ToastGeneric">'
+           f"<text>{escape(title)}</text>" + (f"<text>{escape(body)}</text>" if body else "")
+           + '</binding></visual><audio silent="true"/></toast>')
+    try:
+        subprocess.Popen(["powershell", "-NoProfile", "-NonInteractive", "-Command", _TOAST_SCRIPT],
+                         env={**os.environ, "MUHURTA_TOAST": xml, "MUHURTA_APP_ID": WINDOWS_APP_ID},
+                         stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, **NO_WINDOW)
+    except OSError:
+        log.debug("could not show a notification", exc_info=True)
+
+
+def _show_running_window(url: str, data_dir: Path) -> bool:
+    """Ask the copy that is already running to bring its own window forward.
+
+    False when it can't (it shows the timer in a browser instead), and the
+    caller then opens a browser window as before.
+    """
+    if not NATIVE_WINDOW:
+        return False
+    if sys.platform == "win32":
+        try:
+            import ctypes
+
+            # Windows lets only the program the person just started come to
+            # the front; this hands that on to the copy already running.
+            pid = int(json.loads(_running_file(data_dir).read_text())["pid"])
+            ctypes.windll.user32.AllowSetForegroundWindow(pid)
+        except Exception:
+            log.debug("could not pass the foreground on", exc_info=True)
+    req = urllib.request.Request(url + "api/window/show", data=b"", method="POST", headers={"X-Muhurta": "1"})
+    try:
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            return resp.status == 204
+    except Exception:
+        return False
+
+
+def _fit_on_screen(width: int, height: int) -> dict:
+    """Where the window opens: centred in the screen's free area and made
+    smaller where the screen is (a 1440x900 laptop, say), so no part of it
+    starts behind the taskbar. Windows' own centring missed that."""
+    import ctypes
+    from ctypes import wintypes
+
+    try:
+        area = wintypes.RECT()
+        ctypes.windll.user32.SystemParametersInfoW(0x0030, 0, ctypes.byref(area), 0)  # SPI_GETWORKAREA
+        # In the same units as the window's size (96 per inch), whatever the scaling.
+        scale = ctypes.windll.user32.GetDpiForSystem() / 96 or 1
+        left, top = area.left / scale, area.top / scale
+        room_w, room_h = (area.right - area.left) / scale, (area.bottom - area.top) / scale
+    except Exception:
+        return {"width": width, "height": height}
+    margin = 48
+    width = max(420, min(width, int(room_w - margin)))
+    height = max(560, min(height, int(room_h - margin)))
+    return {"width": width, "height": height,
+            "x": int(left + max(0, room_w - width) / 2), "y": int(top + max(0, room_h - height) / 2)}
+
+
+def _native_window(url: str, data_dir: Path, flask_app):
     """Show the timer in the app's own window; returns once it is closed."""
     import webview
 
-    window = webview.create_window(APP_NAME, url, width=1180, height=820, min_size=(420, 560),
-                                   background_color="#070605", js_api=_WindowApi())
+    global _WINDOW
+    place = {"width": 1180, "height": 820}
+    if sys.platform == "win32":
+        _register_windows_app()  # before the window exists, so its taskbar button is ours
+        place = _fit_on_screen(place["width"], place["height"])
+    window = _WINDOW = webview.create_window(APP_NAME, url, **place, min_size=(420, 560),
+                                             background_color="#070605", js_api=_WindowApi())
 
     def closing():
         # Runs before the window closes, for the close button and for ⌘Q
@@ -603,19 +735,41 @@ def _native_window(url: str, data_dir: Path):
     window.events.closing += closing
 
     def bring_to_front():
+        if sys.platform == "win32":
+            from webview.platforms.winforms import Func, Type, WinForms
+
+            form = window.native
+            if form is None:
+                return
+
+            def show():
+                # Un-minimize, but leave a maximized window maximized
+                # (window.restore() would shrink it).
+                if form.WindowState == WinForms.FormWindowState.Minimized:
+                    form.WindowState = WinForms.FormWindowState.Normal
+                form.Show()
+                form.Activate()
+
+            form.Invoke(Func[Type](show))
+            return
         import AppKit
 
         AppKit.NSApp.activateIgnoringOtherApps_(True)
         window.restore()
         window.show()
 
-    global _MENU_BAR
-    try:
-        from menubar import MenuBar
+    if sys.platform == "win32":
+        # Starting the app again while it runs shows this window (main()).
+        flask_app.config["MUHURATA_SHOW_WINDOW"] = bring_to_front
 
-        _MENU_BAR = MenuBar(on_click=bring_to_front)
-    except Exception:
-        log.exception("No menu bar timer this time")
+    global _MENU_BAR
+    if sys.platform == "darwin":
+        try:
+            from menubar import MenuBar
+
+            _MENU_BAR = MenuBar(on_click=bring_to_front)
+        except Exception:
+            log.exception("No menu bar timer this time")
     # Not private: the page keeps a running session in localStorage, which
     # has to survive closing the window.
     webview.start(private_mode=False, storage_path=str(data_dir / "window"))
@@ -775,7 +929,7 @@ def main(argv: list[str]) -> int:
     running = _already_running(data_dir)
     if running:
         log.info("Muhurta Pomodoro is already running at %s - opening its window.", running)
-        if open_browser:
+        if open_browser and not _show_running_window(running, data_dir):
             open_app_window(running)
         return 0
 
@@ -834,7 +988,7 @@ def main(argv: list[str]) -> int:
     _skip_host_lookup()
     server = make_server(HOST, port, app, threaded=True)
     _running_file(data_dir).write_text(json.dumps({"url": url, "pid": os.getpid()}))
-    if NATIVE_WINDOW and open_browser:
+    if NATIVE_WINDOW and open_browser and _native_window_works():
         # The window needs this (main) thread, so the server runs beside it.
         threading.Thread(target=server.serve_forever, daemon=True).start()
         log.info("Muhurta Pomodoro is running at %s  (close the timer window to stop it)", url)
@@ -880,7 +1034,7 @@ def main(argv: list[str]) -> int:
 
             app.config["MUHURATA_RESTART"] = update_and_reopen
         try:
-            _native_window(url, data_dir)
+            _native_window(url, data_dir, app)
         finally:
             server.shutdown()
             server.server_close()

@@ -14,6 +14,7 @@ datas = [
     ("templates", "templates"),
     ("static", "static"),
     ("migrations", "migrations"),  # alembic loads env.py/versions from disk
+    ("packaging/icon.png", "packaging"),  # the app's icon on Windows notifications
 ]
 
 hiddenimports = (
@@ -44,7 +45,8 @@ exe = EXE(
     strip=False,
     upx=False,
     console=False,
-    icon="packaging/icon.icns" if sys.platform == "darwin" else None,
+    # The .exe's icon is also its window's and taskbar button's on Windows.
+    icon="packaging/icon.icns" if sys.platform == "darwin" else "packaging/icon.ico",
 )
 coll = COLLECT(
     exe,

@@ -353,6 +353,12 @@
       undefined);
   });
 
+  $("btnCopySite").addEventListener("click", async (ev) => {
+    const site = ev.currentTarget.dataset.site;
+    say((await copyText(site)) ? "Website copied. Paste it into your password manager." :
+      `Couldn't copy. The website is ${site}`, undefined);
+  });
+
   // Typing your own: the Copy button is still handy once there is something to copy.
   $("newPassword").addEventListener("input", () => {
     $("btnCopyPassword").hidden = !$("newPassword").value;

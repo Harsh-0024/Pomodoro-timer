@@ -140,11 +140,15 @@
         <p class="field-note" id="matchNote" aria-live="polite"></p>
       </div>
       <div class="save-hint" id="saveHint">
-        <div class="save-hint-text">
+        <p class="save-hint-text">
           <strong>Saving it in Passwords or another password manager?</strong>
-          Use the website <span class="save-site">{{ password_site }}</span> and your email.
+          Use this website and your email:
+        </p>
+        <p class="save-site" id="saveSite">{{ password_site }}</p>
+        <div class="save-hint-actions">
+          <button type="button" class="btn btn-quiet btn-small" id="btnCopySite" data-site="{{ password_site }}">Copy website</button>
+          <button type="button" class="btn btn-quiet btn-small" id="btnCopyPassword" hidden>Copy password</button>
         </div>
-        <button type="button" class="btn btn-quiet btn-small" id="btnCopyPassword" hidden>Copy password</button>
       </div>
       <button type="submit" class="btn btn-primary signin-submit" id="btnSavePassword">Create account</button>
       <p class="signin-switch"><button type="button" class="signin-link" id="btnCancelPending">Start over with a different email</button></p>

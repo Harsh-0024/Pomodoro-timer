@@ -2928,7 +2928,9 @@ body[data-theme="light"] .rhythm-track {
   }
 }
 
-@media (max-width: 720px) {
+/* The heatmap's year buttons and legend stop fitting beside its title well
+   before the rest of the dashboard needs one column. */
+@media (max-width: 840px) {
   .panel-head {
     align-items: stretch;
     display: flex;
@@ -2953,7 +2955,9 @@ body[data-theme="light"] .rhythm-track {
     padding-bottom: 0.15rem;
     -webkit-overflow-scrolling: touch;
   }
+}
 
+@media (max-width: 720px) {
   .dashboard-stats,
   .dashboard-lower {
     grid-template-columns: 1fr;
@@ -4309,22 +4313,151 @@ body.timer-ringing .countdown-ring-wrap .ring-progress {
   flex: 1 1 10rem;
 }
 
-/* Narrow windows: five nav buttons don't fit beside the name, so they
-   wrap onto their own row under it. */
-@media (max-width: 760px) {
-  .topbar {
-    flex-wrap: wrap;
-    gap: 0.75rem;
-    padding: 1rem;
-  }
+/* ---------- window sizes ----------
+   The app lives in a window people resize (its own window on Mac and
+   Windows, a browser app window otherwise), so every size from 420x560 up
+   has to look intended, not just full screen. */
 
+/* The clock ring follows the window's height as well as its width, so Start
+   stays on screen in a short window. --ring-room is what the page needs
+   above and below the ring; the type inside scales with the ring. */
+:root {
+  --ring-room: 330px;
+}
+
+.timer-ring-wrap {
+  --ring: min(320px, 88vw, max(176px, 100vh - var(--ring-room)));
+  width: var(--ring);
+}
+
+.timer-ring-wrap .time-display {
+  font-size: clamp(2.1rem, calc(var(--ring) * 0.18), 3.6rem);
+}
+
+.timer-ring-wrap .countdown-input {
+  font-size: clamp(1.85rem, calc(var(--ring) * 0.15), 3rem);
+}
+
+.page-timer {
+  --ring-room: 380px; /* the quick-length chips under the ring */
+}
+
+/* Below the width the name and all the tabs need on one line (about
+   990px with the level picker), the tabs slim down to their text. */
+@media (max-width: 1040px) {
   .topnav {
-    width: 100%;
+    flex-wrap: nowrap;
     gap: 0.4rem;
   }
 
-  .topnav .nav-link {
+  .nav-link,
+  .nav-level-button {
     min-width: 0;
-    padding: 0 0.8rem;
+    padding: 0 0.85rem;
+  }
+}
+
+/* Still too narrow: the tabs go on their own centred row under the name,
+   on every page alike so the bar doesn't jump when switching tabs. */
+@media (max-width: 880px) {
+  .topbar {
+    flex-direction: column;
+    gap: 0.7rem;
+    padding: 0.9rem 1rem;
+  }
+
+  .topnav {
+    justify-content: center;
+  }
+
+  /* The level menu drops centred under the whole bar, close to its button. */
+  .nav-level {
+    position: static;
+  }
+
+  .page-home .nav-level-menu {
+    position: absolute;
+    top: calc(100% + 0.5rem);
+    left: 0;
+    right: 0;
+    margin: 0 auto;
+    transform-origin: top center;
+  }
+}
+
+@media (max-width: 520px) {
+  .topnav {
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+
+  .nav-link,
+  .nav-level-button {
+    min-height: 2rem;
+    padding: 0 0.7rem;
+    font-size: 0.8rem;
+  }
+
+  .brand-text {
+    font-size: 1.15rem;
+  }
+
+  /* Rhythm's six buttons (level picker + tabs) as two even rows of three. */
+  .page-home .topnav {
+    display: grid;
+    grid-template-columns: repeat(3, auto);
+    justify-content: center;
+  }
+
+  .page-home .topnav .nav-link,
+  .page-home .topnav .nav-level-button {
+    width: 100%;
+  }
+
+  .session-live {
+    gap: 0.5rem;
+    padding: 0.55rem 0.75rem;
+  }
+
+  .live-stat {
+    min-width: 0;
+    flex: 1 1 0;
+  }
+
+  .live-val {
+    font-size: 1.15rem;
+    white-space: nowrap;
+  }
+
+  .live-key {
+    letter-spacing: 0.14em;
+  }
+}
+
+/* Short windows: tighter spacing, so the ring has room to stay large. */
+@media (max-height: 760px) {
+  .topbar {
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+  }
+
+  .main {
+    padding-top: 1.1rem;
+  }
+
+  .hero {
+    gap: 0.85rem;
+  }
+
+  .timer-panel {
+    padding: 1.25rem 1.25rem 1.2rem;
+  }
+
+  .timer-ring-wrap {
+    margin-bottom: 1.1rem;
+  }
+
+  .countdown-quick {
+    margin-bottom: 0.75rem;
   }
 }

@@ -80,6 +80,16 @@ jobs:
           expect "$(code "$url/api/version")" 200 "version check"
           expect "$(code -X POST "$url/api/alive?page=ci")" 204 "window check-in"
           curl -fsS "$url/api/cloud/status" | grep -q '"signed_in": *false' || { echo "cloud status"; exit 1; }
+          # The update check has to reach GitHub over HTTPS from the built
+          # app. Up to 1.7.0 it silently couldn't, and no copy ever saw an
+          # update. A refusal from GitHub (e.g. rate limit) still proves the
+          # secure connection works; no connection at all stops the release.
+          v=$(curl -fsS "$url/api/version?refresh=1")
+          echo "update check: $v"
+          case "$v" in
+            *'"check_error":null'*|*'"check_error": null'*|*'update server answered'*) ;;
+            *) echo "The built app can't check for updates."; exit 1 ;;
+          esac
           kill $pid || true
           echo "Smoke test passed on $url"
 

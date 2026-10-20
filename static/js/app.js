@@ -478,7 +478,7 @@
     data.mode = "paused";
     data.runStartedAt = null;
     data.pausedBy = "timer";
-    data.notice = "Flow paused while Timer starts.";
+    data.notice = "Flow paused while Rhythm starts.";
     data.savedAt = now;
     writeStoredFlow(data);
     showTimerNotice(data.notice);
@@ -945,7 +945,7 @@
       panel.removeAttribute("aria-label");
     } else {
       panel.removeAttribute("aria-labelledby");
-      panel.setAttribute("aria-label", "Timer choices");
+      panel.setAttribute("aria-label", "Rhythm choices");
     }
     actionsEl.innerHTML = "";
     actions.forEach(({ label, primary, onClick, disabled }) => {
@@ -1926,7 +1926,7 @@
     }
     if (data.pausedBy !== "flow") return;
     restoreSession();
-    showTimerNotice(data.notice || "Timer paused while Flow starts.");
+    showTimerNotice(data.notice || "Rhythm paused while Flow starts.");
   });
 
   document.addEventListener("DOMContentLoaded", init);

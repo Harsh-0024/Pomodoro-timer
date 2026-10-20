@@ -205,7 +205,7 @@
     data.phaseEndsAt = null;
     data.pauseStartedAt = now;
     data.pausedBy = "flow";
-    data.notice = "Timer paused while Flow starts.";
+    data.notice = "Rhythm paused while Flow starts.";
     data.savedAt = now;
     writeStoredTimer(data);
     showNotice(data.notice);

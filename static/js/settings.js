@@ -783,7 +783,7 @@
   async function resetSettings() {
     const ok = await askConfirm({
       title: "Restore default settings?",
-      message: "Timer, sound, theme and notification preferences go back to how they started. Your combinations and focus history are kept.",
+      message: "Rhythm, Timer, sound, theme and notification preferences go back to how they started. Your combinations and focus history are kept.",
       accept: "Restore",
     });
     if (!ok) return;

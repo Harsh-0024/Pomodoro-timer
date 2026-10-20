@@ -1,12 +1,16 @@
-"""The running timer or flow in the Mac menu bar, like Apple's Clock app.
+"""The running Rhythm, Timer or Flow in the Mac menu bar, like Apple's Clock app.
 
 Only the downloaded Mac app uses this (run.py NATIVE_WINDOW). The page tells
 us what is running (static/js/menubar.js); from then on the time is worked out
 here, once a second, from clock times, so it keeps going while the window is
 hidden or showing another page.
 
-The timer gets a timer icon and counts down; Flow gets a stopwatch icon and
-counts up. Nothing is shown while neither is running or paused.
+Rhythm gets a metronome icon and Timer a timer icon, and both count down
+(then up, with a "+", past zero); Flow gets a stopwatch icon and counts up.
+Nothing is shown while none of them is running or paused.
+
+The page's kinds are older than the names: "timer" is Rhythm, "countdown"
+is the simple Timer.
 """
 from __future__ import annotations
 
@@ -17,7 +21,8 @@ import time
 log = logging.getLogger("muhurata.menubar")
 
 # SF Symbols (macOS 11+), the same ones Apple's Clock uses.
-ICONS = {"timer": "timer", "flow": "stopwatch"}
+ICONS = {"timer": "metronome", "countdown": "timer", "flow": "stopwatch"}
+NAMES = {"timer": "Rhythm", "countdown": "Timer", "flow": "Flow"}
 
 
 def _clock(sec: float) -> str:
@@ -30,7 +35,7 @@ def _clock(sec: float) -> str:
 def text_for(state: dict | None, now_ms: float) -> str | None:
     """What the menu bar should say for the page's state, or None to hide it.
 
-    state = {kind: "timer"|"flow", up: bool, sec: float, since: ms|None,
+    state = {kind: "timer"|"countdown"|"flow", up: bool, sec: float, since: ms|None,
              until: ms|None, paused: bool}. A running countdown ends at
     `until`; a running count-up is sec plus the time since `since`. Paused,
     it is just sec.
@@ -43,7 +48,7 @@ def text_for(state: dict | None, now_ms: float) -> str | None:
     elif state.get("since"):
         sec += max(0.0, (now_ms - float(state["since"])) / 1000)
     text = _clock(sec)
-    return f"+{text}" if state.get("up") and state.get("kind") == "timer" else text
+    return f"+{text}" if state.get("up") and state.get("kind") != "flow" else text
 
 
 class MenuBar:
@@ -105,7 +110,7 @@ class MenuBar:
                     button.setAction_("clicked:")
             button = self._item.button()
             image = AppKit.NSImage.imageWithSystemSymbolName_accessibilityDescription_(
-                ICONS[kind], "Flow" if kind == "flow" else "Timer")
+                ICONS[kind], NAMES[kind])
             if image is not None:
                 image.setTemplate_(True)
                 button.setImage_(image)
@@ -117,7 +122,7 @@ class MenuBar:
                 " " + text, {AppKit.NSFontAttributeName: font,
                              AppKit.NSForegroundColorAttributeName: color})
             button.setAttributedTitle_(title)
-            button.setToolTip_(("Flow" if kind == "flow" else "Timer") + (" (paused)" if paused else ""))
+            button.setToolTip_(NAMES[kind] + (" (paused)" if paused else ""))
         except Exception:
             log.exception("Could not draw the menu bar item")
 

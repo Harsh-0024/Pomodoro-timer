@@ -6,7 +6,6 @@
   const LAST_KEY = "muhurat_countdown_last_v1";
   const RING_LEN = 2 * Math.PI * 96;
   const MAX_SEC = 24 * 60 * 60 - 1;
-  const baseTitle = "Muhurta Pomodoro";
   const T = () => window.MuhurtaTimer;
   let tickTimer = null;
   let noticeTimer = null;
@@ -182,7 +181,7 @@
       $("timerHint").textContent = "Set a time and start";
       $("timerEndsKey").textContent = "ends at";
       $("timerFocusedDisplay").textContent = "0:00";
-      document.title = baseTitle;
+      // Idle: the title is session-monitor.js's (a Rhythm session may be running).
       renderIdle();
       return;
     }

@@ -1,6 +1,7 @@
 // In the Mac app, tell the app what is running so it can show the time in
 // the menu bar (menubar.py), like Apple's Clock. Runs on every page and reads
-// the timer's and Flow's saved sessions, so it works wherever the window is.
+// the saved sessions of Rhythm ("timer"), Timer ("countdown") and Flow, so it
+// works wherever the window is.
 // The app counts the seconds itself; this only says when something changes.
 // In a browser this does nothing.
 (function () {
@@ -9,6 +10,7 @@
 
   const TIMER_KEY = "muhurat_timer_session_v1";
   const FLOW_KEY = "muhurat_flow_session_v1";
+  const COUNTDOWN_KEY = "muhurat_countdown_session_v1";
   let lastSent = null;
 
   function read(key) {
@@ -49,13 +51,25 @@
     return { kind: "flow", up: true, sec, since: null, until: null, paused: true };
   }
 
+  function countdownState(d) {
+    if (!d) return null;
+    const base = { kind: "countdown", up: false, sec: 0, since: null, until: null, paused: false };
+    if (d.mode === "running" && d.endsAt) return { ...base, until: d.endsAt };
+    if (d.mode === "paused") return { ...base, sec: Number(d.remainingSec || 0), paused: true };
+    if (d.mode === "ringing") return base; // 00:00 until dismissed
+    if (d.mode === "overtime" && d.overtimeStartedAt) return { ...base, up: true, since: d.overtimeStartedAt };
+    return null;
+  }
+
   function current() {
-    const timer = timerState(read(TIMER_KEY));
-    const flow = flowState(read(FLOW_KEY));
-    // Whichever is running wins; if both are paused, Flow (it is the newer).
-    if (timer && !timer.paused) return timer;
-    if (flow && !flow.paused) return flow;
-    return flow || timer;
+    const all = [
+      timerState(read(TIMER_KEY)),
+      countdownState(read(COUNTDOWN_KEY)),
+      flowState(read(FLOW_KEY)),
+    ].filter(Boolean);
+    // Whichever is running wins; if all are paused, the newest kind (Flow,
+    // then Timer, then Rhythm).
+    return all.find((s) => !s.paused) || all[all.length - 1] || null;
   }
 
   function check() {

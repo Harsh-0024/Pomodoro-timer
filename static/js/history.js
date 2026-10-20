@@ -14,6 +14,7 @@
     work: { label: "Focus", focus: true },
     extend: { label: "Extra focus", focus: true },
     flow: { label: "Flow", focus: true },
+    timer: { label: "Timer", focus: true },
     rest: { label: "Rest", focus: false },
     cumulative: { label: "Pooled rest", focus: false },
     pause: { label: "Pause", focus: false },

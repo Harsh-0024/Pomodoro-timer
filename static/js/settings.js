@@ -14,7 +14,7 @@
       name: "Focus begins",
       desc: "When a focus block starts.",
       soundKey: "manual_sound_work_begin",
-      fallback: "temple-gong",
+      fallback: "opening-bells",
       chimeKeys: ["chime_session_start"],
     },
     {
@@ -35,7 +35,7 @@
       name: "Small actions",
       desc: "Adding to the rest pool, choosing, skipping.",
       soundKey: "manual_sound_action",
-      fallback: "soft-bell",
+      fallback: "opening-bells",
       chimeKeys: ["chime_pool_add", "chime_choice", "chime_skip"],
     },
   ];
@@ -199,6 +199,18 @@
     syncSegmented($("setTheme"), theme);
   }
 
+  const TIMER_END_HINTS = {
+    stop: "Chime once and finish.",
+    ring: "Chime every few seconds until you dismiss it, like an alarm.",
+    overtime: "Chime once, then keep counting up (+0:42) until you stop. The extra time counts as focus.",
+  };
+
+  function applyTimerEnd(value) {
+    const end = TIMER_END_HINTS[value] ? value : "stop";
+    syncSegmented($("setTimerEnd"), end);
+    if ($("setTimerEndHint")) $("setTimerEndHint").textContent = TIMER_END_HINTS[end];
+  }
+
   /* ---------- daily goal ---------- */
 
   function goalStepFor(v) {
@@ -235,10 +247,6 @@
     return window.FocusSounds?.options || [
       { id: "soothing-bell", label: "Soothing bell" },
       { id: "opening-bells", label: "Opening bells" },
-      { id: "temple-gong", label: "Temple gong" },
-      { id: "ghanta-trio", label: "Ghanta trio" },
-      { id: "soft-bell", label: "Soft bell" },
-      { id: "bamboo-tick", label: "Bamboo tick" },
     ];
   }
 
@@ -328,7 +336,6 @@
     ["setVolume", "setTick"].forEach((id) => {
       if ($(id)) $(id).disabled = !soundOn;
     });
-    $("setProfile")?.querySelectorAll(".segment").forEach((b) => (b.disabled = !soundOn));
     CUES.forEach((cue, i) => {
       const on = cueOn(cue);
       const row = document.querySelector(`.cue-row[data-cue="${i}"]`);
@@ -783,7 +790,7 @@
   async function resetSettings() {
     const ok = await askConfirm({
       title: "Restore default settings?",
-      message: "Timer, sound, theme and notification preferences go back to how they started. Your combinations and focus history are kept.",
+      message: "Rhythm, Timer, sound, theme and notification preferences go back to how they started. Your combinations and focus history are kept.",
       accept: "Restore",
     });
     if (!ok) return;
@@ -806,8 +813,8 @@
       if ($(id)) $(id).checked = !!s[key];
     });
     renderVolume();
-    syncSegmented($("setProfile"), s.sound_profile || "bold");
     applyTheme(s.theme);
+    applyTimerEnd(s.timer_end);
     renderGoal();
     syncCues();
     syncSoundState();
@@ -833,9 +840,10 @@
       renderVolume();
     });
 
-    wireSegmented($("setProfile"), (value) => {
-      save({ sound_profile: value });
-      syncSegmented($("setProfile"), value);
+
+    wireSegmented($("setTimerEnd"), (value) => {
+      save({ timer_end: value });
+      applyTimerEnd(value);
     });
 
     wireSegmented($("setTheme"), (value) => {

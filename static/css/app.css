@@ -4193,3 +4193,138 @@ body[data-theme="light"] .signin-message[data-tone="error"] {
   color: var(--muted);
   font-size: 0.78rem;
 }
+
+/* ---------- Timer (the simple countdown: templates/timer.html) ---------- */
+
+.countdown-set {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.15rem;
+  pointer-events: auto;
+}
+
+.countdown-set.hidden,
+.countdown-quick.hidden {
+  display: none;
+}
+
+.countdown-field {
+  display: inline-flex;
+  align-items: baseline;
+  cursor: text;
+}
+
+.countdown-input {
+  width: 2.2ch;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--font-serif);
+  font-size: clamp(2.3rem, 6vw, 3rem);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  caret-color: var(--gold);
+  transition: border-color 0.15s ease;
+}
+
+.countdown-input:hover {
+  border-bottom-color: var(--muted);
+}
+
+.countdown-input:focus {
+  outline: none;
+  border-bottom-color: var(--gold);
+}
+
+.countdown-unit {
+  margin: 0 0.35rem 0 0.1rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.countdown-quick {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.4rem;
+  margin: 0 auto 1rem;
+}
+
+.countdown-chip {
+  padding: 0.32rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.countdown-chip:hover {
+  color: var(--ink);
+  border-color: var(--gold);
+}
+
+.countdown-chip:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+body.timer-ringing .countdown-ring-wrap .ring-progress {
+  animation: ring-breathe 1.2s ease-in-out infinite;
+}
+
+/* "Time's up" on pages other than Timer (static/js/timer-core.js) */
+.timer-alarm {
+  position: fixed;
+  left: 50%;
+  top: 5rem;
+  transform: translateX(-50%);
+  z-index: 70;
+  width: min(30rem, calc(100vw - 2rem));
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 0.75rem 0.75rem 1.1rem;
+  border: 1px solid var(--gold);
+  border-radius: var(--radius);
+  background: var(--menu-bg-strong);
+  box-shadow: var(--menu-shadow);
+  color: var(--ink);
+  font-size: 0.92rem;
+}
+
+.timer-alarm.hidden {
+  display: none;
+}
+
+.timer-alarm-text {
+  flex: 1 1 10rem;
+}
+
+/* Narrow windows: five nav buttons don't fit beside the name, so they
+   wrap onto their own row under it. */
+@media (max-width: 760px) {
+  .topbar {
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    padding: 1rem;
+  }
+
+  .topnav {
+    width: 100%;
+    gap: 0.4rem;
+  }
+
+  .topnav .nav-link {
+    min-width: 0;
+    padding: 0 0.8rem;
+  }
+}

@@ -5,6 +5,15 @@ a few short lines per version, about what they will notice. Versions with
 nothing worth telling can be left out.
 """
 NOTES = {
+    "1.8.0": [
+        "New: Timer. Type any length (or tap 5m to 1h), press Start, and it counts down. "
+        "It counts as focus, like everything else.",
+        "What the Timer does at zero is up to you in Settings > Timer: stop with one chime, "
+        "keep ringing until you dismiss it, or keep counting the extra time.",
+        "The cycles you know are now called Rhythm, so the tabs read Rhythm, Timer, Flow. "
+        "Starting one pauses whichever other one is running.",
+        "Sound is simpler: the two bells, and one volume slider that works smoothly all the way.",
+    ],
     "1.7.2": [
         "If the app can't check for updates for a few days, it now tells you, so you never get stuck "
         "on an old version without knowing.",

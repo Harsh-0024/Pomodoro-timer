@@ -1,8 +1,9 @@
 # Muhurta Pomodoro
 
 A calm focus timer for your Mac, built on the old Indian units of time:
-**1 Muhurta = 48 min · 1 Ghadi = 24 min**. Eight timer levels, a no-countdown
-Flow mode, a rest pool and a dashboard of your focus over the year. It is free
+**1 Muhurta = 48 min · 1 Ghadi = 24 min**. Rhythm runs eight levels of focus
+and rest, Timer counts down any time you set, Flow is a no-countdown
+stopwatch, and there's a rest pool and a dashboard of your focus over the year. It is free
 but needs a (free) account: you confirm your email with a code once, choose a
 password, and from then on sign in with email and password. Your history,
 combinations and settings are kept in your account and appear on every computer

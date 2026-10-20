@@ -104,10 +104,6 @@ INITIAL_QUOTE = random.choice(FALLBACK_QUOTES)
 SOUND_CHOICES = {
     "soothing-bell",
     "opening-bells",
-    "temple-gong",
-    "ghanta-trio",
-    "soft-bell",
-    "bamboo-tick",
 }
 SOUND_SETTING_KEYS = (
     "manual_sound_rest_end",
@@ -235,6 +231,11 @@ def sign_in_page():
                            pending_email=st["email"] if st["password_pending"] else "",
                            pending_has_profile=bool(st["profile"]), email_from=cloud.EMAIL_FROM,
                            password_site=cloud.PASSWORD_SITE)
+
+
+@app.route("/timer")
+def timer_page():
+    return render_template("timer.html", initial_quote=INITIAL_QUOTE)
 
 
 @app.route("/flow")
@@ -673,11 +674,6 @@ def api_put_settings():
         if not (0 <= vol <= 100):
             return jsonify({"error": "Volume must be 0–100"}), 400
         patch["sound_volume"] = vol
-    if "sound_profile" in body:
-        profile = str(body["sound_profile"])
-        if profile not in ("subtle", "balanced", "bold"):
-            return jsonify({"error": "Invalid sound profile"}), 400
-        patch["sound_profile"] = profile
     for key in SOUND_SETTING_KEYS:
         if key in body:
             sound = str(body[key])
@@ -689,6 +685,11 @@ def api_put_settings():
         if theme not in ("light", "dark", "system"):
             return jsonify({"error": "Invalid theme"}), 400
         patch["theme"] = theme
+    if "timer_end" in body:
+        timer_end = str(body["timer_end"])
+        if timer_end not in ("stop", "ring", "overtime"):
+            return jsonify({"error": "Invalid timer ending"}), 400
+        patch["timer_end"] = timer_end
     if "notifications_enabled" in body:
         patch["notifications_enabled"] = bool(body["notifications_enabled"])
     if "default_preset_id" in body:
@@ -739,7 +740,7 @@ def api_focus_log():
 def api_activity_segment():
     data = request.get_json(silent=True) or {}
     kind = str(data.get("kind") or "")
-    if kind not in ("work", "extend", "flow", "rest", "cumulative", "pause"):
+    if kind not in ("work", "extend", "flow", "timer", "rest", "cumulative", "pause"):
         return jsonify({"error": "Invalid activity kind"}), 400
     day = str(data.get("day") or "")
     if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", day):

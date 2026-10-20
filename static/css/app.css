@@ -3920,8 +3920,8 @@ body[data-theme="light"] .signin-message[data-tone="error"] {
 
 /* sign-in: password strength */
 .strength {
-  height: 4px;
-  margin-top: 0.25rem;
+  height: 3px;
+  margin-top: 0.15rem;
   border-radius: 4px;
   background: var(--faint);
   overflow: hidden;
@@ -3940,56 +3940,6 @@ body[data-theme="light"] .signin-message[data-tone="error"] {
 .strength-bar[data-level="3"] { background: #b9a24a; }
 .strength-bar[data-level="4"],
 .strength-bar[data-level="5"] { background: #5f9e66; }
-
-.strength-label {
-  margin: 0;
-  min-height: 1em;
-  color: var(--muted);
-  font-size: 0.78rem;
-}
-
-.rules {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.2rem 0.75rem;
-  margin: 0.15rem 0 0;
-  padding: 0;
-  list-style: none;
-  color: var(--muted);
-  font-size: 0.78rem;
-}
-
-.rules li {
-  position: relative;
-  padding-left: 1.1rem;
-}
-
-.rules li::before {
-  content: "";
-  position: absolute;
-  left: 0.15rem;
-  top: 0.42em;
-  width: 0.45rem;
-  height: 0.45rem;
-  border: 1px solid currentColor;
-  border-radius: 50%;
-  opacity: 0.6;
-}
-
-.rules li.is-met {
-  color: var(--ink);
-}
-
-.rules li.is-met::before {
-  content: "✓";
-  top: 0;
-  width: auto;
-  height: auto;
-  border: 0;
-  color: #5f9e66;
-  opacity: 1;
-  font-size: 0.8rem;
-}
 
 /* sign-in: steps */
 .signin-progress {
@@ -4027,8 +3977,7 @@ body[data-theme="light"] .signin-message[data-tone="error"] {
 }
 
 @media (max-width: 520px) {
-  .field-row,
-  .rules {
+  .field-row {
     grid-template-columns: 1fr;
   }
 }
@@ -4114,25 +4063,43 @@ body[data-theme="light"] .signin-message[data-tone="error"] {
   display: none;
 }
 
-/* sign-in: where to save the password */
+/* sign-in: where to save the password (folded until needed) */
 .save-hint {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 0.5rem;
-  padding: 0.75rem 0.85rem;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--surface-strong);
   color: var(--muted);
-  font-size: 0.8rem;
-  line-height: 1.45;
+  font-size: 0.82rem;
 }
 
-.save-hint strong {
-  display: block;
+.save-hint summary {
+  width: fit-content;
+  cursor: pointer;
+  list-style: none;
+  color: var(--muted);
+}
+
+.save-hint summary::-webkit-details-marker {
+  display: none;
+}
+
+.save-hint summary::after {
+  content: "›";
+  display: inline-block;
+  margin-left: 0.4em;
+  transition: transform 0.2s ease;
+}
+
+.save-hint[open] summary::after {
+  transform: rotate(90deg);
+}
+
+.save-hint summary:hover {
   color: var(--ink);
-  font-weight: 500;
+}
+
+.save-hint-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem 0 0;
 }
 
 .save-hint-text {
@@ -4141,12 +4108,19 @@ body[data-theme="light"] .signin-message[data-tone="error"] {
 
 .save-hint .save-site {
   margin: 0;
-  padding: 0.45rem 0.65rem;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--control-bg);
-  font-size: 0.85rem;
   user-select: all; /* one click selects the whole address */
+}
+
+.save-hint-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+}
+
+.save-site {
+  color: var(--ink);
+  font-weight: 500;
+  overflow-wrap: anywhere;
 }
 
 .save-hint-actions {
@@ -4343,5 +4317,36 @@ body.timer-ringing .countdown-ring-wrap .ring-progress {
   .topnav .nav-link {
     min-width: 0;
     padding: 0 0.8rem;
+  }
+}
+
+/* sign-in: room to breathe */
+.signin-card {
+  padding: 2.5rem 2.25rem 2.25rem;
+}
+
+.signin-lede {
+  margin-bottom: 2rem;
+}
+
+.signin-step {
+  gap: 1.35rem;
+}
+
+.signin-step .field {
+  gap: 0.45rem;
+}
+
+.signin-submit {
+  margin-top: 0.5rem;
+}
+
+.pw-guide {
+  transition: color 0.2s ease;
+}
+
+@media (max-width: 520px) {
+  .signin-card {
+    padding: 2rem 1.35rem 1.75rem;
   }
 }

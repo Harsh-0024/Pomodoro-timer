@@ -80,6 +80,7 @@ def render_pages() -> None:
             account=None,
             bare=endpoint == "sign_in_page",
             initial_quote=quote,
+            mobile=True,
             password_site=PASSWORD_SITE,
             email_from=EMAIL_FROM,
             pending_email="",

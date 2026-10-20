@@ -157,6 +157,13 @@ def _inject_account():
 
 
 @app.context_processor
+def _inject_mobile():
+    # The Android app's pages are built from these templates with mobile=True
+    # (mobile/build_web.py); this lets the dev server show that layout too.
+    return {"mobile": os.environ.get("MUHURATA_MOBILE_PREVIEW") == "1"}
+
+
+@app.context_processor
 def _inject_theme():
     theme = db.load_settings().get("theme", "system")
     if theme not in ("light", "dark", "system"):

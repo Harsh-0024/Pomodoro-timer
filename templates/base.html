@@ -27,6 +27,7 @@
     <nav class="topnav">
       {% block nav_level %}{% endblock %}
       <a href="{{ url_for('index') }}" class="nav-link{% if request.endpoint == 'index' %} is-active{% endif %}">Rhythm</a>
+      <a href="{{ url_for('timer_page') }}" class="nav-link{% if request.endpoint == 'timer_page' %} is-active{% endif %}">Timer</a>
       <a href="{{ url_for('flow_page') }}" class="nav-link{% if request.endpoint == 'flow_page' %} is-active{% endif %}">Flow</a>
       <a href="{{ url_for('dashboard_page') }}" class="nav-link{% if request.endpoint == 'dashboard_page' %} is-active{% endif %}">Dashboard</a>
       <a href="{{ url_for('settings_page') }}" class="nav-link{% if request.endpoint in ('settings_page', 'history_page') %} is-active{% endif %}">Settings</a>
@@ -88,6 +89,8 @@
   <script src="{{ url_for('static', filename='js/whats-new.js') }}?v={{ asset_version }}" defer></script>
   <script src="{{ url_for('static', filename='js/sounds.js') }}?v={{ asset_version }}" defer></script>
   <script src="{{ url_for('static', filename='js/session-monitor.js') }}?v={{ asset_version }}" defer></script>
+  <script src="{{ url_for('static', filename='js/one-clock.js') }}?v={{ asset_version }}" defer></script>
+  <script src="{{ url_for('static', filename='js/timer-core.js') }}?v={{ asset_version }}" defer></script>
   <script src="{{ url_for('static', filename='js/dialog.js') }}?v={{ asset_version }}" defer></script>
   <script src="{{ url_for('static', filename='js/shortcuts.js') }}?v={{ asset_version }}" defer></script>
   {% endif %}

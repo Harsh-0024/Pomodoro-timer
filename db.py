@@ -42,6 +42,8 @@ DEFAULT_SETTINGS = {
     "chime_choice": True,
     "chime_skip": True,
     "notifications_enabled": True,
+    # What the simple Timer does at zero: "stop", "ring" or "overtime".
+    "timer_end": "stop",
     "default_preset_id": "builtin-shishya",
     "daily_focus_goal_minutes": 120,
     "theme": "system",
@@ -471,7 +473,7 @@ def activity_for_day(day_iso: str) -> dict:
         conn.close()
 
 
-PRODUCTIVE_KINDS = ("work", "extend", "flow")
+PRODUCTIVE_KINDS = ("work", "extend", "flow", "timer")
 REST_KINDS = ("rest", "cumulative", "pause")
 # Anything this long is flagged in the history editor: the usual cause is a
 # timer or stopwatch left running on a computer nobody was sitting at.

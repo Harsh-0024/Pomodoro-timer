@@ -2,15 +2,11 @@
   "use strict";
 
   const STORAGE_KEY = "muhurat_flow_session_v1";
-  const TIMER_STORAGE_KEY = "muhurat_timer_session_v1";
-  const SESSION_COMMAND_KEY = "muhurat_session_command_v1";
-  const ACTIVE_TIMER_MODES = new Set(["work", "extend", "rest", "cumulative"]);
   const baseTitle = "Muhurta Pomodoro";
   let tickTimer = null;
   let quoteLoadId = 0;
   let settings = null;
   let settingsPromise = null;
-  let presetPromise = null;
   let noticeTimer = null;
 
   const state = {
@@ -78,25 +74,6 @@
     }).catch(() => {});
   }
 
-  function logTimerSegment(data, kind, startedAt, endedAt, details = {}) {
-    const durationSec = Math.max(0, (endedAt - startedAt) / 1000);
-    if (durationSec < 0.5) return;
-    api("/api/activity/segment", {
-      method: "POST",
-      body: JSON.stringify({
-        day: localDayISO(startedAt),
-        kind,
-        started_at: new Date(startedAt).toISOString(),
-        ended_at: new Date(endedAt).toISOString(),
-        duration_sec: durationSec,
-        preset_id: data.presetId || "",
-        preset_name: data.presetName || "",
-        phase_index: data.phaseIndex,
-        details,
-      }),
-    }).catch(() => {});
-  }
-
   function showNotice(message) {
     const el = document.getElementById("flowNotice");
     if (!el || !message) return;
@@ -118,98 +95,9 @@
     }
   }
 
-  function readStoredTimer() {
-    const local = parseStored(localStorage.getItem(TIMER_STORAGE_KEY));
-    const session = parseStored(sessionStorage.getItem(TIMER_STORAGE_KEY));
-    if (!local) return session;
-    if (!session) return local;
-    return Number(session.savedAt || 0) > Number(local.savedAt || 0) ? session : local;
-  }
-
-  function writeStoredTimer(data) {
-    try {
-      const raw = JSON.stringify(data);
-      localStorage.setItem(TIMER_STORAGE_KEY, raw);
-      sessionStorage.setItem(TIMER_STORAGE_KEY, raw);
-      localStorage.setItem(
-        SESSION_COMMAND_KEY,
-        JSON.stringify({ target: "timer", action: "paused-by-flow", at: Date.now() })
-      );
-    } catch (_) {}
-  }
-
-  function loadPresets() {
-    if (!presetPromise) {
-      presetPromise = api("/api/presets")
-        .then((data) => [...(data.builtins || []), ...(data.custom || [])])
-        .catch(() => []);
-    }
-    return presetPromise;
-  }
-
-  function timerPreset(data, presets) {
-    return presets.find((preset) => preset.id === data?.presetId) || null;
-  }
-
-  function restAccrualRate(preset) {
-    if (!preset) return 0;
-    const workSec = 4 * Number(preset.work_min || 0) * 60;
-    const restSec = (3 * Number(preset.short_rest_min || 0) + Number(preset.long_rest_min || 0)) * 60;
-    return workSec > 0 ? restSec / workSec : 0;
-  }
-
-  function syncStoredExtendPool(data, preset, now) {
-    if (data.mode !== "extend" || !preset || !data.session) return;
-    const session = data.session;
-    const live = session.segKind === "extend" && session.segStartedAt ? Math.max(0, (now - Number(session.segStartedAt)) / 1000) : 0;
-    const extendTotal = Number(session.extendSec || 0) + live;
-    const target = extendTotal * restAccrualRate(preset);
-    const previous = Number(session.extendPoolAccrued || 0);
-    const delta = target - previous;
-    if (delta > 0.001) {
-      session.extendPoolAccrued = target;
-      session.poolSec = Number(session.poolSec || 0) + delta;
-    }
-  }
-
-  function commitStoredTimerSegment(data, preset, now) {
-    const session = data.session;
-    if (!session?.segStartedAt || !session.segKind) return;
-    if (session.segKind === "extend") syncStoredExtendPool(data, preset, now);
-    const startedAt = Number(session.segStartedAt);
-    const endedAt = now;
-    const elapsed = Math.max(0, (endedAt - startedAt) / 1000);
-    if (session.segKind === "work") session.workSec = Number(session.workSec || 0) + elapsed;
-    else if (session.segKind === "extend") session.extendSec = Number(session.extendSec || 0) + elapsed;
-    else if (session.segKind === "rest" || session.segKind === "cumulative")
-      session.restTakenSec = Number(session.restTakenSec || 0) + elapsed;
-    logTimerSegment(data, session.segKind, startedAt, endedAt, {
-      duration_sec: Number(session.segDurationSec || 0),
-      paused_by: "flow",
-    });
-    session.segStartedAt = null;
-    session.segKind = null;
-    session.segDurationSec = 0;
-  }
-
-  async function pauseTimerForFlow() {
-    const data = readStoredTimer();
-    if (!data?.running || !ACTIVE_TIMER_MODES.has(data.mode) || !data?.session?.active) return false;
-    const now = Date.now();
-    const presets = await loadPresets();
-    const preset = timerPreset(data, presets);
-    if (preset) data.presetName = preset.name || "";
-    if (data.phaseEndsAt) data.remainingSec = Math.max(0, (Number(data.phaseEndsAt) - now) / 1000);
-    commitStoredTimerSegment(data, preset, now);
-    data.running = false;
-    data.phaseEndsAt = null;
-    data.pauseStartedAt = now;
-    data.pausedBy = "flow";
-    data.notice = "Rhythm paused while Flow starts.";
-    data.savedAt = now;
-    writeStoredTimer(data);
-    showNotice(data.notice);
-    return true;
+  async function pauseOthers() {
+    const notices = await window.OneClock.pauseOthers("flow", "Flow");
+    if (notices.length) showNotice(notices.join(" "));
   }
 
   function readStored() {
@@ -378,7 +266,7 @@
   }
 
   async function startFlow() {
-    await pauseTimerForFlow();
+    await pauseOthers();
     const now = Date.now();
     state.mode = "running";
     state.startedAt = now;
@@ -407,7 +295,7 @@
 
   async function resumeFlow() {
     if (state.mode !== "paused") return;
-    await pauseTimerForFlow();
+    await pauseOthers();
     state.mode = "running";
     state.runStartedAt = Date.now();
     playWorkBeginChime();

@@ -114,7 +114,11 @@ jobs:
           Remove-Item "$data\running.json" -ErrorAction SilentlyContinue
           $before = @(Get-Content $log).Count
           $since = { @(Get-Content $log) | Select-Object -Skip $before }
-          $p = Start-Process -PassThru "dist\Muhurta Pomodoro\Muhurta Pomodoro.exe"
+          # Started directly (no shell), as it runs once a friend has said
+          # "Run anyway": the shell would stop here to ask about the mark.
+          $start = [System.Diagnostics.ProcessStartInfo]::new((Resolve-Path "dist\Muhurta Pomodoro\Muhurta Pomodoro.exe").Path)
+          $start.UseShellExecute = $false
+          $p = [System.Diagnostics.Process]::Start($start)
           $opened = $false
           for ($i = 0; $i -lt 60 -and -not $opened; $i++) {
             Start-Sleep 1

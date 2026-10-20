@@ -578,3 +578,10 @@ body.is-mobile .history-item.is-open .custom-actions {
 body.is-mobile .history-item {
   cursor: pointer;
 }
+
+/* Messages ("Saved", "Fill in the durations...") sit above the tab bar. */
+body.is-mobile .settings-toast {
+  bottom: calc(var(--tabbar-h) + var(--safe-bottom) + 0.75rem);
+  max-width: calc(100vw - 2rem);
+  z-index: 70;
+}

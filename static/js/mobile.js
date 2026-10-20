@@ -44,6 +44,12 @@
     if (!nav) return;
     document.body.classList.add("settings-phone");
 
+    // Until the phone has accounts, there is no Account section to open.
+    const local = window.__MUHURTA_LOCAL__;
+    if (local && !local.cloudConfigured) delete SECTION_NOTES.sync;
+    // Phone notifications come later; the section still speaks of desktops.
+    if (local && !local.notifications) delete SECTION_NOTES.notifications;
+
     nav.querySelectorAll(".settings-nav-link").forEach((link) => {
       const id = link.getAttribute("href").slice(1);
       if (!SECTION_NOTES[id]) { link.remove(); return; }

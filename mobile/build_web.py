@@ -53,6 +53,11 @@ ROUTER = """<script>
 </script>"""
 
 
+LOCAL_API = """
+  <script src="/mobile-data.js"></script>
+  <script src="/local-api.js"></script>"""
+
+
 def url_for(endpoint: str, filename: str | None = None, **_):
     if endpoint == "static":
         return f"/static/{filename}"
@@ -86,8 +91,38 @@ def render_pages() -> None:
             pending_email="",
             pending_has_profile=False,
         )
-        html = html.replace("<head>", "<head>\n  " + ROUTER % json.dumps(ROUTES), 1)
+        # First in <head>: the router, then the phone's own /api (local-api.js).
+        head = ROUTER % json.dumps(ROUTES) + LOCAL_API
+        html = html.replace("<head>", "<head>\n  " + head, 1)
         (WWW / out).write_text(html, encoding="utf-8")
+
+
+def write_data() -> None:
+    """mobile-data.js: the fixed data local-api.js needs, taken from the Python
+    files so there is only one copy of each."""
+    import json
+
+    import db
+    import release_notes
+    from app import FALLBACK_QUOTES, SOUND_CHOICES, SOUND_SETTING_KEYS
+    from presets import BUILTINS
+
+    data = {
+        "version": __version__,
+        "builtins": BUILTINS,
+        "default_settings": db.DEFAULT_SETTINGS,
+        "sound_choices": sorted(SOUND_CHOICES),
+        "sound_setting_keys": list(SOUND_SETTING_KEYS),
+        "long_segment_sec": db.LONG_SEGMENT_SEC,
+        "notes": release_notes.NOTES,
+        "quotes": FALLBACK_QUOTES,
+    }
+    (WWW / "mobile-data.js").write_text(
+        "// Built by mobile/build_web.py from the Python files. Do not edit.\n"
+        f"window.__MUHURTA__ = {json.dumps(data, ensure_ascii=False)};\n",
+        encoding="utf-8",
+    )
+    shutil.copy2(MOBILE / "web" / "local-api.js", WWW / "local-api.js")
 
 
 def main() -> None:
@@ -96,6 +131,7 @@ def main() -> None:
     WWW.mkdir(parents=True)
     shutil.copytree(ROOT / "static", WWW / "static")
     render_pages()
+    write_data()
     print(f"Built {WWW.relative_to(ROOT)} (v{__version__}, {len(PAGES)} pages)")
 
 

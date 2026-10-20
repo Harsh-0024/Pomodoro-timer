@@ -120,12 +120,11 @@ body.is-mobile .tab svg {
 }
 
 body.is-mobile .tab.is-active {
-  color: var(--ink);
+  color: var(--gold2);
 }
 
 body.is-mobile .tab.is-active svg {
-  color: #1a1208;
-  background: linear-gradient(135deg, var(--gold2), var(--gold));
+  background: rgba(201, 169, 98, 0.14);
 }
 
 /* ---- Page frame ---- */
@@ -269,4 +268,313 @@ body.is-mobile .settings-nav {
   margin: 0 -1rem;
   padding: 0.6rem 1rem;
   top: calc(3.5rem + var(--safe-top));
+}
+
+/* ======================================================================
+   Calm pass: fewer boxes and lines, more air. Phones show less at once.
+   ====================================================================== */
+
+body.is-mobile .topbar {
+  border-bottom-color: transparent;
+}
+
+body.is-mobile .brand-text {
+  font-size: 0.98rem;
+  letter-spacing: 0.1em;
+}
+
+body.is-mobile .tabbar {
+  border-top-color: transparent;
+}
+
+body.is-mobile .tab {
+  font-size: 0.68rem;
+}
+
+/* Timer and Flow: the ring floats on the page; stats and quote stay quiet;
+   the content spreads over the screen instead of bunching at the top. */
+body.is-mobile.page-home .hero,
+body.is-mobile.page-flow .hero,
+body.is-mobile .flow-hero {
+  min-height: calc(100svh - 3.5rem - var(--safe-top) - var(--tabbar-h) - var(--safe-bottom) - 2.75rem);
+  justify-content: space-evenly;
+  gap: 1.5rem;
+}
+
+body.is-mobile .timer-layout {
+  flex: 1;
+  justify-content: space-evenly;
+}
+
+body.is-mobile .session-live {
+  border-color: transparent;
+  background: transparent;
+  backdrop-filter: none;
+  padding: 0;
+}
+
+body.is-mobile .live-divider {
+  height: 1.4rem;
+  opacity: 0.6;
+}
+
+body.is-mobile .live-val {
+  font-size: 1.1rem;
+}
+
+body.is-mobile .live-key {
+  opacity: 0.75;
+}
+
+body.is-mobile .timer-panel {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  padding: 0;
+}
+
+body.is-mobile .timer-ring-wrap {
+  width: min(16.5rem, 72vw);
+  margin-bottom: 2rem;
+}
+
+body.is-mobile .focus-quote {
+  margin-top: 0;
+  opacity: 0.8;
+}
+
+body.is-mobile .focus-quote blockquote {
+  font-size: 1rem;
+  line-height: 1.45;
+}
+
+/* ---- Settings: a short list first, one section at a time ---- */
+
+body.settings-phone .settings-hero {
+  margin-bottom: 1.25rem;
+}
+
+body.settings-phone .settings-hero .title-settings {
+  font-size: 2rem;
+}
+
+body.settings-phone .settings-hero .lede {
+  display: none;
+}
+
+body.settings-phone[data-settings-view="list"] .settings-nav {
+  position: static;
+  flex-direction: column;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+  background: transparent;
+  backdrop-filter: none;
+  border: 0;
+}
+
+body.settings-phone[data-settings-view="list"] .settings-nav-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 0.25rem;
+  border-radius: 0;
+  border-bottom: 1px solid var(--line);
+  box-shadow: none;
+  background: transparent;
+  white-space: normal;
+}
+
+body.settings-phone[data-settings-view="list"] .settings-nav-link:last-child {
+  border-bottom: 0;
+}
+
+body.settings-phone .settings-nav-text strong {
+  display: block;
+  color: var(--ink);
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+body.settings-phone .settings-nav-text span {
+  display: block;
+  margin-top: 0.2rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 300;
+}
+
+body.settings-phone .settings-nav-chevron {
+  flex-shrink: 0;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-top: 1.5px solid var(--muted);
+  border-right: 1.5px solid var(--muted);
+  transform: rotate(45deg);
+  opacity: 0.7;
+}
+
+body.settings-phone[data-settings-view="list"] .settings-sections {
+  display: none;
+}
+
+body.settings-phone[data-settings-view="section"] .settings-hero,
+body.settings-phone[data-settings-view="section"] .settings-nav {
+  display: none;
+}
+
+body.settings-phone .pref-section {
+  display: none;
+}
+
+body.settings-phone .pref-section.is-open {
+  display: block;
+}
+
+body.settings-phone .settings-back {
+  display: inline-block;
+  margin-bottom: 1.25rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+  text-decoration: none;
+}
+
+body.settings-phone .pref-group {
+  padding: 0 1.1rem;
+}
+
+body.settings-phone .pref-row {
+  padding-top: 1.15rem;
+  padding-bottom: 1.15rem;
+}
+
+/* No keyboard on a phone. */
+body.is-mobile #keyboard {
+  display: none !important;
+}
+
+/* ---- Dashboard, calm: open sections instead of boxes in boxes ---- */
+
+body.is-mobile .dashboard-stats {
+  gap: 1.5rem 1rem;
+  margin: 0.5rem 0 2.5rem;
+}
+
+body.is-mobile .metric-card,
+body.is-mobile .metric-card-primary {
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+body.is-mobile .metric-card-toggle[data-state-count="2"]::after {
+  display: none;
+}
+
+body.is-mobile .metric-value {
+  font-size: 1.6rem;
+  margin: 0.2rem 0 0.1rem;
+}
+
+body.is-mobile .dashboard-panel {
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  margin-bottom: 2.75rem;
+}
+
+body.is-mobile .dashboard-panel .card-title {
+  font-size: 1.35rem;
+}
+
+/* The total is already the first number on the page. */
+body.is-mobile #heatmapSubtitle {
+  display: none;
+}
+
+/* A single year needs no year switcher. */
+body.is-mobile .year-filter-list:has(> li:only-child) {
+  display: none;
+}
+
+body.is-mobile .heatmap-actions {
+  gap: 0.5rem;
+}
+
+/* Recent days: the last week, no inner scrolling, no small print. */
+body.is-mobile .recent-list {
+  max-height: none;
+  overflow: visible;
+  padding-right: 0;
+}
+
+body.is-mobile .recent-row:nth-child(n + 8) {
+  display: none;
+}
+
+body.is-mobile .recent-date span,
+body.is-mobile .recent-minutes span {
+  display: none;
+}
+
+body.is-mobile .recent-row {
+  border-top-color: transparent;
+  padding: 0.55rem 0;
+}
+
+/* Account: name and picture on one line, buttons underneath. */
+body.is-mobile #syncSignedIn {
+  flex-wrap: wrap;
+  gap: 0.75rem 0.9rem;
+}
+
+body.is-mobile #syncSignedIn .pref-text {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+body.is-mobile #syncSignedIn .account-actions {
+  flex-basis: 100%;
+  justify-content: flex-start;
+}
+
+body.is-mobile #sync .card-lede {
+  display: none;
+}
+
+/* ---- History: short header, quiet buttons, actions on tap ---- */
+
+body.is-mobile .history-hero .lede {
+  display: none;
+}
+
+body.is-mobile .history-hero .title-settings {
+  font-size: 2rem;
+}
+
+body.is-mobile .history-toolbar {
+  gap: 0.75rem;
+}
+
+body.is-mobile #btnAddSession {
+  color: var(--gold2);
+  background: transparent;
+  border: 1px solid var(--line);
+  box-shadow: none;
+}
+
+body.is-mobile .history-item .custom-actions {
+  display: none;
+}
+
+body.is-mobile .history-item.is-open .custom-actions {
+  display: flex;
+}
+
+body.is-mobile .history-item {
+  cursor: pointer;
 }

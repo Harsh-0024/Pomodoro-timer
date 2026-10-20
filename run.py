@@ -473,6 +473,50 @@ def _already_running(data_dir: Path) -> str | None:
     return None
 
 
+_INSTANCE_LOCK = None
+
+
+def _first_copy(data_dir: Path) -> bool:
+    """Whether this is the only copy starting for this data folder (Windows).
+
+    running.json is written only once a copy is ready, which takes a few
+    seconds, so a quick second double-click used to start a second copy
+    beside the first. A named lock that Windows frees when the process ends
+    closes that gap.
+    """
+    global _INSTANCE_LOCK
+    if sys.platform != "win32":
+        return True
+    import ctypes
+
+    name = "Local\\MuhurtaPomodoro-" + hashlib.sha1(str(data_dir).lower().encode()).hexdigest()[:16]
+    kernel32 = ctypes.windll.kernel32
+    kernel32.CreateMutexW.restype = ctypes.c_void_p
+    _INSTANCE_LOCK = kernel32.CreateMutexW(None, False, name)
+    return not (_INSTANCE_LOCK and kernel32.GetLastError() == 183)  # ERROR_ALREADY_EXISTS
+
+
+def _release_first_copy():
+    """Before restarting in place (os.exec*), so the new process can take the lock."""
+    global _INSTANCE_LOCK
+    if _INSTANCE_LOCK:
+        import ctypes
+
+        ctypes.windll.kernel32.CloseHandle(ctypes.c_void_p(_INSTANCE_LOCK))
+        _INSTANCE_LOCK = None
+
+
+def _wait_for_other_copy(data_dir: Path, seconds: float = 45) -> str | None:
+    """The address of the copy that is starting at the same moment, once it is ready."""
+    deadline = time.monotonic() + seconds
+    while time.monotonic() < deadline:
+        running = _already_running(data_dir)
+        if running:
+            return running
+        time.sleep(0.5)
+    return None
+
+
 def _final_sync():
     """One last sync so a session finished just before closing is not left
     waiting for the next start. Bounded: closing must never hang."""
@@ -935,6 +979,9 @@ def main(argv: list[str]) -> int:
     log.info("---- Muhurta Pomodoro %s start (python %s%s) ----", __version__, sys.version.split()[0], ", bundled" if FROZEN else "")
 
     running = _already_running(data_dir)
+    if not running and not _first_copy(data_dir):
+        log.info("Another copy is starting - waiting for it.")
+        running = _wait_for_other_copy(data_dir)
     if running:
         log.info("Muhurta Pomodoro is already running at %s - opening its window.", running)
         if open_browser and not _show_running_window(running, data_dir):
@@ -953,10 +1000,12 @@ def main(argv: list[str]) -> int:
 
     if not no_update and self_update():
         # Re-exec so the freshly pulled launcher/app code is what actually runs.
+        _release_first_copy()
         os.execv(sys.executable, [sys.executable, str(PROJECT_ROOT / "run.py"), "--no-update", *argv[1:]])
 
     if ensure_python_version():
         new_python = _venv_python(PROJECT_ROOT / ".venv")
+        _release_first_copy()
         os.execv(str(new_python), [str(new_python), str(PROJECT_ROOT / "run.py"), "--no-update", *argv[1:]])
 
     install_requirements(data_dir)
@@ -975,6 +1024,7 @@ def main(argv: list[str]) -> int:
         install_requirements(data_dir, force=True)
         # Restart rather than re-import: this interpreter built its view of the
         # installed packages at startup and will not see the new ones.
+        _release_first_copy()
         os.execve(
             sys.executable,
             [sys.executable, str(PROJECT_ROOT / "run.py"), "--no-update", *argv[1:]],
@@ -1081,6 +1131,7 @@ def main(argv: list[str]) -> int:
         # Start from the top: that is where the update happens.
         logging.shutdown()
         args = [a for a in argv[1:] if a not in ("--no-update", "--restarted") and not a.startswith("--port=")]
+        _release_first_copy()
         os.execv(sys.executable, [sys.executable, str(PROJECT_ROOT / "run.py"), *args,
                                   "--restarted", f"--port={port}"])
     log.info("Stopped.")

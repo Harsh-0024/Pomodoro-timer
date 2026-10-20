@@ -112,19 +112,8 @@
             <label class="pref-name" for="setVolume">Volume</label>
           </div>
           <div class="volume-control">
-            <input type="range" id="setVolume" class="range" min="0" max="100" step="5" />
+            <input type="range" id="setVolume" class="range" min="0" max="100" step="1" />
             <output class="range-val" id="setVolumeVal" for="setVolume">70%</output>
-          </div>
-        </div>
-        <div class="pref-row" data-needs-sound>
-          <div class="pref-text">
-            <span class="pref-name" id="setProfileLabel">Character</span>
-            <span class="pref-desc">How strongly bells ring at the same volume.</span>
-          </div>
-          <div class="segmented" id="setProfile" role="radiogroup" aria-labelledby="setProfileLabel">
-            <button type="button" class="segment" data-value="subtle" role="radio" aria-checked="false">Subtle</button>
-            <button type="button" class="segment" data-value="balanced" role="radio" aria-checked="false">Balanced</button>
-            <button type="button" class="segment" data-value="bold" role="radio" aria-checked="false">Bold</button>
           </div>
         </div>
         <label class="pref-row toggle" data-needs-sound>

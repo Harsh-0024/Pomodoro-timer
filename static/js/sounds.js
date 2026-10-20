@@ -4,7 +4,6 @@
   let audioCtx = null;
   const buffers = new Map();
 
-  const PROFILE_GAIN = { subtle: 0.45, balanced: 1, bold: 1.85 };
   const SOUND_OPTIONS = [
     {
       id: "soothing-bell",
@@ -20,30 +19,6 @@
       asset: "/static/audio/opening-bells.mp3",
       gain: 0.9,
     },
-    {
-      id: "temple-gong",
-      label: "Temple gong",
-      detail: "A warm low ritual strike.",
-      synth: templeGong,
-    },
-    {
-      id: "ghanta-trio",
-      label: "Ghanta trio",
-      detail: "Three clear temple bell rings.",
-      synth: ghantaTrio,
-    },
-    {
-      id: "soft-bell",
-      label: "Soft bell",
-      detail: "A gentle short chime.",
-      synth: softBell,
-    },
-    {
-      id: "bamboo-tick",
-      label: "Bamboo tick",
-      detail: "A quiet marker for small actions.",
-      synth: bambooTick,
-    },
   ];
   const SOUND_BY_ID = Object.fromEntries(SOUND_OPTIONS.map((item) => [item.id, item]));
 
@@ -57,9 +32,7 @@
   }
 
   function masterGain(settings) {
-    const vol = Number(settings?.sound_volume ?? 70) / 100;
-    const profile = PROFILE_GAIN[settings?.sound_profile] ?? 1;
-    return Math.min(1, vol * profile);
+    return Math.min(1, Number(settings?.sound_volume ?? 70) / 100);
   }
 
   function tone(settings, freq, start, dur, vol, type) {
@@ -78,12 +51,6 @@
     gain.connect(audioCtx.destination);
     osc.start(t0);
     osc.stop(t0 + dur + 0.08);
-  }
-
-  function strike(settings, start, partials) {
-    partials.forEach(([freq, dur, vol, type]) => {
-      tone(settings, freq, start, dur, vol, type || "sine");
-    });
   }
 
   function sequence(settings, notes) {
@@ -122,7 +89,7 @@
   }
 
   function playSound(settings, soundId) {
-    const option = SOUND_BY_ID[soundId] || SOUND_BY_ID["soft-bell"];
+    const option = SOUND_BY_ID[soundId] || SOUND_BY_ID["opening-bells"];
     if (option.asset) return playAsset(settings, option);
     if (!settings?.sound_enabled) return Promise.resolve();
     return ensureCtx().then(() => option.synth(settings));
@@ -141,40 +108,6 @@
   // auto-start; the older common keys are only a fallback for old databases.
   function selectedForFlow(settings, manualKey, commonKey, fallback) {
     return selected(settings, manualKey, selected(settings, commonKey, fallback));
-  }
-
-  function templeGong(settings) {
-    strike(settings, 0, [
-      [174.61, 1.9, 0.28, "sine"],
-      [261.63, 1.55, 0.16, "triangle"],
-      [349.23, 1.25, 0.09, "sine"],
-      [523.25, 0.85, 0.05, "triangle"],
-    ]);
-  }
-
-  function ghantaTrio(settings) {
-    [0, 0.38, 0.78].forEach((start, idx) => {
-      const scale = idx === 0 ? 1 : 0.82;
-      strike(settings, start, [
-        [523.25, 0.62, 0.15 * scale, "sine"],
-        [784, 0.5, 0.1 * scale, "triangle"],
-        [1046.5, 0.42, 0.06 * scale, "sine"],
-      ]);
-    });
-  }
-
-  function softBell(settings) {
-    strike(settings, 0, [
-      [523.25, 0.32, 0.15, "sine"],
-      [659.25, 0.38, 0.09, "triangle"],
-    ]);
-  }
-
-  function bambooTick(settings) {
-    sequence(settings, [
-      [880, 0, 0.045, 0.1, "triangle"],
-      [660, 0.04, 0.045, 0.07, "triangle"],
-    ]);
   }
 
   window.FocusSounds = {
@@ -214,7 +147,7 @@
       if (!settings?.chime_session_start) return;
       return playSound(
         settings,
-        selectedForFlow(settings, "manual_sound_work_begin", "sound_work_begin", "temple-gong")
+        selectedForFlow(settings, "manual_sound_work_begin", "sound_work_begin", "opening-bells")
       );
     },
 
@@ -222,7 +155,7 @@
       if (!settings?.chime_pool_add) return;
       return playSound(
         settings,
-        selectedForFlow(settings, "manual_sound_action", "sound_action", "soft-bell")
+        selectedForFlow(settings, "manual_sound_action", "sound_action", "opening-bells")
       );
     },
 
@@ -230,7 +163,7 @@
       if (!settings?.chime_choice) return;
       return playSound(
         settings,
-        selectedForFlow(settings, "manual_sound_action", "sound_action", "soft-bell")
+        selectedForFlow(settings, "manual_sound_action", "sound_action", "opening-bells")
       );
     },
 
@@ -238,7 +171,7 @@
       if (!settings?.chime_skip) return;
       return playSound(
         settings,
-        selectedForFlow(settings, "manual_sound_action", "sound_action", "bamboo-tick")
+        selectedForFlow(settings, "manual_sound_action", "sound_action", "opening-bells")
       );
     },
   };

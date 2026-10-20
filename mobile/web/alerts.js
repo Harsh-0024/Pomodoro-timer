@@ -18,7 +18,9 @@
   const LN = plugins.LocalNotifications;
   if (!L || !LN) return; // not inside the app
 
+  // Rhythm's saved session is still called "timer"; the simple Timer's is "countdown".
   const TIMER_KEY = "muhurat_timer_session_v1";
+  const COUNTDOWN_KEY = "muhurat_countdown_session_v1";
   const PERM_KEY = "muhurta-notify-permission";
   const BLOCK_ID = 1;
   const TEST_ID = 2;
@@ -26,6 +28,7 @@
     work: { channel: "focus-end", title: "Focus complete", body: "Time for a rest." },
     rest: { channel: "rest-end", title: "Rest complete", body: "Ready to focus again?" },
     cumulative: { channel: "rest-end", title: "Pool rest complete", body: "Resume focus when ready." },
+    countdown: { channel: "focus-end", title: "Time's up", body: "Your timer is done." },
   };
 
   L.notifications = true;
@@ -79,22 +82,33 @@
 
   /* ---------- booking the end of the running block ---------- */
 
-  function timerState() {
+  function saved(key) {
     try {
-      return JSON.parse(localStorage.getItem(TIMER_KEY) || "null");
+      return JSON.parse(localStorage.getItem(key) || "null");
     } catch (_) {
       return null;
     }
   }
 
+  // The end of whichever clock is counting down (only one runs at a time).
+  function nextEnd() {
+    const rhythm = saved(TIMER_KEY);
+    if (rhythm && rhythm.running && ENDS[rhythm.mode] && rhythm.phaseEndsAt) {
+      return { at: Number(rhythm.phaseEndsAt), ...ENDS[rhythm.mode] };
+    }
+    const countdown = saved(COUNTDOWN_KEY);
+    if (countdown && countdown.mode === "running" && countdown.endsAt) {
+      return { at: Number(countdown.endsAt), ...ENDS.countdown };
+    }
+    return null;
+  }
+
   function wanted() {
-    const st = timerState();
-    if (!st || !st.running || !ENDS[st.mode] || !st.phaseEndsAt) return null;
-    const at = Number(st.phaseEndsAt);
-    if (!(at > Date.now() + 1500)) return null;
+    const end = nextEnd();
+    if (!end || !(end.at > Date.now() + 1500)) return null;
     const settings = L.internals.loadSettings();
     if (!settings.notifications_enabled || readPerm() !== "granted") return null;
-    return { at, ...ENDS[st.mode] };
+    return end;
   }
 
   let booked = null; // "at|channel" of what Android holds now
@@ -149,11 +163,11 @@
     else LN.cancel({ notifications: [{ id: BLOCK_ID }] }).catch(() => {});
   });
 
-  // The timer changed while out of view (rare: the app is usually paused).
+  // A clock changed while out of view (rare: the app is usually paused).
   const realSetItem = Storage.prototype.setItem;
   Storage.prototype.setItem = function (key, value) {
     realSetItem.call(this, key, value);
-    if (this === window.localStorage && key === TIMER_KEY && document.visibilityState === "hidden") book();
+    if (this === window.localStorage && (key === TIMER_KEY || key === COUNTDOWN_KEY) && document.visibilityState === "hidden") book();
   };
 
   /* ---------- Settings: phone words for the Notifications section ---------- */

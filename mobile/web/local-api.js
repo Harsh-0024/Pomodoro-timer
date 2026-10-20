@@ -11,8 +11,8 @@
   "use strict";
 
   const D = window.__MUHURTA__;
-  const PRODUCTIVE_KINDS = ["work", "extend", "flow"];
-  const REST_KINDS = ["rest", "cumulative", "pause"];
+  const PRODUCTIVE_KINDS = D.productive_kinds;
+  const REST_KINDS = D.rest_kinds;
   const SEGMENT_KINDS = [...PRODUCTIVE_KINDS, ...REST_KINDS];
   const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
   const SEGMENT_CLOCK_SLACK_SEC = 5;
@@ -253,11 +253,6 @@
       if (vol < 0 || vol > 100) throw new HttpError(400, "Volume must be 0–100");
       patch.sound_volume = vol;
     }
-    if ("sound_profile" in body) {
-      const p = String(body.sound_profile);
-      if (!["subtle", "balanced", "bold"].includes(p)) throw new HttpError(400, "Invalid sound profile");
-      patch.sound_profile = p;
-    }
     for (const key of D.sound_setting_keys) {
       if (key in body) {
         const sound = String(body[key]);
@@ -269,6 +264,11 @@
       const t = String(body.theme);
       if (!["light", "dark", "system"].includes(t)) throw new HttpError(400, "Invalid theme");
       patch.theme = t;
+    }
+    if ("timer_end" in body) {
+      const t = String(body.timer_end);
+      if (!["stop", "ring", "overtime"].includes(t)) throw new HttpError(400, "Invalid timer ending");
+      patch.timer_end = t;
     }
     if ("default_preset_id" in body) {
       const pid = String(body.default_preset_id);

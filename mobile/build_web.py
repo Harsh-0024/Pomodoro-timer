@@ -30,6 +30,7 @@ from version import __version__  # noqa: E402
 PAGES = {
     "index": ("index.html", "index.html"),
     "sign_in_page": ("sign_in.html", "sign-in.html"),
+    "timer_page": ("timer.html", "timer.html"),
     "flow_page": ("flow.html", "flow.html"),
     "settings_page": ("settings.html", "settings.html"),
     "history_page": ("history.html", "history.html"),
@@ -37,7 +38,7 @@ PAGES = {
 }
 
 # Paths the desktop app's JavaScript navigates to, and the file each one is here.
-ROUTES = {"/sign-in": "/sign-in.html", "/flow": "/flow.html", "/settings": "/settings.html",
+ROUTES = {"/sign-in": "/sign-in.html", "/timer": "/timer.html", "/flow": "/flow.html", "/settings": "/settings.html",
           "/settings/history": "/history.html", "/dashboard": "/dashboard.html"}
 
 PASSWORD_SITE = "harsh-0024.github.io/muhurta-pomodoro"
@@ -123,6 +124,8 @@ def write_data() -> None:
         "sound_choices": sorted(SOUND_CHOICES),
         "sound_setting_keys": list(SOUND_SETTING_KEYS),
         "long_segment_sec": db.LONG_SEGMENT_SEC,
+        "productive_kinds": list(db.PRODUCTIVE_KINDS),
+        "rest_kinds": list(db.REST_KINDS),
         "notes": release_notes.NOTES,
         "quotes": FALLBACK_QUOTES,
         # MUHURATA_SUPABASE_URL / _KEY build a copy for a test server.

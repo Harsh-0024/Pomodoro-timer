@@ -48,9 +48,13 @@
     <span class="foot-version">v{{ app_version }}</span>
   </footer>
   {% if mobile and not bare %}
-  {# Phones: the four places live in a tab bar at the bottom, like other Android apps. #}
+  {# Phones: the places live in a tab bar at the bottom, like other Android apps. #}
   <nav class="tabbar" aria-label="Main">
     <a href="{{ url_for('index') }}" class="tab{% if request.endpoint == 'index' %} is-active{% endif %}">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.6-5.9M20 4v4h-4"/><circle cx="12" cy="12" r="2.2"/></svg>
+      <span>Rhythm</span>
+    </a>
+    <a href="{{ url_for('timer_page') }}" class="tab{% if request.endpoint == 'timer_page' %} is-active{% endif %}">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9.5 2.5h5"/></svg>
       <span>Timer</span>
     </a>

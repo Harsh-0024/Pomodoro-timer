@@ -39,7 +39,16 @@ body.is-mobile .brand-text {
 
 /* The four page links move to the tab bar; what stays up here is the level
    picker (timer page) and the account initial. */
+body.is-mobile .topbar {
+  flex-wrap: nowrap;
+}
+
+/* On phones the top bar holds only the page's own control (the level), so
+   it stays beside the brand instead of taking a line of its own. */
 body.is-mobile .topnav {
+  flex: 0 0 auto;
+  width: auto;
+  margin-left: auto;
   flex-wrap: nowrap;
   gap: 0.4rem;
 }
@@ -83,7 +92,7 @@ body.is-mobile .tabbar {
   bottom: 0;
   z-index: 50;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   height: calc(var(--tabbar-h) + var(--safe-bottom));
   padding-bottom: var(--safe-bottom);
   border-top: 1px solid var(--line);
@@ -108,7 +117,7 @@ body.is-mobile .tab {
 body.is-mobile .tab svg {
   width: 1.45rem;
   height: 1.45rem;
-  padding: 0.2rem 1.1rem;
+  padding: 0.2rem 0.85rem;
   box-sizing: content-box;
   border-radius: 999px;
   fill: none;
@@ -288,13 +297,14 @@ body.is-mobile .tabbar {
 }
 
 body.is-mobile .tab {
-  font-size: 0.68rem;
+  font-size: 0.66rem;
 }
 
 /* Timer and Flow: the ring floats on the page; stats and quote stay quiet;
    the content spreads over the screen instead of bunching at the top. */
 body.is-mobile.page-home .hero,
 body.is-mobile.page-flow .hero,
+body.is-mobile.page-timer .hero,
 body.is-mobile .flow-hero {
   min-height: calc(100svh - 3.5rem - var(--safe-top) - var(--tabbar-h) - var(--safe-bottom) - 2.75rem);
   justify-content: space-evenly;

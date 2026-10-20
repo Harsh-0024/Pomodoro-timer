@@ -28,7 +28,8 @@
   // sections; tapping one opens just that section (address #timer, #sound...),
   // and Back returns to the list.
   const SECTION_NOTES = {
-    timer: "Starting level, daily goal, auto-start",
+    rhythm: "Starting level, daily goal, auto-start",
+    timer: "What the Timer does at zero",
     sound: "Bells, volume, minute pulse",
     appearance: "Light, dark or follow the phone",
     notifications: "Alerts when a block ends",

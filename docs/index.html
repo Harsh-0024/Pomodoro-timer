@@ -23,7 +23,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="style.css?v=1.6.1b" />
+<link rel="stylesheet" href="style.css?v=1.8.0c" />
 </head>
 <body>
 
@@ -45,10 +45,8 @@
       <span>Muhurta Pomodoro</span>
     </a>
     <div class="nav-links">
-      <a href="#idea">The idea</a>
       <a href="#features">Features</a>
-      <a href="#install">Install</a>
-      <a href="#faq">FAQ</a>
+      <a href="#start">Install</a>
       <button class="theme-toggle" type="button" aria-label="Switch theme">
         <svg class="to-light" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4" /><path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4L6 18M18 6l1.4-1.4" /></svg>
         <svg class="to-dark" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.6A8.2 8.2 0 0 1 9.4 4 8.2 8.2 0 1 0 20 14.6z" /></svg>
@@ -68,11 +66,7 @@
   <div class="container">
     <p class="kicker"><span class="dot"></span><span id="kickerText">Free · for Mac</span></p>
     <h1>Focus, measured in <em>Muhurtas.</em></h1>
-    <p class="lede">
-      A calm Pomodoro timer built on the old Indian way of keeping time.
-      Work in 24-minute Ghadis and 48-minute Muhurtas, rest when it is earned,
-      and watch your focus grow, day after day.
-    </p>
+    <p class="lede">A calm Pomodoro timer built on the old Indian way of keeping time.</p>
     <div class="cta">
       <a class="btn-download dl-link" id="heroDownload" href="download.html?os=mac">
         <svg aria-hidden="true"><use href="#down" /></svg>
@@ -81,61 +75,52 @@
       <p class="cta-meta" id="heroMeta">Free · Apple Silicon Macs · <a href="download.html?os=win">Windows version</a></p>
     </div>
 
-    <div class="theme-switch hero-switch rise" role="group" aria-label="Timer appearance" data-for="heroImg">
-      <button type="button" data-theme="dark" aria-pressed="true">Dark</button>
-      <button type="button" data-theme="light" aria-pressed="false">Light</button>
+    <!-- One window, two screens: the timer and the dashboard, each in dark or light. -->
+    <div class="viewer rise">
+      <div class="seg" role="group" aria-label="Screen">
+        <button type="button" data-view="timer" aria-pressed="true">Timer</button>
+        <button type="button" data-view="dashboard" aria-pressed="false">Dashboard</button>
+      </div>
+      <div class="seg" role="group" aria-label="Appearance">
+        <button type="button" data-theme="dark" aria-pressed="true">Dark</button>
+        <button type="button" data-theme="light" aria-pressed="false">Light</button>
+      </div>
     </div>
-    <div class="window rise">
+    <div class="window rise" id="appWindow" data-view="timer">
       <div class="window-bar">
         <div class="lights"><i></i><i></i><i></i></div>
-        <div class="window-title">Muhurta Pomodoro</div>
+        <div class="window-title" id="windowTitle">Muhurta Pomodoro</div>
       </div>
-      <img id="heroImg" data-dark="img/timer.jpg" data-light="img/timer-light.jpg" src="img/timer.jpg" width="2200" height="1478" alt="The Muhurta Pomodoro timer: a 36-minute deep work session, ready to start" />
+      <div class="pan">
+        <img id="appImg" src="img/timer.jpg" width="2200" height="1478" alt="The Muhurta Pomodoro timer: a 36-minute deep work session, ready to start" />
+      </div>
       <script>
         // Light screenshot straight away on a light page (no swap on load).
-        if (document.documentElement.dataset.theme === "light") document.getElementById("heroImg").src = "img/timer-light.jpg";
+        if (document.documentElement.dataset.theme === "light") document.getElementById("appImg").src = "img/timer-light.jpg";
       </script>
     </div>
+    <p class="pan-hint" id="panHint" hidden>Swipe to see the whole dashboard</p>
   </div>
 </header>
 
 <section id="idea">
   <div class="container">
-    <div class="section-head reveal">
+    <div class="section-head center reveal">
       <p class="eyebrow">The idea</p>
-      <h2>Time, kept the way it was kept for centuries.</h2>
-      <p>
-        In the old Indian reckoning, a day and night is thirty Muhurtas, and
-        each Muhurta is two Ghadis. Long before anyone named the Pomodoro, these
-        were the natural units of a working mind. This timer counts your focus
-        in them.
-      </p>
+      <h2>Time, kept the old way.</h2>
+      <p>Long before the Pomodoro, India counted the working day in these units.</p>
     </div>
-    <div class="units">
-      <div class="unit reveal">
-        <div class="num">48<small>min</small></div>
-        <h3>1 Muhurta</h3>
-        <p>A full stretch of deep work. Long enough to get somewhere, short enough to stay sharp.</p>
-        <svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="40" /><circle class="arc" cx="50" cy="50" r="40" stroke-dasharray="251" stroke-dashoffset="0" /></svg>
-      </div>
-      <div class="unit reveal">
-        <div class="num">24<small>min</small></div>
-        <h3>1 Ghadi</h3>
-        <p>Half a Muhurta. The classic focus block, and the easiest place to begin.</p>
-        <svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="40" /><circle class="arc" cx="50" cy="50" r="40" stroke-dasharray="125.5 251" /></svg>
-      </div>
+    <div class="units reveal">
+      <div class="unit"><b>48<small>min</small></b><span>1 Muhurta</span><p>A full stretch of deep work</p></div>
+      <div class="unit"><b>24<small>min</small></b><span>1 Ghadi</span><p>Half a Muhurta, the classic block</p></div>
+      <div class="unit"><b>30</b><span>Muhurtas</span><p>Make one day and night</p></div>
     </div>
 
-    <div class="section-head reveal" style="margin-top:110px">
-      <p class="eyebrow">Eight levels</p>
-      <h2>Start gently. Grow into it.</h2>
-      <p>
-        Begin with twelve minutes of Agaman, "arriving". As focus becomes a habit,
-        move up a level, all the way to Ekagra: ninety-six minutes, one-pointed.
-        Every level keeps the same balance of work and rest.
-      </p>
+    <div class="ladder-head reveal">
+      <h3>Eight levels. Start gently, grow.</h3>
+      <p>Every level keeps the same balance of work and rest.</p>
     </div>
-    <div class="levels" id="levels"></div>
+    <div class="ladder" id="levels"></div>
   </div>
 </section>
 
@@ -143,132 +128,86 @@
   <div class="container">
     <div class="section-head center reveal">
       <p class="eyebrow">Inside the app</p>
-      <h2>Everything a focused day needs. Nothing it doesn't.</h2>
+      <h2>Everything a focused day needs.</h2>
     </div>
-    <div class="features">
-      <div class="feature reveal">
-        <div class="icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8" /><path d="M12 9v4l2.5 2M9.5 2.5h5" /></svg></div>
-        <h3>A timer that guides you</h3>
-        <p>Focus, a short rest, focus again, then a longer rest. Bells mark each change, softly.</p>
+    <div class="features reveal">
+      <div class="feature">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8" /><path d="M12 9v4l2.5 2M9.5 2.5h5" /></svg>
+        <h3>Guided timer</h3>
+        <p>Focus, rest, repeat, then a longer rest. Soft bells mark each change.</p>
       </div>
-      <div class="feature reveal">
-        <div class="icon"><svg viewBox="0 0 24 24"><path d="M3 12c3-6 6-6 9 0s6 6 9 0" /></svg></div>
-        <h3>Flow, when you are on a roll</h3>
-        <p>No countdown at all. Start, keep going until the work is done, and it keeps the time for you.</p>
+      <div class="feature">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12c3-6 6-6 9 0s6 6 9 0" /></svg>
+        <h3>Flow mode</h3>
+        <p>No countdown. Work until it's done; the app keeps the time.</p>
       </div>
-      <div class="feature reveal">
-        <div class="icon"><svg viewBox="0 0 24 24"><path d="M5 8h14l-1.4 11.2a2 2 0 0 1-2 1.8H8.4a2 2 0 0 1-2-1.8L5 8zM9 8V6a3 3 0 0 1 6 0v2" /></svg></div>
-        <h3>A rest pool</h3>
-        <p>Skip a break when you are deep in it. The minutes go into your pool, ready when you need them.</p>
+      <div class="feature">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14l-1.4 11.2a2 2 0 0 1-2 1.8H8.4a2 2 0 0 1-2-1.8L5 8zM9 8V6a3 3 0 0 1 6 0v2" /></svg>
+        <h3>Rest pool</h3>
+        <p>Skip a break when you're deep in it. The minutes wait for you.</p>
       </div>
-      <div class="feature reveal">
-        <div class="icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></svg></div>
-        <h3>A year of focus, at a glance</h3>
-        <p>Streaks, a consistency calendar, and a rhythm profile that shows how long you really focus.</p>
+      <div class="feature">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></svg>
+        <h3>Your year at a glance</h3>
+        <p>Streaks, a consistency calendar and your real focus rhythm.</p>
       </div>
-      <div class="feature reveal">
-        <div class="icon"><svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6l7-3z" /><path d="M9 12l2 2 4-4" /></svg></div>
-        <h3>Yours, and offline</h3>
-        <p>Free, with no ads and no tracking. A free account (just your email) keeps your history safe, and the timer keeps working with no internet.</p>
+      <div class="feature">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6l7-3z" /><path d="M9 12l2 2 4-4" /></svg>
+        <h3>Private, works offline</h3>
+        <p>No ads, no tracking. The timer runs without internet.</p>
       </div>
-      <div class="feature reveal">
-        <div class="icon"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 0 1-14.5 4.6M4 12a8 8 0 0 1 14.5-4.6M18.5 3v4.6h-4.6M5.5 21v-4.6h4.6" /></svg></div>
-        <h3>Synced everywhere</h3>
-        <p>Make a free account with your email and a password. Your history, combinations and settings appear on every computer you use. Updates install with one click.</p>
+      <div class="feature">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 0 1-14.5 4.6M4 12a8 8 0 0 1 14.5-4.6M18.5 3v4.6h-4.6M5.5 21v-4.6h4.6" /></svg>
+        <h3>Synced, self-updating</h3>
+        <p>A free account carries your history to every computer. Updates in one click.</p>
       </div>
     </div>
   </div>
 </section>
 
-<section class="showcase" id="dashboard">
-  <div class="container">
-    <div class="showcase-top">
-      <div class="section-head reveal">
-        <p class="eyebrow">The dashboard</p>
-        <h2>See your discipline take shape.</h2>
-      </div>
-      <div class="theme-switch reveal" role="group" aria-label="Dashboard appearance" data-for="showcaseImg">
-        <button type="button" data-theme="dark" aria-pressed="true">Dark</button>
-        <button type="button" data-theme="light" aria-pressed="false">Light</button>
-      </div>
-    </div>
-    <div class="window reveal">
-      <div class="window-bar">
-        <div class="lights"><i></i><i></i><i></i></div>
-        <div class="window-title">Muhurta Pomodoro: Dashboard</div>
-      </div>
-      <div class="pan">
-        <img id="showcaseImg" data-dark="img/dashboard.jpg" data-light="img/dashboard-light.jpg" src="img/dashboard.jpg" width="2200" height="1478" loading="lazy" alt="The dashboard: focus this year, current streak, a yearly consistency calendar and a rhythm profile" />
-      </div>
-    </div>
-    <p class="pan-hint">Swipe to see the whole dashboard</p>
-  </div>
-</section>
-
-<section id="install">
-  <div class="container">
-    <div class="section-head center reveal">
+<section id="start">
+  <div class="container split">
+    <div class="reveal">
       <p class="eyebrow">Install</p>
-      <h2>Ready in under a minute.</h2>
+      <h2>Ready in a minute.</h2>
+      <ol class="steps">
+        <li><b>Download</b> one file, about 20&nbsp;MB.</li>
+        <li><b>Drag</b> Muhurta Pomodoro into Applications.</li>
+        <li><b>Open it once</b> via System Settings → Privacy &amp; Security → Open Anyway.</li>
+      </ol>
+      <details class="aside">
+        <summary>Why does my Mac ask?</summary>
+        <p>Apple charges developers $99 a year to register an app. This is a free project, so macOS asks you to confirm it the first time. After that it opens like any other app.</p>
+      </details>
     </div>
-    <div class="steps">
-      <div class="step reveal">
-        <h3>Download</h3>
-        <p>Click <b>Download for Mac</b>. You get one file, about 20&nbsp;MB.</p>
-      </div>
-      <div class="step reveal">
-        <h3>Drag to Applications</h3>
-        <p>Open the file and drag <b>Muhurta Pomodoro</b> onto the <b>Applications</b> folder beside it.</p>
-      </div>
-      <div class="step reveal">
-        <h3>Open it once</h3>
-        <p>Your Mac asks once about apps from outside the App Store. Click <b>Done</b>, then <b>System Settings → Privacy &amp; Security → Open Anyway</b>.</p>
-      </div>
-    </div>
-    <p class="note reveal">
-      <b>Why the warning?</b> Apple charges developers $99 a year to register an app.
-      Muhurta Pomodoro is a free project and is not registered, so macOS asks you
-      to confirm it the first time. After that it opens like any other app, and it
-      keeps itself up to date.
-    </p>
-  </div>
-</section>
-
-<section id="faq">
-  <div class="container">
-    <div class="section-head center reveal">
+    <div class="reveal" id="faq">
       <p class="eyebrow">Questions</p>
-      <h2>Good to know.</h2>
-    </div>
-    <div class="faq">
-      <details>
-        <summary>Is it really free?</summary>
-        <p>Yes. No trial, no subscription, no ads. It was made for friends and is shared as it is.</p>
-      </details>
-      <details>
-        <summary>Does it need the internet?</summary>
-        <p>Only to sign in the first time. After that the timer, your history and the dashboard all work offline; changes sync to your account when you're back online.</p>
-      </details>
-      <details>
-        <summary>What does the app send?</summary>
-        <p>Your sessions, combinations and settings, to your own account, so they appear on your other computers. Besides that, only the app's version number and when it was last online, so updates reach everyone. No ads, no tracking, nothing is sold or shared.</p>
-      </details>
-      <details>
-        <summary>Where is my history kept?</summary>
-        <p>In your account, and in a copy on each computer you're signed in on, so it works offline. Signing out saves everything to your account and removes it from that computer; sign in again to get it back.</p>
-      </details>
-      <details>
-        <summary>Which Macs does it run on?</summary>
-        <p>Macs with Apple Silicon: any Mac from late 2020 onwards (M1 and newer). Older Intel Macs are not supported yet.</p>
-      </details>
-      <details>
-        <summary>How do updates work?</summary>
-        <p>When a new version is out, a notice appears in the app. Click <b>Update now</b>; a few seconds later it reopens on the new version and shows you what changed.</p>
-      </details>
-      <details>
-        <summary>Windows? Android?</summary>
-        <p>A <a href="download.html?os=win">Windows version</a> is available too. An Android app is planned.</p>
-      </details>
+      <div class="faq">
+        <details>
+          <summary>Is it really free?</summary>
+          <p>Yes. No trial, no subscription, no ads. It was made for friends and is shared as it is.</p>
+        </details>
+        <details>
+          <summary>Does it need the internet?</summary>
+          <p>Only to sign in the first time. After that everything works offline, and changes sync when you're back online.</p>
+        </details>
+        <details>
+          <summary>What happens to my data?</summary>
+          <p>Your sessions, combinations and settings go to your own account, with a copy on each computer you're signed in on. Besides that the app only sends its version number, so updates reach everyone. Nothing is sold or shared. Signing out saves everything and removes it from that computer.</p>
+        </details>
+        <details>
+          <summary>Which Macs?</summary>
+          <p>Apple Silicon Macs (M1 and newer, late 2020 onwards). Intel Macs aren't supported yet.</p>
+        </details>
+        <details>
+          <summary>How do updates work?</summary>
+          <p>A notice appears in the app. Click <b>Update now</b>; it reopens on the new version and shows what changed.</p>
+        </details>
+        <details>
+          <summary>Windows? Android?</summary>
+          <p>A <a href="download.html?os=win">Windows version</a> is available. Android is planned.</p>
+        </details>
+      </div>
     </div>
   </div>
 </section>
@@ -302,13 +241,14 @@
     ["Tanmaya", "Becoming it", 84], ["Ekagra", "One-pointed", 96],
   ];
   document.getElementById("levels").innerHTML = LEVELS.map(([name, sub, min]) => `
-    <div class="level">
-      <div class="level-name">${name}<small>${sub}</small></div>
-      <div class="level-bar"><span style="--w:${(min / 96) * 100}%"></span></div>
-      <div class="level-min">${min} min</div>
+    <div class="rung">
+      <div class="rung-bar"><span style="--h:${(min / 96) * 100}%"></span></div>
+      <b>${min}<small>m</small></b>
+      <span>${name}</span>
+      <small>${sub}</small>
     </div>`).join("");
 
-  // Fade sections in as they come into view; grow the level bars once.
+  // Fade sections in as they come into view; grow the ladder once.
   const io = new IntersectionObserver((entries) => {
     entries.forEach((e) => {
       if (!e.isIntersecting) return;
@@ -325,28 +265,42 @@
   const nav = document.getElementById("nav");
   addEventListener("scroll", () => nav.classList.toggle("scrolled", scrollY > 10), { passive: true });
 
-  // Screenshots match the site's theme; each screenshot's own Dark / Light
-  // switch can still show the other one.
-  const swap = (el, src) => {
-    if (el.getAttribute("src") === src) return;
-    el.style.opacity = 0;
-    setTimeout(() => {
-      el.onload = () => { el.style.opacity = 1; };
-      el.src = src;
-    }, 200);
+  // The hero window: Timer or Dashboard, Dark or Light. It follows the
+  // site's theme; its own Dark / Light buttons can still show the other one.
+  const win = document.getElementById("appWindow");
+  const img = document.getElementById("appImg");
+  const SHOTS = {
+    timer: { dark: "img/timer.jpg", light: "img/timer-light.jpg", title: "Muhurta Pomodoro",
+      alt: "The Muhurta Pomodoro timer: a 36-minute deep work session, ready to start" },
+    dashboard: { dark: "img/dashboard.jpg", light: "img/dashboard-light.jpg", title: "Muhurta Pomodoro: Dashboard",
+      alt: "The dashboard: focus this year, current streak, a yearly consistency calendar and a rhythm profile" },
   };
-  const switches = document.querySelectorAll(".theme-switch[data-for]");
-  function show(sw, theme) {
-    sw.querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.theme === theme)));
-    const img = document.getElementById(sw.dataset.for);
-    swap(img, img.dataset[theme]);
+  const state = { view: "timer", theme: document.documentElement.dataset.theme };
+  function render() {
+    const shot = SHOTS[state.view];
+    document.querySelectorAll(".viewer button").forEach((b) =>
+      b.setAttribute("aria-pressed", String(b.dataset.view === state.view || b.dataset.theme === state.theme)));
+    document.getElementById("windowTitle").textContent = shot.title;
+    document.getElementById("panHint").hidden = state.view !== "dashboard";
+    win.dataset.view = state.view;
+    img.alt = shot.alt;
+    const src = shot[state.theme];
+    if (img.getAttribute("src") === src) return;
+    img.style.opacity = 0;
+    setTimeout(() => {
+      img.onload = () => { img.style.opacity = 1; };
+      img.src = src;
+    }, 200);
   }
-  switches.forEach((sw) => sw.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => show(sw, b.dataset.theme))));
-  function followTheme(theme) {
-    switches.forEach((sw) => show(sw, theme));
-  }
-  followTheme(document.documentElement.dataset.theme);
-  document.addEventListener("themechange", (e) => followTheme(e.detail));
+  document.querySelectorAll(".viewer button").forEach((b) => b.addEventListener("click", () => {
+    if (b.dataset.view) state.view = b.dataset.view;
+    if (b.dataset.theme) state.theme = b.dataset.theme;
+    render();
+  }));
+  render();
+  document.addEventListener("themechange", (e) => { state.theme = e.detail; render(); });
+  // Preload the other screens so switching is instant.
+  addEventListener("load", () => Object.values(SHOTS).forEach((s) => [s.dark, s.light].forEach((u) => (new Image().src = u))));
 
   // Offer the right download for this computer. An iPhone's user agent says
   // "like Mac OS X", so look for phones first.
@@ -360,7 +314,7 @@
     document.getElementById("kickerText").textContent = "Free · for Windows and Mac";
     document.getElementById("heroMeta").innerHTML = 'Free · 64-bit Windows · <a href="download.html?os=mac">Mac version</a>';
   } else if (phone) {
-    document.getElementById("heroMeta").textContent = "Muhurta Pomodoro runs on a computer. Open this page on your Mac to download it.";
+    document.getElementById("heroMeta").textContent = "Runs on a computer. Open this page on your Mac to download it.";
   }
 
   // Show the current version, quietly; the page works the same without it.

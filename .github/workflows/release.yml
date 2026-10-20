@@ -93,6 +93,36 @@ jobs:
           kill $pid || true
           echo "Smoke test passed on $url"
 
+      # The Windows app draws its own window (pywebview + WebView2). Open it
+      # for real: the timer must load in it, starting the app again must
+      # bring that window forward, and closing it must stop the app.
+      - name: Smoke test the app window (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $data = "$env:LOCALAPPDATA\MuhurataTimer"
+          $log = "$data\launcher.log"
+          # The copy from the step above, if it outlived its shell.
+          Stop-Process -Name "Muhurta Pomodoro" -Force -ErrorAction SilentlyContinue
+          Start-Sleep 2
+          Remove-Item "$data\running.json" -ErrorAction SilentlyContinue
+          $before = @(Get-Content $log).Count
+          $since = { @(Get-Content $log) | Select-Object -Skip $before }
+          $p = Start-Process -PassThru "dist\Muhurta Pomodoro\Muhurta Pomodoro.exe"
+          $opened = $false
+          for ($i = 0; $i -lt 60 -and -not $opened; $i++) {
+            Start-Sleep 1
+            $opened = [bool](& $since | Select-String "window has opened the timer")
+          }
+          if (-not $opened) { & $since; throw "The app's window did not open the timer." }
+          $url = (Get-Content "$data\running.json" | ConvertFrom-Json).url
+          $show = Invoke-WebRequest -UseBasicParsing -Method Post -Headers @{ "X-Muhurta" = "1" } "${url}api/window/show"
+          if ($show.StatusCode -ne 204) { throw "Starting the app again would not bring its window forward." }
+          taskkill /PID $p.Id  # no /F: asks the window to close, like its X button
+          if (-not $p.WaitForExit(30000)) { & $since; throw "Closing the window did not stop the app." }
+          if (-not (& $since | Select-String "Stopped\.")) { & $since; throw "The app did not stop cleanly." }
+          "App window test passed on $url"
+
       # Asset names deliberately carry no version number, so that
       # /releases/latest/download/<name> is a permanent direct-download link
       # the website can use without being updated each release.

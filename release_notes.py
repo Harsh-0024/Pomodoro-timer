@@ -5,6 +5,10 @@ a few short lines per version, about what they will notice. Versions with
 nothing worth telling can be left out.
 """
 NOTES = {
+    "1.10.1": [
+        "Windows: the app now opens in its own window after unzipping with Extract All too. "
+        "In 1.9.0 and 1.10.0 it opened in a browser window instead.",
+    ],
     "1.10.0": [
         "New: Muhurta Pomodoro for Android. Get it from the website on your phone, sign in with the same "
         "account, and your history, combinations and settings are there too.",

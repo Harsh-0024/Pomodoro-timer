@@ -395,7 +395,7 @@ h2 {
   line-height: 1.1;
 }
 h3 { margin: 0; font-weight: 500; }
-.quiet { margin: 20px auto 0; max-width: 30em; color: var(--muted); }
+.quiet { margin: 20px auto 0; max-width: 30em; color: var(--muted); text-wrap: balance; }
 .quiet.small { font-size: 0.92rem; }
 
 /* the idea: two numbers */
@@ -489,7 +489,7 @@ h3 { margin: 0; font-weight: 500; }
 }
 .features li, .steps li { display: flex; flex-direction: column; gap: 6px; }
 .features b, .steps b { font-family: var(--serif); font-weight: 400; font-size: 1.45rem; line-height: 1.2; }
-.features span, .steps span { color: var(--muted); font-size: 0.95rem; }
+.features span, .steps span { color: var(--muted); font-size: 0.95rem; text-wrap: balance; }
 
 /* install: three steps, one line each */
 .steps {
@@ -605,77 +605,36 @@ footer a { color: var(--muted); }
 }
 
 /* ------------------------------------------------------------------ download page */
+/* The same calm as the landing page: a title, a status line, three steps. */
 .dl-page { min-height: 100vh; display: flex; flex-direction: column; }
-.dl-page main { flex: 1; padding: 72px 0 80px; }
-.dl-head { text-align: center; }
-.dl-head h1 { font-size: clamp(2.6rem, 6vw, 4rem); max-width: none; }
-.dl-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  margin: 26px auto 0;
-  padding: 10px 18px;
-  border-radius: 999px;
-  border: 1px solid var(--line);
-  background: var(--card);
-  color: var(--muted);
-  font-size: 0.95rem;
+.dl-page main { flex: 1; padding: 96px 0 120px; }
+.dl-page h1 { font-size: clamp(2.6rem, 6vw, 3.6rem); font-weight: 400; max-width: none; }
+.eyebrow {
+  margin: 0 0 16px;
+  color: var(--gold);
+  font-size: 0.74rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
 }
+.dl-status { margin: 24px auto 0; color: var(--muted); text-wrap: balance; }
 .dl-status .spin {
-  width: 14px;
-  height: 14px;
+  display: inline-block;
+  vertical-align: 0.05em;
+  margin-right: 10px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
   border: 2px solid var(--accent-line);
   border-top-color: var(--gold);
   animation: turn 0.9s linear infinite;
 }
-.dl-status.done .spin { animation: none; border-color: var(--gold); background: var(--gold); }
-.walk {
-  list-style: none;
-  margin: 56px auto 0;
-  padding: 0;
-  max-width: 720px;
-  counter-reset: walk;
+.dl-status.done .spin { animation: none; width: 8px; height: 8px; border: 0; background: var(--gold); }
+.dl-page .steps { margin-top: 88px; }
+.dl-page #after { margin-top: 56px; }
+.dl-page .more { margin-top: 28px; }
+.dl-page .more + .more { margin-top: 16px; }
+.dl-retry { margin-top: 64px; color: var(--faint); font-size: 0.88rem; }
+@media (max-width: 600px) {
+  .dl-page main { padding: 72px 0 96px; }
+  .dl-page .steps { margin-top: 64px; }
 }
-.walk li {
-  position: relative;
-  padding: 0 0 34px 64px;
-  color: var(--muted);
-}
-.walk li::before {
-  counter-increment: walk;
-  content: counter(walk);
-  position: absolute;
-  left: 0;
-  top: -4px;
-  display: grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  border: 1px solid var(--accent-strong-line);
-  color: var(--gold);
-  font-family: var(--serif);
-  font-size: 1.3rem;
-}
-.walk li::after {
-  content: "";
-  position: absolute;
-  left: 20px;
-  top: 42px;
-  bottom: 6px;
-  width: 1px;
-  background: var(--line);
-}
-.walk li:last-child::after { display: none; }
-.walk b { color: var(--ink); font-weight: 500; }
-.walk .code {
-  font-family: ui-monospace, Menlo, monospace;
-  font-size: 0.86em;
-  padding: 2px 7px;
-  border-radius: 6px;
-  background: var(--card-strong);
-  color: var(--ink);
-}
-.dl-page .note { max-width: 720px; margin: 8px auto 0; }
-.dl-retry { margin-top: 28px; text-align: center; color: var(--faint); font-size: 0.92rem; }

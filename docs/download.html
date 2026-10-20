@@ -16,7 +16,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="style.css?v=1.9.4" />
+<link rel="stylesheet" href="style.css?v=1.9.6" />
 </head>
 <body class="dl-page">
 
@@ -40,22 +40,21 @@
 </nav>
 
 <main>
-  <div class="container">
-    <div class="dl-head">
-      <p class="eyebrow" id="eyebrow">Mac · Apple Silicon</p>
-      <h1 id="title">Almost there.</h1>
-      <p class="dl-status" id="status"><span class="spin"></span><span id="statusText">Starting your download…</span></p>
-    </div>
+  <div class="container narrow center">
+    <p class="eyebrow" id="eyebrow">Mac · Apple Silicon</p>
+    <h1 id="title">Almost there.</h1>
+    <p class="dl-status" id="status"><span class="spin"></span><span id="statusText">Starting your download…</span></p>
 
-    <ol class="walk" id="walk"></ol>
-    <p class="note" id="note"></p>
-    <p class="dl-retry" id="retry">Nothing downloaded? <a href="#" id="manual">Download it again</a>.</p>
+    <ol class="steps" id="walk"></ol>
+    <p class="quiet small" id="after"></p>
+    <div id="folds"></div>
+    <p class="dl-retry" id="retry">Nothing downloaded? <a href="#" id="manual">Try again</a>.</p>
   </div>
 </main>
 
 <footer>
   <div class="container">
-    <span>Your history is kept outside the app, so updating or reinstalling never loses it.</span>
+    <span>Your history lives in your account, so reinstalling never loses it.</span>
     <span><a href="./">muhurta-pomodoro</a></span>
   </div>
 </footer>
@@ -65,45 +64,35 @@
   const REPO = "https://github.com/Harsh-0024/muhurta-pomodoro";
   // /releases/latest/download/<file> always resolves to the newest release,
   // so this page never needs updating when a new version ships.
+  // Three short steps each; the rare cases fold away behind a tap.
   const BUILDS = {
     mac: {
       file: "Muhurta-Pomodoro-macos-arm64.dmg",
       eyebrow: "Mac · Apple Silicon",
       steps: [
-        `If Chrome blocks the file as an <i>unverified download</i>: click the
-         download icon at the top right of Chrome, click the file, and choose
-         <b>Download unverified file</b>.`,
-        `Open your <b>Downloads</b> folder, double-click
-         <span class="code">Muhurta-Pomodoro-macos-arm64.dmg</span> and install it.`,
-        `Open <b>Muhurta Pomodoro</b> from Launchpad or Applications. The first
-         time, your Mac says it could not check the app: click <b>Done</b>.`,
-        `Open <b>System Settings → Privacy &amp; Security</b>, scroll down to
-         <i>"Muhurta Pomodoro" was blocked</i> and click <b>Open Anyway</b>.
-         Confirm with Touch ID or your password, then <b>Open Anyway</b> once more.`,
-        `That's it. From now on it opens like any other app, and when a new
-         version is out it offers to update itself.`,
+        ["Install", "Open the .dmg in Downloads and drag the app to Applications."],
+        ["Open it", "Your Mac says it can't check the app. Click Done."],
+        ["Allow it once", "Privacy &amp; Security → Open Anyway."],
       ],
-      note: `<b>Steps 3 and 4 happen only once.</b> The warning appears because the app
-             is not registered with Apple (that costs $99 a year), not because anything
-             is wrong with it.`,
+      after: "That's it. From now on it opens like any app and updates itself.",
+      folds: [
+        ["Chrome blocked the file?", "Click the download icon at the top right of Chrome, click the file, and choose <b>Download unverified file</b>."],
+        ["Why does my Mac ask?", "The app isn't registered with Apple (that costs $99 a year). Nothing is wrong with it, and you only allow it once."],
+      ],
     },
     win: {
       file: "Muhurta-Pomodoro-windows-x64.zip",
       eyebrow: "Windows · 64-bit",
       steps: [
-        `Open your <b>Downloads</b> folder, right-click
-         <span class="code">Muhurta-Pomodoro-windows-x64.zip</span> and choose
-         <b>Extract All</b>.`,
-        `Open the extracted <b>Muhurta Pomodoro</b> folder and double-click
-         <b>Muhurta Pomodoro.exe</b>.`,
-        `Windows says <b>"Windows protected your PC"</b>. Click <b>More info</b>, then
-         <b>Run anyway</b>. This happens only the first time.`,
-        `The timer opens in its own window. Close it when you are done and the app
-         stops by itself.`,
+        ["Unzip", "Right-click the .zip in Downloads and choose Extract All."],
+        ["Open it", "Double-click Muhurta Pomodoro.exe in the extracted folder."],
+        ["Allow it once", "\u201cWindows protected your PC\u201d → More info → Run anyway."],
       ],
-      note: `<b>Tip:</b> for a Desktop shortcut, right-click <b>Muhurta Pomodoro.exe</b> →
-             <b>Send to</b> → <b>Desktop</b>. The warning in step 3 appears because the
-             app has no paid publisher certificate, not because anything is wrong.`,
+      after: "That's it. Close the window when you're done and the app stops.",
+      folds: [
+        ["Want a Desktop shortcut?", "Right-click <b>Muhurta Pomodoro.exe</b> → <b>Send to</b> → <b>Desktop</b>."],
+        ["Why does Windows warn me?", "The app has no paid publisher certificate. Nothing is wrong with it, and you only allow it once."],
+      ],
     },
   };
 
@@ -116,8 +105,11 @@
   document.title = `Download Muhurta Pomodoro for ${os === "win" ? "Windows" : "Mac"}`;
   document.getElementById("eyebrow").textContent = build.eyebrow;
   document.getElementById("manual").href = url;
-  document.getElementById("walk").innerHTML = build.steps.map((s) => `<li>${s}</li>`).join("");
-  document.getElementById("note").innerHTML = build.note;
+  document.getElementById("walk").innerHTML = build.steps
+    .map(([title, line]) => `<li><b>${title}</b><span>${line}</span></li>`).join("");
+  document.getElementById("after").textContent = build.after;
+  document.getElementById("folds").innerHTML = build.folds
+    .map(([q, a]) => `<details class="more"><summary>${q}</summary><p class="quiet small">${a}</p></details>`).join("");
 
   const status = document.getElementById("status");
   const statusText = document.getElementById("statusText");
@@ -125,14 +117,14 @@
   // Phones can't run it; don't fire a download they can't use.
   if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
     status.classList.add("done");
-    statusText.textContent = "This needs a computer. Open this page on your Mac or PC to download.";
+    statusText.textContent = "Open this page on your computer to download.";
     document.getElementById("retry").hidden = true;
   } else {
     const go = () => { location.href = url; };
     setTimeout(go, 700);   // let the page paint first, then start the file
     setTimeout(() => {
       status.classList.add("done");
-      statusText.textContent = "Download started. Here is what to do next.";
+      statusText.textContent = "Download started.";
     }, 2600);
     document.getElementById("manual").addEventListener("click", (e) => {
       e.preventDefault();

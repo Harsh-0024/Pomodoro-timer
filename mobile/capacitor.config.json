@@ -1,0 +1,8 @@
+{
+  "appId": "com.muhurata.timer",
+  "appName": "Muhurta Pomodoro",
+  "webDir": "www",
+  "android": {
+    "backgroundColor": "#040302"
+  }
+}

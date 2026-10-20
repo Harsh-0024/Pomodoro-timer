@@ -6,5 +6,6 @@
     "SystemBars": {
       "initialViewportFitValueHint": "cover"
     }
-  }
+  },
+  "loggingBehavior": "none"
 }

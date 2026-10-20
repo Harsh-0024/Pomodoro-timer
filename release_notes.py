@@ -5,6 +5,12 @@ a few short lines per version, about what they will notice. Versions with
 nothing worth telling can be left out.
 """
 NOTES = {
+    "1.7.2": [
+        "If the app can't check for updates for a few days, it now tells you, so you never get stuck "
+        "on an old version without knowing.",
+        "The app now tells your account which version it runs, so updates can reach everyone. "
+        "Nothing else is sent besides your own sessions and settings.",
+    ],
     "1.7.1": [
         "Update notices now work. Earlier versions could never tell that a new version was out; "
         "from now on you'll see \"Update now\" whenever there is one. Settings > About shows when "

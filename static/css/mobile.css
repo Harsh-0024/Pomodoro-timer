@@ -39,8 +39,24 @@ body.is-mobile .brand-text {
 
 /* The four page links move to the tab bar; what stays up here is the level
    picker (timer page) and the account initial. */
+/* The computer's narrow-window layout stacks the bar into a column and lays
+   Rhythm's buttons out in a grid; on a phone the tabs are at the bottom, so
+   the bar stays one line: brand left, the level right. */
 body.is-mobile .topbar {
+  flex-direction: row;
   flex-wrap: nowrap;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+body.is-mobile .topnav,
+body.is-mobile.page-home .topnav {
+  display: flex;
+  justify-content: flex-end;
+}
+
+body.is-mobile .nav-level {
+  position: relative;
 }
 
 /* On phones the top bar holds only the page's own control (the level), so

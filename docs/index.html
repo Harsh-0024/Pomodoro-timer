@@ -23,7 +23,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="style.css?v=1.9.2" />
+<link rel="stylesheet" href="style.css?v=1.9.4" />
 </head>
 <body>
 
@@ -90,8 +90,7 @@
         <div class="lights"><i></i><i></i><i></i></div>
         <div class="window-title" id="windowTitle">Muhurta Pomodoro</div>
       </div>
-      <div class="pan" id="pan">
-        <span class="snap"></span><span class="snap"></span>
+      <div class="pan">
         <img id="appImg" src="img/timer.jpg" width="2200" height="1478" alt="The Muhurta Pomodoro timer: a 36-minute deep work session, ready to start" />
       </div>
       <script>
@@ -99,7 +98,6 @@
         if (document.documentElement.dataset.theme === "light") document.getElementById("appImg").src = "img/timer-light.jpg";
       </script>
     </div>
-    <p class="pan-hint" id="panHint" hidden aria-hidden="true"><i class="on"></i><i></i></p>
   </div>
 </header>
 
@@ -254,33 +252,30 @@
     const shot = SHOTS[state.view];
     document.querySelectorAll(".viewer button").forEach((b) =>
       b.setAttribute("aria-pressed", String(b.dataset.view === state.view || b.dataset.theme === state.theme)));
-    document.getElementById("windowTitle").textContent = shot.title;
-    document.getElementById("panHint").hidden = state.view !== "dashboard";
-    win.dataset.view = state.view;
-    img.alt = shot.alt;
+    // Reframe the window only once the old picture is gone, so a screen
+    // never shows in the other screen's framing.
+    const reframe = () => {
+      win.dataset.view = state.view;
+      document.getElementById("windowTitle").textContent = shot.title;
+      img.alt = shot.alt;
+    };
     const src = shot[state.theme];
-    if (img.getAttribute("src") === src) return;
+    clearTimeout(render.t);
+    if (img.getAttribute("src") === src) {
+      img.style.opacity = 1;
+      return reframe();
+    }
     img.style.opacity = 0;
-    setTimeout(() => {
+    render.t = setTimeout(() => {
+      reframe();
       img.onload = () => { img.style.opacity = 1; };
       img.src = src;
     }, 200);
   }
-  // On a phone the dashboard snaps between its two halves; start on the
-  // first one and show which half is in view.
-  const pan = document.getElementById("pan");
-  const dots = document.querySelectorAll("#panHint i");
-  const toFirstHalf = () => { pan.scrollLeft = pan.querySelector(".snap").offsetLeft; };
-  img.addEventListener("load", () => { if (state.view === "dashboard") toFirstHalf(); });
-  pan.addEventListener("scroll", () => {
-    const second = pan.scrollLeft > pan.querySelectorAll(".snap")[1].offsetLeft - pan.clientWidth / 2;
-    dots.forEach((d, i) => d.classList.toggle("on", i === (second ? 1 : 0)));
-  }, { passive: true });
   document.querySelectorAll(".viewer button").forEach((b) => b.addEventListener("click", () => {
     if (b.dataset.view) state.view = b.dataset.view;
     if (b.dataset.theme) state.theme = b.dataset.theme;
     render();
-    if (b.dataset.view === "dashboard") requestAnimationFrame(toFirstHalf);
   }));
   render();
   document.addEventListener("themechange", (e) => { state.theme = e.detail; render(); });

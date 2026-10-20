@@ -141,11 +141,50 @@
     button.focus();
   }
 
+  // Checks have failed for days: say so once per session, quietly, so a
+  // copy that can't see updates doesn't stay stuck without anyone knowing.
+  const STALE_DAYS = 3;
+  const STALE_KEY = "muhurata.update.stale-dismissed";
+
+  function showStale(d) {
+    try {
+      if (sessionStorage.getItem(STALE_KEY)) return;
+    } catch (_) {}
+    if (shown || document.querySelector(".update-bar")) return;
+    shown = "stale";
+    const bar = el("div", "update-bar");
+    bar.setAttribute("role", "status");
+    const msg = el("span", "update-bar-text",
+      `Couldn't check for updates for ${d.check_failing_days} days (${d.check_error}). ` +
+      "Check your internet connection, or get the latest version from the website.");
+    const actions = el("span", "update-bar-actions");
+    const later = el("button", "btn btn-quiet", "OK");
+    later.type = "button";
+    later.addEventListener("click", () => {
+      try {
+        sessionStorage.setItem(STALE_KEY, "1");
+      } catch (_) {}
+      bar.remove();
+    });
+    const link = el("a", "btn btn-primary", "Open website");
+    link.href = d.url;
+    link.target = "_blank";
+    link.rel = "noopener";
+    actions.append(later, link);
+    bar.append(msg, actions);
+    document.body.appendChild(bar);
+  }
+
   function check() {
     fetch("/api/version", { headers: { Accept: "application/json" } })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
+        if (d && !d.update_available && d.check_error && d.check_failing_days >= STALE_DAYS) return showStale(d);
         if (!d || !d.update_available) return;
+        if (shown === "stale") {
+          document.querySelector(".update-bar")?.remove();
+          shown = null;
+        }
         if (d.required) showRequired(d);
         else showBar(d);
       })

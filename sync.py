@@ -21,6 +21,7 @@ from __future__ import annotations
 import json
 import logging
 import sqlite3
+import sys
 import threading
 import time
 import urllib.parse
@@ -362,7 +363,34 @@ def _sync(conn, state: dict, uid: str, token: str) -> tuple[int, int]:
     down += _apply_settings(conn, rows)
     rows, cursors["focus_by_device"] = _pull("focus_by_device", cursors.get("focus_by_device"), token)
     down += _apply_focus(conn, rows)
+    _report_version(state, uid, token)
     return up, down
+
+
+DEVICE_REPORT_EVERY = 6 * 60 * 60  # seconds; sooner when the version changes
+
+
+def _report_version(state: dict, uid: str, token: str) -> None:
+    """Tell the owner which version this computer runs and when it was last
+    online (the app_devices table; see supabase/schema.sql). Only the
+    version, the platform and the time; never fails a sync."""
+    from version import __version__
+
+    last = state.get("device_report") or {}
+    if last.get("version") == __version__ and time.time() - float(last.get("at") or 0) < DEVICE_REPORT_EVERY:
+        return
+    try:
+        code, payload = cloud._request(
+            "POST", "/rest/v1/app_devices?on_conflict=user_id,device_id",
+            {"user_id": uid, "device_id": db.device_id(), "app_version": __version__,
+             "platform": sys.platform, "last_seen": _now_iso()},
+            token=token, headers={"Prefer": "resolution=merge-duplicates,return=minimal"})
+    except cloud.CloudError:
+        return  # offline: next sync
+    if code < 400 or code == 404:  # 404: not set up on the server; don't keep asking
+        state["device_report"] = {"version": __version__, "at": time.time()}
+    else:
+        log.warning("version report -> %s %s", code, payload)
 
 
 def run_once() -> dict:

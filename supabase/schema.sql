@@ -188,3 +188,43 @@ as $$
 $$;
 revoke all on function public.username_available(text) from public;
 grant execute on function public.username_available(text) to anon, authenticated;
+
+-- --------------------------------------------------------------------------
+-- app_devices: which version each computer runs (added in 1.7.2)
+-- --------------------------------------------------------------------------
+-- Each signed-in computer reports its app version, platform and when it was
+-- last online, at most every few hours. Nothing else. People can only write
+-- their own rows; the owner sees everyone's in the Table Editor, or with:
+--   select * from public.devices_overview;
+create table if not exists public.app_devices (
+    user_id     uuid not null default auth.uid() references auth.users (id) on delete cascade,
+    device_id   uuid not null,
+    app_version text not null check (char_length(app_version) <= 20),
+    platform    text not null default '' check (char_length(platform) <= 20),
+    last_seen   timestamptz not null default now(),
+    primary key (user_id, device_id)
+);
+
+alter table public.app_devices enable row level security;
+revoke all on public.app_devices from anon, authenticated;
+grant select, insert, update on public.app_devices to authenticated;
+drop policy if exists own_rows on public.app_devices;
+create policy own_rows on public.app_devices for all to authenticated
+    using (user_id = (select auth.uid()))
+    with check (user_id = (select auth.uid()));
+
+-- For the owner only (the dashboard and SQL Editor): who runs what, newest
+-- first. Not reachable through the app's API.
+create or replace view public.devices_overview
+with (security_invoker = on) as
+select coalesce(nullif(trim(p.first_name || ' ' || p.last_name), ''), u.email) as person,
+       p.username,
+       u.email,
+       d.app_version,
+       d.platform,
+       d.last_seen
+from public.app_devices d
+join auth.users u on u.id = d.user_id
+left join public.profiles p on p.user_id = d.user_id
+order by d.last_seen desc;
+revoke all on public.devices_overview from anon, authenticated;

@@ -548,7 +548,11 @@ def _update_info(force: bool = False) -> dict:
             # A missing policy file just means no rules; anything else is a failure.
             if not (isinstance(exc, urllib.error.HTTPError) and exc.code == 404):
                 error = error or _describe_failure(exc)
-        data.update(checked_at=time.time(), error=error)
+        now = time.time()
+        # When checks started failing, so a check that keeps failing (a
+        # network that blocks GitHub, say) is eventually said out loud.
+        failing_since = (data.get("failing_since") or now) if error else None
+        data.update(checked_at=now, error=error, failing_since=failing_since)
         try:
             cache.write_text(json.dumps(data))
         except OSError:
@@ -564,6 +568,9 @@ def api_version():
     how = "restart" if app.config.get(RESTART_KEY) else "download" if IS_BUNDLED else None
     info = _update_info(force=request.args.get("refresh") == "1")
     payload.update(checked_at=info.get("checked_at"), check_error=info.get("error"))
+    if info.get("error") and info.get("failing_since"):
+        payload["check_failing_days"] = int((time.time() - float(info["failing_since"])) // 86400)
+        payload["url"] = DOWNLOAD_PAGE
     if app.config.get("MUHURATA_UPDATE_ERROR"):
         payload["update_error"] = app.config["MUHURATA_UPDATE_ERROR"]
     latest = info.get("latest")

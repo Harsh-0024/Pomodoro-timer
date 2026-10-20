@@ -199,6 +199,18 @@
     syncSegmented($("setTheme"), theme);
   }
 
+  const TIMER_END_HINTS = {
+    stop: "Chime once and finish.",
+    ring: "Chime every few seconds until you dismiss it, like an alarm.",
+    overtime: "Chime once, then keep counting up (+0:42) until you stop. The extra time counts as focus.",
+  };
+
+  function applyTimerEnd(value) {
+    const end = TIMER_END_HINTS[value] ? value : "stop";
+    syncSegmented($("setTimerEnd"), end);
+    if ($("setTimerEndHint")) $("setTimerEndHint").textContent = TIMER_END_HINTS[end];
+  }
+
   /* ---------- daily goal ---------- */
 
   function goalStepFor(v) {
@@ -783,7 +795,7 @@
   async function resetSettings() {
     const ok = await askConfirm({
       title: "Restore default settings?",
-      message: "Timer, sound, theme and notification preferences go back to how they started. Your combinations and focus history are kept.",
+      message: "Rhythm, Timer, sound, theme and notification preferences go back to how they started. Your combinations and focus history are kept.",
       accept: "Restore",
     });
     if (!ok) return;
@@ -808,6 +820,7 @@
     renderVolume();
     syncSegmented($("setProfile"), s.sound_profile || "bold");
     applyTheme(s.theme);
+    applyTimerEnd(s.timer_end);
     renderGoal();
     syncCues();
     syncSoundState();
@@ -836,6 +849,11 @@
     wireSegmented($("setProfile"), (value) => {
       save({ sound_profile: value });
       syncSegmented($("setProfile"), value);
+    });
+
+    wireSegmented($("setTimerEnd"), (value) => {
+      save({ timer_end: value });
+      applyTimerEnd(value);
     });
 
     wireSegmented($("setTheme"), (value) => {

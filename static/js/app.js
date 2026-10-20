@@ -4,8 +4,6 @@
   const RING_LEN = 2 * Math.PI * 96;
   const baseTitle = "Muhurta Pomodoro";
   const SESSION_STORAGE_KEY = "muhurat_timer_session_v1";
-  const FLOW_STORAGE_KEY = "muhurat_flow_session_v1";
-  const SESSION_COMMAND_KEY = "muhurat_session_command_v1";
   let noticeTimer = null;
 
   /** @type {ReturnType<typeof setInterval> | null} */
@@ -418,26 +416,6 @@
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   }
 
-  function readStoredFlow() {
-    const local = parseStoredSession(localStorage.getItem(FLOW_STORAGE_KEY));
-    const session = parseStoredSession(sessionStorage.getItem(FLOW_STORAGE_KEY));
-    if (!local) return session;
-    if (!session) return local;
-    return Number(session.savedAt || 0) > Number(local.savedAt || 0) ? session : local;
-  }
-
-  function writeStoredFlow(data) {
-    try {
-      const raw = JSON.stringify(data);
-      localStorage.setItem(FLOW_STORAGE_KEY, raw);
-      sessionStorage.setItem(FLOW_STORAGE_KEY, raw);
-      localStorage.setItem(
-        SESSION_COMMAND_KEY,
-        JSON.stringify({ target: "flow", action: "paused-by-timer", at: Date.now() })
-      );
-    } catch (_) {}
-  }
-
   function showTimerNotice(message) {
     const el = document.getElementById("timerNotice");
     if (!el || !message) return;
@@ -450,39 +428,10 @@
     }, 5200);
   }
 
-  function logStoredFlowSegment(startedAt, endedAt) {
-    const duration = Math.max(0, (endedAt - startedAt) / 1000);
-    if (duration < 0.5) return;
-    api("/api/activity/segment", {
-      method: "POST",
-      body: JSON.stringify({
-        day: localDayISO(startedAt),
-        kind: "flow",
-        started_at: new Date(startedAt).toISOString(),
-        ended_at: new Date(endedAt).toISOString(),
-        duration_sec: duration,
-        preset_id: "flow",
-        preset_name: "Flow",
-        details: { mode: "stopwatch", paused_by: "timer" },
-      }),
-    }).catch(() => {});
-  }
-
-  function pauseFlowForTimer() {
-    const data = readStoredFlow();
-    if (!data || data.mode !== "running" || !data.runStartedAt) return false;
-    const now = Date.now();
-    const runStartedAt = Number(data.runStartedAt);
-    data.focusedSec = Math.max(0, Number(data.focusedSec || 0)) + Math.max(0, (now - runStartedAt) / 1000);
-    logStoredFlowSegment(runStartedAt, now);
-    data.mode = "paused";
-    data.runStartedAt = null;
-    data.pausedBy = "timer";
-    data.notice = "Flow paused while Timer starts.";
-    data.savedAt = now;
-    writeStoredFlow(data);
-    showTimerNotice(data.notice);
-    return true;
+  function pauseOthers() {
+    window.OneClock.pauseOthers("rhythm", "Rhythm").then((notices) => {
+      if (notices.length) showTimerNotice(notices.join(" "));
+    });
   }
 
   function logActivitySegment(kind, startedAt, endedAt, details = {}) {
@@ -945,7 +894,7 @@
       panel.removeAttribute("aria-label");
     } else {
       panel.removeAttribute("aria-labelledby");
-      panel.setAttribute("aria-label", "Timer choices");
+      panel.setAttribute("aria-label", "Rhythm choices");
     }
     actionsEl.innerHTML = "";
     actions.forEach(({ label, primary, onClick, disabled }) => {
@@ -1143,7 +1092,7 @@
   function startExtendFocus(playBeginSound) {
     const pr = state.pendingRest;
     if (!pr) return;
-    pauseFlowForTimer();
+    pauseOthers();
     ensureSession();
     state.extendBaseSec = state.session.extendSec;
     state.mode = "extend";
@@ -1351,7 +1300,7 @@
   }
 
   function startCountdown(run) {
-    if (run) pauseFlowForTimer();
+    if (run) pauseOthers();
     state.running = run;
     if (run) {
       armPhaseEnd();
@@ -1924,9 +1873,9 @@
       restoreSession();
       return;
     }
-    if (data.pausedBy !== "flow") return;
+    if (data.pausedBy !== "flow" && data.pausedBy !== "countdown") return;
     restoreSession();
-    showTimerNotice(data.notice || "Timer paused while Flow starts.");
+    if (data.notice) showTimerNotice(data.notice);
   });
 
   document.addEventListener("DOMContentLoaded", init);

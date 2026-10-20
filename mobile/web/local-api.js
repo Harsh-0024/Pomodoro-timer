@@ -805,14 +805,6 @@
 
   route("POST", /^\/api\/alive$/, () => [204, null]);
 
-  // Accounts come in step 3; until then the phone works on its own.
-  const cloudStatus = () => ({ configured: false, signed_in: false, password_pending: false, email: null, profile: null, sync: null });
-  route("GET", /^\/api\/cloud\/status$/, cloudStatus);
-  route("POST", /^\/api\/cloud\/sync-now$/, cloudStatus);
-  route("*", /^\/api\/cloud\//, () => {
-    throw new HttpError(503, "Accounts aren't available on the phone yet.");
-  });
-
   route("GET", /^\/api\/quote$/, async () => {
     const fallback = D.quotes[Math.floor(Math.random() * D.quotes.length)];
     try {
@@ -995,9 +987,18 @@
       ? new Response(null, { status })
       : new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 
+  // What works before signing in (app.py OPEN_ENDPOINTS).
+  const OPEN = /^\/api\/(cloud\/(status|sign-in|send-code|verify|set-password|cancel|username-available)|alive|version|update\/restart)$/;
+
   async function handle(method, url, bodyText) {
     await ready;
     const path = url.pathname.replace(/\/+$/, "") || "/";
+    const account = window.__MUHURTA_ACCOUNT__;
+    if (account && !OPEN.test(path) && !account.signedIn()) {
+      return new Response(JSON.stringify({ error: "Please sign in first." }), {
+        status: 401, headers: { "Content-Type": "application/json", "X-Signed-Out": "1" },
+      });
+    }
     let body = {};
     if (bodyText) {
       try {
@@ -1012,7 +1013,10 @@
       if (!m) continue;
       try {
         const out = await r.fn({ body, q: url.searchParams, m });
-        return Array.isArray(out) ? json(out[0], out[1]) : json(200, out);
+        const res = Array.isArray(out) ? json(out[0], out[1]) : json(200, out);
+        // Any saved change syncs a few seconds later (app.py _sync_after_change).
+        if (method !== "GET" && res.status < 400 && !/^\/api\/(cloud\/|alive)/.test(path) && account) account.nudge();
+        return res;
       } catch (err) {
         if (err instanceof HttpError) return json(err.status, { error: err.message, ...err.extra });
         console.error("local api", method, path, err);
@@ -1043,6 +1047,9 @@
     return realBeacon ? realBeacon(target, data) : false;
   };
 
-  // For tests in the emulator: the stores, and a way to wait for them.
-  window.__MUHURTA_LOCAL__ = { ready, stores: S, deviceId: () => deviceId(), cloudConfigured: false };
+  // account.js (sign-in and sync) builds on these; tests in the emulator use them too.
+  window.__MUHURTA_LOCAL__ = {
+    ready, stores: S, deviceId: () => deviceId(), cloudConfigured: false, notifications: false,
+    internals: { S, write, route, routes, HttpError, nowIso, loadSettings, rememberTheme, applyTheme, parseTime },
+  };
 })();

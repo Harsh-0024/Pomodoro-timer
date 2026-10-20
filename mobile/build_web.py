@@ -11,6 +11,7 @@ Run from anywhere:  python mobile/build_web.py
 from __future__ import annotations
 
 import random
+import re
 import shutil
 import sys
 from pathlib import Path
@@ -55,7 +56,8 @@ ROUTER = """<script>
 
 LOCAL_API = """
   <script src="/mobile-data.js"></script>
-  <script src="/local-api.js"></script>"""
+  <script src="/local-api.js"></script>
+  <script src="/account.js"></script>"""
 
 
 def url_for(endpoint: str, filename: str | None = None, **_):
@@ -91,6 +93,11 @@ def render_pages() -> None:
             pending_email="",
             pending_has_profile=False,
         )
+        # The fonts ship inside the app (mobile/web/fonts): no waiting on Google
+        # before the page draws, and the same look offline.
+        html = re.sub(r'\s*<link rel="preconnect" href="https://fonts\.(googleapis|gstatic)\.com"[^>]*/>', "", html)
+        html = re.sub(r'<link href="https://fonts\.googleapis\.com/css2[^"]*" rel="stylesheet" />',
+                      '<link href="/fonts/fonts.css" rel="stylesheet" />', html)
         # First in <head>: the router, then the phone's own /api (local-api.js).
         head = ROUTER % json.dumps(ROUTES) + LOCAL_API
         html = html.replace("<head>", "<head>\n  " + head, 1)
@@ -102,6 +109,7 @@ def write_data() -> None:
     files so there is only one copy of each."""
     import json
 
+    import cloud
     import db
     import release_notes
     from app import FALLBACK_QUOTES, SOUND_CHOICES, SOUND_SETTING_KEYS
@@ -116,13 +124,18 @@ def write_data() -> None:
         "long_segment_sec": db.LONG_SEGMENT_SEC,
         "notes": release_notes.NOTES,
         "quotes": FALLBACK_QUOTES,
+        # MUHURATA_SUPABASE_URL / _KEY build a copy for a test server.
+        "supabase_url": cloud.SUPABASE_URL,
+        "supabase_key": cloud.SUPABASE_KEY,
     }
     (WWW / "mobile-data.js").write_text(
         "// Built by mobile/build_web.py from the Python files. Do not edit.\n"
         f"window.__MUHURTA__ = {json.dumps(data, ensure_ascii=False)};\n",
         encoding="utf-8",
     )
-    shutil.copy2(MOBILE / "web" / "local-api.js", WWW / "local-api.js")
+    for name in ("local-api.js", "account.js"):
+        shutil.copy2(MOBILE / "web" / name, WWW / name)
+    shutil.copytree(MOBILE / "web" / "fonts", WWW / "fonts")
 
 
 def main() -> None:

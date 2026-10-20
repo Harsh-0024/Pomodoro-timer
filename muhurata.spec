@@ -57,6 +57,21 @@ coll = COLLECT(
     name="Muhurta Pomodoro",
 )
 
+if sys.platform == "win32":
+    import os
+
+    # Unzipping with Explorer's "Extract All" marks every file as downloaded
+    # from the internet, and .NET then refuses to load the window's parts
+    # (pythonnet, WebView2): the app fell back to a browser window (1.9.0).
+    # This file next to the .exe lets .NET load the app's own files anyway.
+    with open(os.path.join(DISTPATH, "Muhurta Pomodoro", "Muhurta Pomodoro.exe.config"), "w", encoding="utf-8") as f:
+        f.write('<?xml version="1.0" encoding="utf-8"?>\n'
+                "<configuration>\n"
+                "  <runtime>\n"
+                '    <loadFromRemoteSources enabled="true"/>\n'
+                "  </runtime>\n"
+                "</configuration>\n")
+
 if sys.platform == "darwin":
     VERSION = re.search(r'"(.+)"', open("version.py").read()).group(1)
     app = BUNDLE(

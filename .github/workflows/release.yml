@@ -102,6 +102,12 @@ jobs:
         run: |
           $data = "$env:LOCALAPPDATA\MuhurataTimer"
           $log = "$data\launcher.log"
+          # As friends get it: Explorer's "Extract All" marks every file as
+          # downloaded from the internet, which once stopped the window
+          # loading (1.9.0) while this test, without the mark, passed.
+          Get-ChildItem -Recurse "dist\Muhurta Pomodoro" -File | ForEach-Object {
+            Set-Content -Path $_.FullName -Stream Zone.Identifier -Value "[ZoneTransfer]`r`nZoneId=3"
+          }
           # The copy from the step above, if it outlived its shell.
           Stop-Process -Name "Muhurta Pomodoro" -Force -ErrorAction SilentlyContinue
           Start-Sleep 2

@@ -399,7 +399,7 @@ h2 {
 }
 h3 { margin: 0; font-weight: 500; }
 .quiet { margin: 20px auto 0; max-width: 30em; color: var(--muted); }
-.quiet.small { font-size: 0.92rem; color: var(--faint); }
+.quiet.small { font-size: 0.92rem; }
 
 /* the idea: two numbers */
 .units {
@@ -416,7 +416,7 @@ h3 { margin: 0; font-weight: 500; }
   line-height: 1;
   color: var(--gold);
 }
-.unit span { display: block; margin-top: 6px; color: var(--faint); font-size: 0.8rem; letter-spacing: 0.16em; text-transform: uppercase; }
+.unit span { display: block; margin-top: 6px; color: var(--muted); font-size: 0.8rem; letter-spacing: 0.16em; text-transform: uppercase; }
 .unit em { display: block; margin-top: 14px; font-family: var(--serif); font-style: normal; font-size: 1.3rem; }
 
 /* eight levels: a quiet row of rising bars, the full list on demand */
@@ -448,7 +448,7 @@ h3 { margin: 0; font-weight: 500; }
   justify-content: space-between;
   max-width: 452px;
   margin: 18px auto 0;
-  color: var(--faint);
+  color: var(--muted);
   font-size: 0.85rem;
 }
 
@@ -478,7 +478,7 @@ h3 { margin: 0; font-weight: 500; }
   border-bottom: 1px solid var(--line);
 }
 .level-list b { font-family: var(--serif); font-weight: 400; font-size: 1.2rem; }
-.level-list span { grid-row: 2; color: var(--faint); font-size: 0.82rem; }
+.level-list span { grid-row: 2; color: var(--muted); font-size: 0.82rem; }
 .level-list em { grid-row: span 2; align-self: center; font-style: normal; color: var(--muted); font-variant-numeric: tabular-nums; }
 
 /* features: names, a few words each, nothing else */
@@ -492,7 +492,7 @@ h3 { margin: 0; font-weight: 500; }
 }
 .features li, .steps li { display: flex; flex-direction: column; gap: 6px; }
 .features b, .steps b { font-family: var(--serif); font-weight: 400; font-size: 1.45rem; line-height: 1.2; }
-.features span, .steps span { color: var(--faint); font-size: 0.95rem; }
+.features span, .steps span { color: var(--muted); font-size: 0.95rem; }
 
 /* install: three steps, one line each */
 .steps {

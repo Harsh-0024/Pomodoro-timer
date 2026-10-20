@@ -114,7 +114,7 @@ def write_data() -> None:
     import cloud
     import db
     import release_notes
-    from app import FALLBACK_QUOTES, SOUND_CHOICES, SOUND_SETTING_KEYS
+    from app import DOWNLOAD_PAGE, FALLBACK_QUOTES, RELEASES_API, SOUND_CHOICES, SOUND_SETTING_KEYS, UPDATE_POLICY_URL
     from presets import BUILTINS
 
     data = {
@@ -128,6 +128,10 @@ def write_data() -> None:
         "rest_kinds": list(db.REST_KINDS),
         "notes": release_notes.NOTES,
         "quotes": FALLBACK_QUOTES,
+        # Where the phone hears about updates (app.py), and where it gets them.
+        "releases_api": RELEASES_API,
+        "update_policy_url": UPDATE_POLICY_URL,
+        "download_page": DOWNLOAD_PAGE + "?os=android",
         # MUHURATA_SUPABASE_URL / _KEY build a copy for a test server.
         "supabase_url": cloud.SUPABASE_URL,
         "supabase_key": cloud.SUPABASE_KEY,

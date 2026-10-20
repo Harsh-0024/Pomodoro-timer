@@ -824,10 +824,87 @@
     return { ...fallback, source: "fallback" };
   });
 
-  // Updates for the phone app come with its release (step 6).
-  route("GET", /^\/api\/version$/, () => ({
-    current: D.version, bundled: true, update_available: false, required: false, checked_at: null, check_error: null,
-  }));
+  // Update notices (app.py _update_info / api_version): the latest release on
+  // GitHub and the owner's rules (docs/update-policy.json). Checked hourly,
+  // ten minutes after a failure; offline keeps what was known, including a
+  // "you must update". The phone gets the new version from the website.
+  const UPDATE_CHECK_MS = 60 * 60 * 1000;
+  const UPDATE_RETRY_MS = 10 * 60 * 1000;
+  let updateCheck = null;
+
+  async function getJson(url, headers) {
+    const http = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.CapacitorHttp;
+    if (!http) throw new Error("no network");
+    const res = await http.get({ url, headers: { "User-Agent": "MuhurataTimer", ...(headers || {}) }, connectTimeout: 5000, readTimeout: 5000, responseType: "text" });
+    if (res.status === 404) {
+      const err = new Error("not found");
+      err.status = 404;
+      throw err;
+    }
+    if (res.status >= 400) throw Object.assign(new Error(`the update server answered ${res.status}`), { status: res.status });
+    return typeof res.data === "string" ? JSON.parse(res.data) : res.data;
+  }
+
+  function cleanPolicy(raw) {
+    raw = raw && typeof raw === "object" ? raw : {};
+    const blocked = Array.isArray(raw.blocked_versions) ? raw.blocked_versions : [];
+    return {
+      minimum_version: String(raw.minimum_version || "").replace(/^v/, ""),
+      blocked_versions: blocked.map((v) => String(v).replace(/^v/, "")),
+      message: String(raw.message || "").slice(0, 500),
+    };
+  }
+
+  async function updateInfo(force) {
+    const data = { ...(S.kv.get("update_check") || {}), k: "update_check" };
+    const wait = data.error ? UPDATE_RETRY_MS : UPDATE_CHECK_MS;
+    if (!force && Date.now() - Number(data.checked_at || 0) < wait) return data;
+    if (updateCheck) return updateCheck;
+    updateCheck = (async () => {
+      let error = null;
+      try {
+        const rel = await getJson(D.releases_api, { Accept: "application/vnd.github+json" });
+        data.latest = String(rel.tag_name || "").replace(/^v/, "") || data.latest;
+      } catch (err) {
+        error = err.status ? err.message : "no internet connection";
+      }
+      try {
+        data.policy = cleanPolicy(await getJson(D.update_policy_url));
+      } catch (err) {
+        if (err.status !== 404) error = error || (err.status ? err.message : "no internet connection");
+      }
+      const now = Date.now();
+      data.failing_since = error ? data.failing_since || now : null;
+      data.checked_at = now;
+      data.error = error;
+      await write([["kv", data]]);
+      return data;
+    })();
+    try {
+      return await updateCheck;
+    } finally {
+      updateCheck = null;
+    }
+  }
+
+  route("GET", /^\/api\/version$/, async ({ q }) => {
+    const info = await updateInfo(q.get("refresh") === "1");
+    const payload = {
+      current: D.version, bundled: true, update_available: false, required: false,
+      checked_at: info.checked_at ? info.checked_at / 1000 : null, check_error: info.error || null,
+    };
+    if (info.error && info.failing_since) {
+      payload.check_failing_days = Math.floor((Date.now() - info.failing_since) / 86400000);
+      payload.url = D.download_page;
+    }
+    const latest = info.latest;
+    if (!latest || compareVersions(latest, D.version) <= 0) return payload;
+    const policy = cleanPolicy(info.policy);
+    const required = (Boolean(policy.minimum_version) && compareVersions(D.version, policy.minimum_version) < 0)
+      || policy.blocked_versions.some((v) => compareVersions(v, D.version) === 0);
+    return { ...payload, update_available: true, latest, how: "download", url: D.download_page, required, message: policy.message };
+  });
+
   route("POST", /^\/api\/update\/restart$/, () => {
     throw new HttpError(409, "This copy cannot restart itself.");
   });

@@ -1,5 +1,14 @@
 apply plugin: 'com.android.application'
 
+// The app's version is the desktop app's (version.py), so one tag releases both.
+def appVersion = (file('../../../version.py').text =~ /__version__\s*=\s*"([^"]+)"/)[0][1]
+def versionParts = appVersion.tokenize('.').collect { it.toInteger() }
+def appVersionCode = versionParts[0] * 10000 + versionParts[1] * 100 + versionParts[2]
+
+// Release builds are signed with the app's own key (kept off GitHub except as
+// encrypted secrets; see mobile/RELEASING.md). Every update must use the same key.
+def keystorePath = System.getenv('MUHURTA_KEYSTORE_FILE')
+
 android {
     namespace = "com.muhurata.timer"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -7,8 +16,8 @@ android {
         applicationId "com.muhurata.timer"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode appVersionCode
+        versionName appVersion
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -16,8 +25,19 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            if (keystorePath) {
+                storeFile file(keystorePath)
+                storePassword System.getenv('MUHURTA_KEYSTORE_PASSWORD')
+                keyAlias System.getenv('MUHURTA_KEY_ALIAS')
+                keyPassword System.getenv('MUHURTA_KEY_PASSWORD')
+            }
+        }
+    }
     buildTypes {
         release {
+            if (keystorePath) signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

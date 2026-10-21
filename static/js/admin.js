@@ -151,6 +151,15 @@
     } catch (e) {
       error.textContent = e.message;
       error.hidden = false;
+      // Lists that never loaded shouldn't keep saying "Loading…".
+      if (!current) {
+        ["peopleList", "computerList"].forEach((id) => {
+          const p = document.createElement("p");
+          p.className = "admin-empty";
+          p.textContent = "Not loaded. Use Refresh to try again.";
+          $(id).replaceChildren(p);
+        });
+      }
     }
   }
 

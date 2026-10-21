@@ -5,6 +5,16 @@ a few short lines per version, about what they will notice. Versions with
 nothing worth telling can be left out.
 """
 NOTES = {
+    "1.11.0": [
+        "A calmer Timer: one soft time in the ring. Tap it and type to change it (25, 5:30 or 1:30:00; "
+        "Enter starts), or pick a quick length under the ring.",
+        "Mac menu bar: a flame while you focus and a tea cup while you rest, so you can tell at a glance. "
+        "Flow shows an infinity sign.",
+        "Creating a password is calmer: one hint line, a strength bar, and \"Copy website\" next to "
+        "\"Copy password\" for saving it in a password manager.",
+        "This \"What's new\" card now scrolls inside, so a long list never runs off the screen.",
+        "The keyboard shortcut list now says what Space really does.",
+    ],
     "1.10.1": [
         "Windows: the app now opens in its own window after unzipping with Extract All too. "
         "In 1.9.0 and 1.10.0 it opened in a browser window instead.",

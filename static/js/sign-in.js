@@ -95,7 +95,7 @@
           : [`${flow} · step 3 of 3`, "Choose a password", "Last step. You'll use it with your email to sign in.", 3];
       default:
         return ["Free · your own account", "Welcome back",
-          "Sign in to pick up where you left off. Your sessions, combinations and settings follow you to every computer.", 0];
+          "Sign in to pick up where you left off. Your sessions, combinations and settings follow you to every device you sign in on.", 0];
     }
   }
 

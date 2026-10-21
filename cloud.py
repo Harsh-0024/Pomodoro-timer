@@ -197,6 +197,9 @@ def status() -> dict:
         "password_pending": pending,
         "email": session.get("email") if session else None,
         "profile": (session.get("profile") if session else None) or None,
+        # Only decides whether the Admin tab is shown; the data behind it is
+        # checked by the server on every request (admin_overview()).
+        "is_admin": bool(session and session.get("is_admin") and not pending),
     }
 
 
@@ -426,3 +429,80 @@ def sign_out() -> dict:
                 pass  # offline or already invalid: forgetting locally is what matters
         _forget()
     return status()
+
+
+# --------------------------------------------------------------------------- #
+# admin (the Admin tab; see the admin section of supabase/schema.sql)
+# --------------------------------------------------------------------------- #
+VERSION_RE = re.compile(r"^\d+\.\d+\.\d+$")
+
+
+def refresh_admin() -> bool:
+    """Ask the server whether this account is an admin, and remember it.
+    Called by the background sync, so it never slows a page down."""
+    token = access_token()
+    if token is None:
+        return False
+    code, payload = _request("POST", "/rest/v1/rpc/is_admin", {}, token=token)
+    admin = code == 200 and payload is True  # 404: not set up yet -> not an admin
+    with _lock:
+        session = _load()
+        if session and session.get("is_admin") != admin:
+            session["is_admin"] = admin
+            _write(session)
+    return admin
+
+
+def _admin_call(method: str, path: str, body=None, prefer: str | None = None):
+    token = access_token()
+    if token is None:
+        raise CloudError("Please sign in first.", 401)
+    code, payload = _request(method, path, body, token=token, headers={"Prefer": prefer} if prefer else None)
+    if code in (401, 403) or "42501" in _error_text(payload) or "admins only" in _error_text(payload):
+        raise CloudError("This is for the app's admin only.", 403)
+    if code == 404:
+        raise CloudError("The admin part isn't set up on the server yet (run the admin section of "
+                         "supabase/schema.sql).", 404)
+    if code >= 400:
+        raise CloudError("The server couldn't answer just now. Try again.", 502)
+    return payload
+
+
+def admin_overview() -> dict:
+    data = _admin_call("POST", "/rest/v1/rpc/admin_overview", {})
+    return data if isinstance(data, dict) else {}
+
+
+def save_update_rules(minimum_version: str, blocked_versions, message: str) -> dict:
+    minimum = (minimum_version or "").strip().lstrip("v")
+    if minimum and not VERSION_RE.match(minimum):
+        raise CloudError("Write versions like 1.7.2.")
+    if isinstance(blocked_versions, str):
+        blocked_versions = blocked_versions.replace(",", " ").split()
+    blocked = []
+    for v in blocked_versions or []:
+        v = str(v).strip().lstrip("v")
+        if not VERSION_RE.match(v):
+            raise CloudError(f"\"{v}\" isn't a version. Write versions like 1.7.2.")
+        if v not in blocked:
+            blocked.append(v)
+    message = " ".join((message or "").split())
+    if len(message) > 500:
+        raise CloudError("Keep the message under 500 characters.")
+    rows = _admin_call("PATCH", "/rest/v1/app_config?id=eq.1",
+                       {"minimum_version": minimum, "blocked_versions": blocked, "message": message,
+                        "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())},
+                       prefer="return=representation")
+    if not rows:  # the update rule let nothing through: not an admin
+        raise CloudError("This is for the app's admin only.", 403)
+    return rows[0]
+
+
+def public_update_rules() -> dict | None:
+    """The update rules every copy follows (app_config), read without signing
+    in. None when unreachable or not set up; the caller falls back to the
+    website's update-policy.json."""
+    code, payload = _request("GET", "/rest/v1/app_config?id=eq.1&select=minimum_version,blocked_versions,message")
+    if code == 200 and isinstance(payload, list) and payload:
+        return payload[0]
+    return None

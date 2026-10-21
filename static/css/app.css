@@ -591,6 +591,8 @@ body[data-theme="light"] .modal-backdrop {
   flex-direction: column;
   width: min(460px, 100%);
   max-height: min(560px, calc(100vh - 3rem));
+  /* dvh: the height actually visible, without a phone browser's bars */
+  max-height: min(560px, calc(100dvh - 3rem));
   padding-bottom: 1rem;
 }
 

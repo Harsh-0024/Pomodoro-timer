@@ -94,15 +94,30 @@
         ["Why does Windows warn me?", "The app has no paid publisher certificate. Nothing is wrong with it, and you only allow it once."],
       ],
     },
+    android: {
+      file: "Muhurta-Pomodoro-android.apk",
+      eyebrow: "Android · phones and tablets",
+      steps: [
+        ["Open it", "When the download finishes, tap it (or find it in Files → Downloads)."],
+        ["Allow it once", "Android asks about installing from your browser: Settings → Allow from this source, then go back."],
+        ["Install", "Tap Install, then open Muhurta and sign in. Your history comes with you."],
+      ],
+      after: "That's it. A notice in the app tells you when there's a new version.",
+      folds: [
+        ["\u201cApp not installed\u201d?", "You have an early test copy. Uninstall Muhurta first (your history is in your account), then install this one."],
+        ["Play Protect warns about it?", "Tap <b>More details</b> → <b>Install anyway</b>. The app isn't on the Play Store, so Google doesn't know it yet. Nothing is wrong with it."],
+      ],
+    },
   };
+  const NAMES = { mac: "Mac", win: "Windows", android: "Android" };
 
   const params = new URLSearchParams(location.search);
   let os = (params.get("os") || "").toLowerCase();
-  if (!BUILDS[os]) os = /Win/i.test(navigator.userAgent) ? "win" : "mac";
+  if (!BUILDS[os]) os = /Android/i.test(navigator.userAgent) ? "android" : /Win/i.test(navigator.userAgent) ? "win" : "mac";
   const build = BUILDS[os];
   const url = `${REPO}/releases/latest/download/${build.file}`;
 
-  document.title = `Download Muhurta Pomodoro for ${os === "win" ? "Windows" : "Mac"}`;
+  document.title = `Download Muhurta Pomodoro for ${NAMES[os]}`;
   document.getElementById("eyebrow").textContent = build.eyebrow;
   document.getElementById("manual").href = url;
   document.getElementById("walk").innerHTML = build.steps
@@ -114,10 +129,18 @@
   const status = document.getElementById("status");
   const statusText = document.getElementById("statusText");
 
-  // Phones can't run it; don't fire a download they can't use.
-  if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+  // Don't fire a download the device can't use: no iPhone app, and a phone
+  // can't run the computer versions (nor a computer the Android one).
+  const ua = navigator.userAgent;
+  const onAndroid = /Android/i.test(ua);
+  const onIphone = /iPhone|iPad|iPod/i.test(ua);
+  const wrongDevice = onIphone || (onAndroid ? os !== "android" : os === "android");
+  if (wrongDevice) {
     status.classList.add("done");
-    statusText.textContent = "Open this page on your computer to download.";
+    statusText.textContent = onIphone ? "There's no iPhone app yet. Open this page on an Android phone or a computer."
+      : onAndroid ? "This is the computer version. Get the Android app instead."
+      : "This is the Android app. Open this page on your Android phone to download it.";
+    if (onAndroid) statusText.innerHTML += ' <a href="download.html?os=android">Android app</a>';
     document.getElementById("retry").hidden = true;
   } else {
     const go = () => { location.href = url; };

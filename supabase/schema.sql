@@ -335,3 +335,120 @@ end;
 $$;
 revoke all on function public.admin_overview() from public;
 grant execute on function public.admin_overview() to authenticated;
+
+-- --------------------------------------------------------------------------
+-- feedback: what people like, dislike, would improve or want next
+-- --------------------------------------------------------------------------
+-- Sent from Settings -> Feedback. People can add feedback and read their own
+-- (to see whether it was read); they can't change or delete it. Admins read
+-- everyone's, mark it done and delete it through the functions below.
+create table if not exists public.feedback (
+    id          bigint generated always as identity primary key,
+    user_id     uuid not null default auth.uid() references auth.users (id) on delete cascade,
+    kind        text not null check (kind in ('like', 'dislike', 'improve', 'idea')),
+    message     text not null check (char_length(btrim(message)) between 1 and 2000),
+    app_version text not null default '' check (char_length(app_version) <= 20),
+    platform    text not null default '' check (char_length(platform) <= 20),
+    status      text not null default 'new' check (status in ('new', 'seen', 'done')),
+    created_at  timestamptz not null default now()
+);
+create index if not exists feedback_user on public.feedback (user_id, created_at desc);
+create index if not exists feedback_newest on public.feedback (created_at desc);
+
+alter table public.feedback enable row level security;
+revoke all on public.feedback from anon, authenticated;
+grant select on public.feedback to authenticated;
+-- Only these columns: nobody can send feedback that is already "done".
+grant insert (kind, message, app_version, platform) on public.feedback to authenticated;
+drop policy if exists own_read on public.feedback;
+create policy own_read on public.feedback for select to authenticated
+    using (user_id = (select auth.uid()));
+drop policy if exists own_insert on public.feedback;
+create policy own_insert on public.feedback for insert to authenticated
+    with check (user_id = (select auth.uid()));
+
+-- Everyone's feedback with who sent it, newest first, for admins only.
+create or replace function public.admin_feedback()
+returns json
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+begin
+    if not public.is_admin() then
+        raise exception 'admins only' using errcode = '42501';
+    end if;
+    return (
+        select coalesce(json_agg(t order by t.created_at desc), '[]'::json)
+        from (
+            select f.id, f.kind, f.message, f.app_version, f.platform, f.status, f.created_at,
+                   f.user_id,
+                   u.email,
+                   coalesce(p.first_name, '') as first_name,
+                   coalesce(p.last_name, '')  as last_name,
+                   coalesce(p.username, '')   as username
+            from public.feedback f
+            join auth.users u on u.id = f.user_id
+            left join public.profiles p on p.user_id = f.user_id
+        ) t
+    );
+end;
+$$;
+revoke all on function public.admin_feedback() from public;
+grant execute on function public.admin_feedback() to authenticated;
+
+-- Mark feedback seen, done or open again. Returns false if it no longer exists.
+create or replace function public.admin_set_feedback_status(feedback_id bigint, new_status text)
+returns boolean
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+    if not public.is_admin() then
+        raise exception 'admins only' using errcode = '42501';
+    end if;
+    if new_status not in ('new', 'seen', 'done') then
+        raise exception 'unknown status' using errcode = '22023';
+    end if;
+    update public.feedback set status = new_status where id = feedback_id;
+    return found;
+end;
+$$;
+revoke all on function public.admin_set_feedback_status(bigint, text) from public;
+grant execute on function public.admin_set_feedback_status(bigint, text) to authenticated;
+
+-- What was new when the admin opened it is now seen, so the sender knows it was read.
+create or replace function public.admin_mark_feedback_seen(feedback_ids bigint[])
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+    if not public.is_admin() then
+        raise exception 'admins only' using errcode = '42501';
+    end if;
+    update public.feedback set status = 'seen' where id = any(feedback_ids) and status = 'new';
+end;
+$$;
+revoke all on function public.admin_mark_feedback_seen(bigint[]) from public;
+grant execute on function public.admin_mark_feedback_seen(bigint[]) to authenticated;
+
+create or replace function public.admin_delete_feedback(feedback_id bigint)
+returns boolean
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+    if not public.is_admin() then
+        raise exception 'admins only' using errcode = '42501';
+    end if;
+    delete from public.feedback where id = feedback_id;
+    return found;
+end;
+$$;
+revoke all on function public.admin_delete_feedback(bigint) from public;
+grant execute on function public.admin_delete_feedback(bigint) to authenticated;

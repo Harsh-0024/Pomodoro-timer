@@ -796,6 +796,41 @@
     }
   });
 
+  /* ------------------------------------------------------------------ */
+  /* feedback: Settings -> Feedback (cloud.py send_feedback, my_feedback) */
+  /* ------------------------------------------------------------------ */
+
+  const FEEDBACK_KINDS = ["like", "dislike", "improve", "idea"];
+  const FEEDBACK_MAX = 2000;
+  const FEEDBACK_COLS = "id,kind,message,status,created_at";
+
+  async function feedbackCall(method, path, body, prefer) {
+    const token = await accessToken();
+    if (!token) throw new HttpError(401, "Please sign in first.");
+    const [code, payload] = await request(method, path, body, token, prefer ? { Prefer: prefer } : undefined);
+    if (code === 404 || errorText(payload).includes("42p01")) {
+      throw new HttpError(404, "Feedback isn't set up on the server yet (run the feedback section of supabase/schema.sql).");
+    }
+    if (code >= 400) throw new HttpError(502, "The server couldn't take that just now. Try again.");
+    return payload;
+  }
+
+  route("GET", /^\/api\/feedback$/, async () => {
+    const rows = await feedbackCall("GET", `/rest/v1/feedback?select=${FEEDBACK_COLS}&order=created_at.desc&limit=20`);
+    return { items: Array.isArray(rows) ? rows : [] };
+  });
+
+  route("POST", /^\/api\/feedback$/, async ({ body }) => {
+    const kind = String(body.kind || "").trim().toLowerCase();
+    const message = String(body.message || "").trim();
+    if (!FEEDBACK_KINDS.includes(kind)) throw new HttpError(400, "Choose what kind of feedback this is.");
+    if (!message) throw new HttpError(400, "Write a few words first.");
+    if (message.length > FEEDBACK_MAX) throw new HttpError(400, `Keep it under ${FEEDBACK_MAX} characters.`);
+    const rows = await feedbackCall("POST", `/rest/v1/feedback?select=${FEEDBACK_COLS}`,
+      { kind, message, app_version: String(D.version || "").slice(0, 20), platform: "android" }, "return=representation");
+    return [201, Array.isArray(rows) && rows[0] ? rows[0] : {}];
+  });
+
   window.__MUHURTA_ACCOUNT__ = { signedIn: () => !CONFIGURED || status().signed_in, nudge, runOnce, status: fullStatus };
   L.cloudConfigured = CONFIGURED;
 })();

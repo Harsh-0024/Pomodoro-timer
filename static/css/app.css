@@ -4244,84 +4244,81 @@ body[data-theme="light"] .signin-message[data-tone="error"] {
 
 /* ---------- Timer (the simple countdown: templates/timer.html) ---------- */
 
-.countdown-set {
-  display: flex;
-  align-items: baseline;
-  justify-content: center;
-  gap: 0.15rem;
+/* The length: one quiet number, the same as Rhythm's, that you can click
+   to retype. No boxes or lines; only the caret shows it is editable. */
+.countdown-entry {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  caret-color: var(--gold);
   pointer-events: auto;
+  cursor: text;
+  transition: color 0.2s ease;
 }
 
-.countdown-set.hidden,
+.countdown-entry:hover {
+  color: var(--gold2);
+}
+
+.countdown-entry:focus {
+  outline: none;
+}
+
+.countdown-entry::selection {
+  background: rgba(201, 169, 98, 0.22);
+}
+
+.countdown-entry.hidden,
 .countdown-quick.hidden {
   display: none;
 }
 
-.countdown-field {
-  display: inline-flex;
-  align-items: baseline;
-  cursor: text;
-}
-
-.countdown-input {
-  width: 2.2ch;
-  padding: 0;
-  border: 0;
-  border-bottom: 1px solid var(--line);
-  background: transparent;
-  color: var(--ink);
-  font-family: var(--font-serif);
-  font-size: clamp(2.3rem, 6vw, 3rem);
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-  text-align: center;
-  caret-color: var(--gold);
-  transition: border-color 0.15s ease;
-}
-
-.countdown-input:hover {
-  border-bottom-color: var(--muted);
-}
-
-.countdown-input:focus {
-  outline: none;
-  border-bottom-color: var(--gold);
-}
-
-.countdown-unit {
-  margin: 0 0.35rem 0 0.1rem;
-  font-size: 0.85rem;
-  color: var(--muted);
-}
-
+/* Quick lengths: plain numbers, like a soft scale under the ring. */
 .countdown-quick {
   display: flex;
   flex-wrap: wrap;
+  align-items: baseline;
   justify-content: center;
-  gap: 0.4rem;
-  margin: 0 auto 1rem;
+  gap: 0.15rem;
+  margin: 0 auto 1.1rem;
 }
 
-.countdown-chip {
-  padding: 0.32rem 0.75rem;
-  border: 1px solid var(--line);
+.countdown-pick {
+  min-width: 2.2rem;
+  padding: 0.3rem 0.45rem;
+  border: 0;
   border-radius: 999px;
-  background: var(--surface);
+  background: transparent;
   color: var(--muted);
-  font: inherit;
-  font-size: 0.8rem;
+  font-family: var(--font-serif);
+  font-size: 1.05rem;
+  font-variant-numeric: tabular-nums;
   cursor: pointer;
-  transition: color 0.15s ease, border-color 0.15s ease;
+  transition: color 0.2s ease;
 }
 
-.countdown-chip:hover {
-  color: var(--ink);
-  border-color: var(--gold);
+.countdown-pick:hover,
+.countdown-pick.is-active {
+  color: var(--gold2);
 }
 
-.countdown-chip:focus-visible {
-  outline: 2px solid var(--gold);
-  outline-offset: 2px;
+.countdown-pick:focus-visible {
+  outline: 1px solid var(--gold);
+  outline-offset: 1px;
+}
+
+.countdown-pick-unit {
+  margin-left: 0.15rem;
+  color: var(--muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
 }
 
 body.timer-ringing .countdown-ring-wrap .ring-progress {
@@ -4378,12 +4375,8 @@ body.timer-ringing .countdown-ring-wrap .ring-progress {
   font-size: clamp(2.1rem, calc(var(--ring) * 0.18), 3.6rem);
 }
 
-.timer-ring-wrap .countdown-input {
-  font-size: clamp(1.85rem, calc(var(--ring) * 0.15), 3rem);
-}
-
 .page-timer {
-  --ring-room: 380px; /* the quick-length chips under the ring */
+  --ring-room: 370px; /* the quick lengths under the ring */
 }
 
 /* Below the width the name and all the tabs need on one line (about

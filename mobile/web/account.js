@@ -534,7 +534,7 @@
     if (last.version === D.version && Date.now() - Number(last.at || 0) < DEVICE_REPORT_EVERY_MS) return;
     try {
       const [code, payload] = await request("POST", "/rest/v1/app_devices?on_conflict=user_id,device_id",
-        { user_id: uid, device_id: L.deviceId(), app_version: D.version, platform: "android", last_seen: nowIso() }, token,
+        { user_id: uid, device_id: L.deviceId(), app_version: D.version, platform: D.platform || "android", last_seen: nowIso() }, token,
         { Prefer: "resolution=merge-duplicates,return=minimal" });
       if (code < 400 || code === 404) st.device_report = { version: D.version, at: Date.now() };
       else console.warn("version report", code, payload);
@@ -747,16 +747,18 @@
   /* pages: signed out goes to sign-in; background sync while open       */
   /* ------------------------------------------------------------------ */
 
-  const page = location.pathname.replace(/\/+$/, "") || "/";
-  const onSignIn = page === "/sign-in.html";
+  // The app's own folder: "/" in the Android app, /muhurta-pomodoro/app/ on the website.
+  const HOME = D.base || "/";
+  const SIGN_IN = HOME + "sign-in.html";
+  const onSignIn = location.pathname === SIGN_IN;
 
   // The quick answer first; the stored session below has the final say.
   let quickSignedIn = false;
   try {
     quickSignedIn = localStorage.getItem(AUTH_KEY) === "1";
   } catch (_) {}
-  if (CONFIGURED && !quickSignedIn && !onSignIn) location.replace("/sign-in.html");
-  if (CONFIGURED && quickSignedIn && onSignIn) location.replace("/");
+  if (CONFIGURED && !quickSignedIn && !onSignIn) location.replace(SIGN_IN);
+  if (CONFIGURED && quickSignedIn && onSignIn) location.replace(HOME);
 
   if (onSignIn) {
     let pending = null;
@@ -780,11 +782,11 @@
     const st = status();
     rememberPending(session());
     if (CONFIGURED && !st.signed_in && !onSignIn) {
-      location.replace("/sign-in.html");
+      location.replace(SIGN_IN);
       return;
     }
     if (onSignIn && (!CONFIGURED || st.signed_in)) {
-      location.replace("/");
+      location.replace(HOME);
       return;
     }
     if (st.signed_in) {

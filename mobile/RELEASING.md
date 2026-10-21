@@ -34,3 +34,21 @@ the certificate fingerprint in `RELEASE_CERT_SHA256`.
 
 A debug copy and a release copy are signed with different keys, so one cannot
 be installed over the other: uninstall first (the history is in the account).
+
+## The iPhone web app
+
+There is nothing to sign or upload. On each tag, the release workflow (job
+`iphone`) runs `python mobile/build_web.py --iphone` on the tagged code and
+commits the result to `docs/app` on `main`, which GitHub Pages serves at
+https://harsh-0024.github.io/muhurta-pomodoro/app/. Copies on phones read
+`docs/app/version.json`, show the usual update notice, and **Update now**
+reloads them into the new version (the service worker swaps in the new files).
+
+To try it locally:
+
+    python mobile/build_web.py --iphone
+    mkdir -p /tmp/site && ln -sfn "$PWD/docs" /tmp/site/muhurta-pomodoro
+    python -m http.server -d /tmp/site 8000   # http://localhost:8000/muhurta-pomodoro/app/
+
+Service workers need https (or localhost), so to try it on a real iPhone, use
+the website itself after pushing, or a tunnel to your computer.

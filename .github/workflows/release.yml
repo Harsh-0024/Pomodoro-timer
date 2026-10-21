@@ -233,6 +233,47 @@ jobs:
           name: Muhurta-Pomodoro-android
           path: Muhurta-Pomodoro-android.apk
 
+  # The iPhone app: the same screens as a web app on the website (docs/app,
+  # GitHub Pages from main). Rebuilt for the tag and committed to main; copies
+  # already on phones see the new version.json and update themselves.
+  iphone:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build, android]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: ".python-version"
+
+      - name: Build docs/app from the tagged code
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          # The tag's screens, written into main's website folder.
+          git checkout "$GITHUB_SHA" -- . ':!docs'
+          python mobile/build_web.py --iphone
+          want="${GITHUB_REF_NAME#v}"
+          grep -q "\"$want\"" docs/app/version.json || { echo "docs/app is not version $want" >&2; exit 1; }
+          for f in index.html timer.html sign-in.html sw.js manifest.webmanifest local-api.js account.js pwa.js icons/apple-touch-icon.png; do
+            [ -f "docs/app/$f" ] || { echo "missing from the iPhone app: $f" >&2; exit 1; }
+          done
+
+      - name: Publish on the website
+        run: |
+          git reset -q
+          git checkout -- . ':!docs/app'
+          git add docs/app
+          if git diff --cached --quiet; then echo "docs/app already up to date"; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "iPhone app: ${GITHUB_REF_NAME}"
+          git push origin HEAD:main
+
   release:
     needs: [build, android]
     if: startsWith(github.ref, 'refs/tags/v')
@@ -262,6 +303,7 @@ jobs:
             | `Muhurta-Pomodoro-macos-arm64.zip` | the same Mac app, zipped |
             | `Muhurta-Pomodoro-windows-x64.zip` | Windows, 64-bit |
             | `Muhurta-Pomodoro-android.apk` | Android phones and tablets (Android 7 and later) |
+            | iPhone and iPad | no file: open https://harsh-0024.github.io/muhurta-pomodoro/app/ in Safari, then Share → Add to Home Screen |
 
             On Android, allow installing from your browser once when asked.
 

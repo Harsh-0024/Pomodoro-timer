@@ -1,6 +1,7 @@
-// The Android app has no Python, so this file is its "server": it answers the
+// The phone apps have no Python, so this file is their "server": it answers the
 // same /api/... requests the screens make to app.py on a computer, and keeps
-// the data on the phone (IndexedDB). It follows app.py and db.py rule for rule;
+// the data on the phone (IndexedDB). The same file runs in the Android app and
+// in the iPhone web app (D.platform "ios", mobile/build_web.py --iphone). It follows app.py and db.py rule for rule;
 // when one of those changes, change the matching part here too.
 //
 // Loaded first on every page (mobile/build_web.py puts it at the top of
@@ -11,6 +12,7 @@
   "use strict";
 
   const D = window.__MUHURTA__;
+  const WEB = D.platform === "ios";
   const PRODUCTIVE_KINDS = D.productive_kinds;
   const REST_KINDS = D.rest_kinds;
   const SEGMENT_KINDS = [...PRODUCTIVE_KINDS, ...REST_KINDS];
@@ -827,15 +829,30 @@
   // Update notices (app.py _update_info / api_version): the latest release on
   // GitHub and the owner's rules (docs/update-policy.json). Checked hourly,
   // ten minutes after a failure; offline keeps what was known, including a
-  // "you must update". The phone gets the new version from the website.
+  // "you must update". The phone gets the new version from the website. The
+  // iPhone web app asks the website which version it has (version.json) and
+  // updates itself in place (pwa.js).
   const UPDATE_CHECK_MS = 60 * 60 * 1000;
   const UPDATE_RETRY_MS = 10 * 60 * 1000;
   let updateCheck = null;
 
+  async function webGet(url, headers) {
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 5000);
+    try {
+      const res = await fetch(url, { headers: headers || {}, cache: "no-store", signal: ctl.signal });
+      return { status: res.status, data: await res.text() };
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   async function getJson(url, headers) {
     const http = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.CapacitorHttp;
-    if (!http) throw new Error("no network");
-    const res = await http.get({ url, headers: { "User-Agent": "MuhurataTimer", ...(headers || {}) }, connectTimeout: 5000, readTimeout: 5000, responseType: "text" });
+    if (!http && !WEB) throw new Error("no network");
+    const res = http
+      ? await http.get({ url, headers: { "User-Agent": "MuhurataTimer", ...(headers || {}) }, connectTimeout: 5000, readTimeout: 5000, responseType: "text" })
+      : await webGet(url, headers);
     if (res.status === 404) {
       const err = new Error("not found");
       err.status = 404;
@@ -863,8 +880,13 @@
     updateCheck = (async () => {
       let error = null;
       try {
-        const rel = await getJson(D.releases_api, { Accept: "application/vnd.github+json" });
-        data.latest = String(rel.tag_name || "").replace(/^v/, "") || data.latest;
+        if (WEB) {
+          const site = await getJson(new URL(D.base + "version.json", location.href).href);
+          data.latest = String(site.version || "").replace(/^v/, "") || data.latest;
+        } else {
+          const rel = await getJson(D.releases_api, { Accept: "application/vnd.github+json" });
+          data.latest = String(rel.tag_name || "").replace(/^v/, "") || data.latest;
+        }
       } catch (err) {
         error = err.status ? err.message : "no internet connection";
       }
@@ -902,11 +924,15 @@
     const policy = cleanPolicy(info.policy);
     const required = (Boolean(policy.minimum_version) && compareVersions(D.version, policy.minimum_version) < 0)
       || policy.blocked_versions.some((v) => compareVersions(v, D.version) === 0);
-    return { ...payload, update_available: true, latest, how: "download", url: D.download_page, required, message: policy.message };
+    return { ...payload, update_available: true, latest, how: WEB ? "restart" : "download", url: D.download_page, required, message: policy.message };
   });
 
   route("POST", /^\/api\/update\/restart$/, () => {
-    throw new HttpError(409, "This copy cannot restart itself.");
+    const pwa = window.__MUHURTA_PWA__;
+    if (!WEB || !pwa) throw new HttpError(409, "This copy cannot restart itself.");
+    // The new version installs in the background; pwa.js reloads the page once it is in.
+    pwa.update();
+    return [204, null];
   });
 
   // Release notes: a new install has nothing to catch up on.

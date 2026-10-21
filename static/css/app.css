@@ -4470,6 +4470,19 @@ body.timer-ringing .countdown-ring-wrap .ring-progress {
   gap: 0.45rem;
 }
 
+/* The name fields shown on the password step sit in a wrapper of their own:
+   give it the step's spacing, and keep stacked names (phones) as far apart
+   as every other field. */
+#lateDetails:not([hidden]) {
+  display: flex;
+  flex-direction: column;
+  gap: 1.35rem;
+}
+
+.signin-step .field-row {
+  gap: 1.35rem 0.75rem;
+}
+
 .signin-submit {
   margin-top: 0.5rem;
 }

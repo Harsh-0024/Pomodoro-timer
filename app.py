@@ -128,7 +128,7 @@ def _ensure_db():
 OPEN_ENDPOINTS = {
     "static", "sign_in_page", "api_cloud_status", "api_cloud_sign_in", "api_cloud_send_code",
     "api_cloud_verify", "api_cloud_set_password", "api_cloud_cancel", "api_cloud_username_available",
-    "api_alive", "api_version", "api_update_restart",
+    "api_alive", "api_version", "api_update_restart", "api_window_show",
 }
 
 
@@ -151,6 +151,13 @@ def _inject_account():
     name = profile.get("first_name") or (st["email"] or "").split("@")[0]
     return {"account": {"name": name, "initial": (name or "?")[0].upper(), "is_admin": st["is_admin"],
                         "title": f"@{profile['username']} · {st['email']}" if profile else st["email"]}}
+
+
+@app.context_processor
+def _inject_mobile():
+    # The Android app's pages are built from these templates with mobile=True
+    # (mobile/build_web.py); this lets the dev server show that layout too.
+    return {"mobile": os.environ.get("MUHURATA_MOBILE_PREVIEW") == "1"}
 
 
 @app.context_processor
@@ -388,6 +395,18 @@ def api_alive():
             presence.closed(page)
         else:
             presence.checked_in(page)
+    return "", 204
+
+
+@app.post("/api/window/show")
+def api_window_show():
+    """Starting the app again while it runs brings its own window forward (run.py)."""
+    show = app.config.get("MUHURATA_SHOW_WINDOW")
+    # A web page elsewhere can't send this header without asking first (a CORS
+    # preflight this server never grants), so only the app itself gets here.
+    if not show or request.headers.get("X-Muhurta") != "1":
+        return "", 404
+    show()
     return "", 204
 
 

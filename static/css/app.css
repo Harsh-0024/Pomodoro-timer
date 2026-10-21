@@ -584,18 +584,60 @@ body[data-theme="light"] .modal-backdrop {
     var(--bg1);
 }
 
+/* "What's new" (static/js/whats-new.js): the title and the button stay put
+   and only the notes scroll, so a long list never runs off the window. */
 .whats-new-sheet {
+  display: flex;
+  flex-direction: column;
   width: min(460px, 100%);
+  max-height: min(560px, calc(100vh - 3rem));
+  padding-bottom: 1rem;
+}
+
+.whats-new-sheet .modal-title {
+  margin-bottom: 0.75rem;
+}
+
+.whats-new-body {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  margin: 0 -1.35rem;
+  padding: 0.25rem 1.35rem 0.5rem;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid transparent;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+
+/* More below: a soft fade and a line above the button say "keep scrolling". */
+.whats-new-body.more {
+  border-bottom-color: var(--line);
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 3rem), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 3rem), transparent);
+}
+
+.whats-new-sheet .modal-actions {
+  flex: 0 0 auto;
+  padding-top: 1rem;
 }
 
 .whats-new-version {
-  margin: 0.25rem 0 0.4rem;
-  font-size: 0.8rem;
+  margin: 1rem 0 0.4rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
   color: var(--muted);
 }
 
+.whats-new-version + .whats-new-list {
+  margin-top: 0;
+}
+
 .whats-new-list {
-  margin: 0 0 1.25rem;
+  margin: 0.75rem 0 0.5rem;
   padding-left: 1.1rem;
   line-height: 1.55;
 }
@@ -605,7 +647,7 @@ body[data-theme="light"] .modal-backdrop {
 }
 
 .whats-new-switch {
-  margin: 0 0 1.25rem;
+  margin: 0.75rem 0 0.5rem;
 }
 
 .modal-actions a.btn {

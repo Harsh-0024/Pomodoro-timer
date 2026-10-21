@@ -228,3 +228,110 @@ join auth.users u on u.id = d.user_id
 left join public.profiles p on p.user_id = d.user_id
 order by d.last_seen desc;
 revoke all on public.devices_overview from anon, authenticated;
+
+-- --------------------------------------------------------------------------
+-- admin: the owner's view inside the app (added with the Admin tab)
+-- --------------------------------------------------------------------------
+-- Who is an admin. Not reachable through the API at all (no policies); only
+-- the functions below read it. Add yourself once (change the email if your
+-- app account uses another):
+--   insert into public.admins (user_id)
+--   select id from auth.users where email = 'harsh242042004@gmail.com'
+--   on conflict do nothing;
+create table if not exists public.admins (
+    user_id  uuid primary key references auth.users (id) on delete cascade,
+    added_at timestamptz not null default now()
+);
+alter table public.admins enable row level security;
+revoke all on public.admins from anon, authenticated;
+
+insert into public.admins (user_id)
+select id from auth.users where email = 'harsh242042004@gmail.com'
+on conflict do nothing;
+
+-- Is the person asking an admin? The app asks this to show the Admin tab.
+create or replace function public.is_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+    select exists (select 1 from public.admins where user_id = (select auth.uid()));
+$$;
+revoke all on function public.is_admin() from public;
+grant execute on function public.is_admin() to authenticated;
+
+-- Update rules, editable from the Admin tab. Every copy of the app reads
+-- this (signed in or not); only admins can change it.
+create table if not exists public.app_config (
+    id               integer primary key default 1 check (id = 1),
+    minimum_version  text not null default '' check (minimum_version ~ '^(\d+\.\d+\.\d+)?$'),
+    blocked_versions text[] not null default '{}',
+    message          text not null default '' check (char_length(message) <= 500),
+    updated_at       timestamptz not null default now()
+);
+insert into public.app_config (id) values (1) on conflict do nothing;
+alter table public.app_config enable row level security;
+revoke all on public.app_config from anon, authenticated;
+grant select on public.app_config to anon, authenticated;
+grant update (minimum_version, blocked_versions, message, updated_at) on public.app_config to authenticated;
+drop policy if exists read_all on public.app_config;
+create policy read_all on public.app_config for select to anon, authenticated using (true);
+drop policy if exists admins_edit on public.app_config;
+create policy admins_edit on public.app_config for update to authenticated
+    using ((select public.is_admin())) with check ((select public.is_admin()));
+
+-- Everything the Admin tab shows, in one call, for admins only.
+create or replace function public.admin_overview()
+returns json
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+begin
+    if not public.is_admin() then
+        raise exception 'admins only' using errcode = '42501';
+    end if;
+    return json_build_object(
+        'people', (
+            select coalesce(json_agg(t order by t.last_seen desc nulls last, t.created_at desc), '[]'::json)
+            from (
+                select u.id,
+                       u.email,
+                       u.created_at,
+                       u.last_sign_in_at,
+                       coalesce(p.first_name, '') as first_name,
+                       coalesce(p.last_name, '')  as last_name,
+                       coalesce(p.username, '')   as username,
+                       exists (select 1 from public.admins a where a.user_id = u.id) as is_admin,
+                       (select max(d.last_seen) from public.app_devices d where d.user_id = u.id) as last_seen,
+                       (select count(*) from public.app_devices d where d.user_id = u.id) as computers,
+                       (select coalesce(sum(f.minutes), 0) from public.focus_by_device f
+                         where f.user_id = u.id and f.deleted_at is null) as focus_minutes,
+                       (select count(*) from public.activity_segments s
+                         where s.user_id = u.id and s.deleted_at is null and s.kind = 'work') as sessions,
+                       (select max(s.started_at) from public.activity_segments s
+                         where s.user_id = u.id and s.deleted_at is null) as last_session
+                from auth.users u
+                left join public.profiles p on p.user_id = u.id
+            ) t
+        ),
+        'devices', (
+            select coalesce(json_agg(t order by t.last_seen desc), '[]'::json)
+            from (
+                select d.user_id,
+                       coalesce(nullif(trim(coalesce(p.first_name, '') || ' ' || coalesce(p.last_name, '')), ''), u.email) as person,
+                       d.device_id, d.app_version, d.platform, d.last_seen
+                from public.app_devices d
+                join auth.users u on u.id = d.user_id
+                left join public.profiles p on p.user_id = d.user_id
+            ) t
+        ),
+        'policy', (select row_to_json(c) from public.app_config c where c.id = 1)
+    );
+end;
+$$;
+revoke all on function public.admin_overview() from public;
+grant execute on function public.admin_overview() to authenticated;

@@ -373,46 +373,122 @@ body[data-theme="light"] .ambient {
   opacity: 0.6;
 }
 
-/* "A new version is available" (static/js/update-check.js) */
-.update-bar {
+/* Notices that float over the page: "a new version is ready"
+   (static/js/update-check.js) and "time's up" (static/js/timer-core.js).
+   One calm card: a short title, a quiet line, small buttons. */
+.update-bar,
+.timer-alarm {
   position: fixed;
   left: 50%;
-  bottom: 1.25rem;
   transform: translateX(-50%);
-  z-index: 60;
-  width: min(36rem, calc(100vw - 2rem));
+  width: min(30rem, calc(100vw - 2rem));
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.85rem 0.85rem 0.85rem 1.1rem;
-  border: 1px solid var(--gold);
-  border-radius: var(--radius);
+  gap: 1.25rem;
+  padding: 0.95rem 1rem 0.95rem 1.25rem;
+  border: 1px solid color-mix(in srgb, var(--gold) 35%, var(--line));
+  border-radius: calc(var(--radius) + 2px);
   background: var(--menu-bg-strong);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   box-shadow: var(--menu-shadow);
   color: var(--ink);
-  font-size: 0.92rem;
+  animation: notice-in 0.32s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.update-bar {
+  bottom: 1.25rem;
+  z-index: 60;
+}
+
+.update-bar-copy {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.update-bar-title {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 1.15rem;
+  font-weight: 500;
+  line-height: 1.25;
+}
+
+.update-bar-sub {
+  margin: 0.2rem 0 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.45;
 }
 
 .update-bar-actions {
   display: flex;
   flex-shrink: 0;
-  gap: 0.5rem;
+  align-items: center;
+  gap: 0.35rem;
 }
 
-.update-bar .btn {
+.update-bar .btn,
+.timer-alarm .btn {
+  padding: 0.5rem 1rem;
+  font-size: 0.82rem;
+  white-space: nowrap;
   text-decoration: none;
+  box-shadow: none;
 }
 
-@media (max-width: 520px) {
-  .update-bar {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .update-bar-actions {
-    justify-content: flex-end;
+@keyframes notice-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 0.5rem);
   }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .update-bar,
+  .timer-alarm {
+    animation: none;
+  }
+}
+
+/* Narrow windows and phones: one slim row, so it never covers the clock's
+   buttons; "Later" becomes a small cross. */
+@media (max-width: 520px) {
+  .update-bar,
+  .timer-alarm {
+    gap: 0.6rem;
+    padding: 0.7rem 0.55rem 0.7rem 1rem;
+  }
+
+  .update-bar-title {
+    font-size: 1.02rem;
+  }
+
+  .update-bar-sub {
+    margin-top: 0.1rem;
+    font-size: 0.74rem;
+  }
+
+  .update-bar-actions {
+    gap: 0.15rem;
+  }
+
+  .update-bar .update-bar-later {
+    order: 2;
+    width: 2.25rem;
+    height: 2.25rem;
+    padding: 0;
+    font-size: 0;
+    border-radius: 50%;
+  }
+
+  .update-bar .update-bar-later::before {
+    content: "\00d7";
+    font-size: 1.35rem;
+    line-height: 1;
+  }
+}
+
 
 .hero {
   display: flex;
@@ -699,7 +775,14 @@ body.modal-open {
   overflow: hidden;
 }
 
-.choice-actions .btn:disabled {
+.choice-actions /* Keyboard focus: the app's own soft gold ring, not the browser's default. */
+.btn:focus-visible,
+.modal-close:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--gold) 70%, transparent);
+  outline-offset: 2px;
+}
+
+.btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
@@ -4316,34 +4399,17 @@ body.timer-ringing .countdown-ring-wrap .ring-progress {
   animation: ring-breathe 1.2s ease-in-out infinite;
 }
 
-/* "Time's up" on pages other than Timer (static/js/timer-core.js) */
+/* "Time's up" on pages other than Timer (static/js/timer-core.js); it looks
+   like the update notice (above), near the top where the clock was. */
 .timer-alarm {
-  position: fixed;
-  left: 50%;
   top: 5rem;
-  transform: translateX(-50%);
   z-index: 70;
-  width: min(30rem, calc(100vw - 2rem));
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 0.75rem 0.75rem 1.1rem;
-  border: 1px solid var(--gold);
-  border-radius: var(--radius);
-  background: var(--menu-bg-strong);
-  box-shadow: var(--menu-shadow);
-  color: var(--ink);
-  font-size: 0.92rem;
 }
 
 .timer-alarm.hidden {
   display: none;
 }
 
-.timer-alarm-text {
-  flex: 1 1 10rem;
-}
 
 /* ---------- window sizes ----------
    The app lives in a window people resize (its own window on Mac and

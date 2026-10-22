@@ -163,7 +163,10 @@ body.is-mobile .foot {
   display: none;
 }
 
-body.is-mobile .update-bar {
+/* Notices sit just above the tab bar, where a thumb reaches them. */
+body.is-mobile .update-bar,
+body.is-mobile .timer-alarm {
+  top: auto;
   bottom: calc(var(--tabbar-h) + var(--safe-bottom) + 0.75rem);
 }
 
@@ -610,4 +613,78 @@ body.is-mobile .settings-toast {
   bottom: calc(var(--tabbar-h) + var(--safe-bottom) + 0.75rem);
   max-width: calc(100vw - 2rem);
   z-index: 70;
+}
+
+/* ---- Pop-ups on the phone: one calm sheet style ---- */
+
+/* No keyboard: a focus ring around the first button only looks like a mistake. */
+body.is-mobile .btn:focus-visible,
+body.is-mobile .modal-close:focus-visible {
+  outline: none;
+}
+
+body.is-mobile .modal {
+  padding: 0;
+}
+
+body.is-mobile .modal-sheet {
+  padding: 1.5rem 1.25rem calc(1.1rem + var(--safe-bottom));
+}
+
+body.is-mobile .modal-title {
+  font-size: 1.4rem;
+  margin-bottom: 0.75rem;
+}
+
+body.is-mobile .modal-copy {
+  font-size: 0.9rem;
+}
+
+/* Two buttons share the row evenly; one sits alone at full width. */
+body.is-mobile .modal-actions {
+  gap: 0.6rem;
+}
+
+body.is-mobile .modal-actions .btn {
+  white-space: nowrap;
+  flex: 1 1 0;
+  text-align: center;
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+}
+
+body.is-mobile .whats-new-sheet {
+  max-height: 78dvh;
+}
+
+body.is-mobile .whats-new-body {
+  margin: 0 -1.25rem;
+  padding: 0.25rem 1.25rem 0.5rem;
+}
+
+body.is-mobile .whats-new-list {
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+body.is-mobile .whats-new-list li + li {
+  margin-top: 0.6rem;
+}
+
+/* "Update required" covers the app: same spacing as the other sheets. */
+body.is-mobile .update-required-card {
+  padding: 1.75rem 1.25rem 1.4rem;
+}
+
+body.is-mobile .update-required-title {
+  font-size: 1.6rem;
+}
+
+body.is-mobile .update-required-text {
+  font-size: 0.92rem;
+}
+
+/* "Time's up": the Timer tab is right below, so only Dismiss. */
+body.is-mobile .timer-alarm a.btn {
+  display: none;
 }

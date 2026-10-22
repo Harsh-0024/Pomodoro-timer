@@ -5,6 +5,12 @@ a few short lines per version, about what they will notice. Versions with
 nothing worth telling can be left out.
 """
 NOTES = {
+    "1.11.1": [
+        "The \"new version\" notice is calmer: a short title, a small Download button, and on a phone "
+        "one slim line that stays clear of the clock.",
+        "\"Time's up\", \"What's new\" and \"Please update\" match it: same spacing, centred, no "
+        "odd line breaks, and on a phone the buttons share the row evenly.",
+    ],
     "1.11.0": [
         "A calmer Timer: one soft time in the ring. Tap it and type to change it (25, 5:30 or 1:30:00; "
         "Enter starts), or pick a quick length under the ring.",

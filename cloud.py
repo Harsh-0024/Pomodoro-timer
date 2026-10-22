@@ -506,3 +506,73 @@ def public_update_rules() -> dict | None:
     if code == 200 and isinstance(payload, list) and payload:
         return payload[0]
     return None
+
+
+# --------------------------------------------------------------------------- #
+# feedback (Settings -> Feedback, and the Admin tab; see the feedback
+# section of supabase/schema.sql)
+# --------------------------------------------------------------------------- #
+FEEDBACK_KINDS = ("like", "dislike", "improve", "idea")
+FEEDBACK_STATUSES = ("new", "seen", "done")
+FEEDBACK_MAX = 2000
+_FEEDBACK_COLS = "id,kind,message,status,created_at"
+
+
+def _feedback_call(method: str, path: str, body=None, prefer: str | None = None):
+    token = access_token()
+    if token is None:
+        raise CloudError("Please sign in first.", 401)
+    code, payload = _request(method, path, body, token=token, headers={"Prefer": prefer} if prefer else None)
+    if code == 404 or "42p01" in _error_text(payload):
+        raise CloudError("Feedback isn't set up on the server yet (run the feedback section of "
+                         "supabase/schema.sql).", 404)
+    if code >= 400:
+        raise CloudError("The server couldn't take that just now. Try again.", 502)
+    return payload
+
+
+def send_feedback(kind: str, message: str, app_version: str, platform: str) -> dict:
+    kind = (kind or "").strip().lower()
+    message = (message or "").strip()
+    if kind not in FEEDBACK_KINDS:
+        raise CloudError("Choose what kind of feedback this is.")
+    if not message:
+        raise CloudError("Write a few words first.")
+    if len(message) > FEEDBACK_MAX:
+        raise CloudError(f"Keep it under {FEEDBACK_MAX} characters.")
+    rows = _feedback_call("POST", f"/rest/v1/feedback?select={_FEEDBACK_COLS}",
+                          {"kind": kind, "message": message, "app_version": app_version[:20],
+                           "platform": platform[:20]},
+                          prefer="return=representation")
+    return rows[0] if isinstance(rows, list) and rows else {}
+
+
+def my_feedback(limit: int = 20) -> list:
+    rows = _feedback_call("GET", f"/rest/v1/feedback?select={_FEEDBACK_COLS}&order=created_at.desc&limit={int(limit)}")
+    return rows if isinstance(rows, list) else []
+
+
+def admin_feedback() -> list:
+    rows = _admin_call("POST", "/rest/v1/rpc/admin_feedback", {})
+    return rows if isinstance(rows, list) else []
+
+
+def admin_mark_feedback_seen(ids) -> None:
+    ids = [int(i) for i in ids or []]
+    if ids:
+        _admin_call("POST", "/rest/v1/rpc/admin_mark_feedback_seen", {"feedback_ids": ids})
+
+
+def admin_set_feedback_status(feedback_id: int, status: str) -> None:
+    if status not in FEEDBACK_STATUSES:
+        raise CloudError("Unknown status.")
+    found = _admin_call("POST", "/rest/v1/rpc/admin_set_feedback_status",
+                        {"feedback_id": int(feedback_id), "new_status": status})
+    if found is False:
+        raise CloudError("That feedback no longer exists.", 404)
+
+
+def admin_delete_feedback(feedback_id: int) -> None:
+    found = _admin_call("POST", "/rest/v1/rpc/admin_delete_feedback", {"feedback_id": int(feedback_id)})
+    if found is False:
+        raise CloudError("That feedback no longer exists.", 404)

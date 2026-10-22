@@ -40,6 +40,7 @@ ASSET_VERSION_PATHS = (
     BASE_DIR / "static" / "js" / "alive.js",
     BASE_DIR / "static" / "js" / "sign-in.js",
     BASE_DIR / "static" / "js" / "admin.js",
+    BASE_DIR / "static" / "js" / "feedback.js",
     BASE_DIR / "static" / "css" / "app.css",
 )
 BUILTIN_QUOTES = [
@@ -281,6 +282,67 @@ def api_admin_rules():
         return jsonify({"error": str(exc)}), exc.status
     _update_info(force=True)  # this copy follows the new rules straight away
     return jsonify(rules)
+
+
+@app.get("/api/feedback")
+def api_feedback_mine():
+    try:
+        return jsonify({"items": cloud.my_feedback()})
+    except cloud.CloudError as exc:
+        return jsonify({"error": str(exc)}), exc.status
+
+
+@app.post("/api/feedback")
+def api_feedback_send():
+    body = request.get_json(silent=True) or {}
+    try:
+        item = cloud.send_feedback(str(body.get("kind") or ""), str(body.get("message") or ""),
+                                   __version__, sys.platform)
+    except cloud.CloudError as exc:
+        return jsonify({"error": str(exc)}), exc.status
+    return jsonify(item), 201
+
+
+@app.get("/api/admin/feedback")
+def api_admin_feedback():
+    blocked = _admin_only()
+    if blocked:
+        return blocked
+    try:
+        items = cloud.admin_feedback()
+    except cloud.CloudError as exc:
+        return jsonify({"error": str(exc)}), exc.status
+    # Shown once as new; from now on the sender sees it was read.
+    try:
+        cloud.admin_mark_feedback_seen([i["id"] for i in items if i.get("status") == "new"])
+    except cloud.CloudError:
+        pass
+    return jsonify({"items": items})
+
+
+@app.patch("/api/admin/feedback/<int:feedback_id>")
+def api_admin_feedback_status(feedback_id: int):
+    blocked = _admin_only()
+    if blocked:
+        return blocked
+    body = request.get_json(silent=True) or {}
+    try:
+        cloud.admin_set_feedback_status(feedback_id, str(body.get("status") or ""))
+    except cloud.CloudError as exc:
+        return jsonify({"error": str(exc)}), exc.status
+    return jsonify({"id": feedback_id, "status": body.get("status")})
+
+
+@app.delete("/api/admin/feedback/<int:feedback_id>")
+def api_admin_feedback_delete(feedback_id: int):
+    blocked = _admin_only()
+    if blocked:
+        return blocked
+    try:
+        cloud.admin_delete_feedback(feedback_id)
+    except cloud.CloudError as exc:
+        return jsonify({"error": str(exc)}), exc.status
+    return "", 204
 
 
 @app.route("/flow")

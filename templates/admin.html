@@ -5,7 +5,7 @@
 {% block content %}
 <section class="settings-hero">
   <h1 class="title title-settings">Admin</h1>
-  <p class="lede lede-narrow">Everyone using Muhurta Pomodoro, which version they run, and the rules for updates. Only you can see this.</p>
+  <p class="lede lede-narrow">Everyone using Muhurta Pomodoro, what they tell you, which version they run, and the rules for updates. Only you can see this.</p>
 </section>
 
 <div class="admin">
@@ -27,6 +27,22 @@
       <button type="button" class="btn btn-quiet btn-small" id="btnRefresh">Refresh</button>
     </header>
     <div class="pref-group" id="peopleList"><p class="admin-empty">Loading…</p></div>
+  </section>
+
+  <section class="pref-section" aria-labelledby="feedbackTitle">
+    <header class="pref-head admin-head">
+      <div>
+        <h2 class="card-title" id="feedbackTitle">Feedback <span class="admin-badge admin-new" id="feedbackNew" hidden></span></h2>
+        <p class="card-lede">What people like, dislike, would improve and want next, newest first.</p>
+      </div>
+      <div class="segmented admin-feedback-filter" id="feedbackFilter" role="radiogroup" aria-label="Show">
+        <button type="button" class="segment is-active" data-value="open" role="radio" aria-checked="true">Open</button>
+        <button type="button" class="segment" data-value="done" role="radio" aria-checked="false">Done</button>
+        <button type="button" class="segment" data-value="all" role="radio" aria-checked="false">All</button>
+      </div>
+    </header>
+    <p class="admin-feedback-counts" id="feedbackCounts" aria-live="polite"></p>
+    <div class="pref-group" id="feedbackList"><p class="admin-empty">Loading…</p></div>
   </section>
 
   <section class="pref-section" aria-labelledby="computersTitle">

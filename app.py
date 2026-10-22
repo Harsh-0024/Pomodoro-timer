@@ -39,6 +39,7 @@ ASSET_VERSION_PATHS = (
     BASE_DIR / "static" / "js" / "shortcuts.js",
     BASE_DIR / "static" / "js" / "alive.js",
     BASE_DIR / "static" / "js" / "sign-in.js",
+    BASE_DIR / "static" / "js" / "admin.js",
     BASE_DIR / "static" / "css" / "app.css",
 )
 BUILTIN_QUOTES = [
@@ -148,7 +149,7 @@ def _inject_account():
         return {"account": None}
     profile = st["profile"] or {}
     name = profile.get("first_name") or (st["email"] or "").split("@")[0]
-    return {"account": {"name": name, "initial": (name or "?")[0].upper(),
+    return {"account": {"name": name, "initial": (name or "?")[0].upper(), "is_admin": st["is_admin"],
                         "title": f"@{profile['username']} · {st['email']}" if profile else st["email"]}}
 
 
@@ -236,6 +237,50 @@ def sign_in_page():
 @app.route("/timer")
 def timer_page():
     return render_template("timer.html", initial_quote=INITIAL_QUOTE)
+
+
+def _admin_only():
+    """The Admin tab exists only for admins. The server checks again on every
+    data request, so this only hides the page from everyone else."""
+    if not cloud.status()["is_admin"]:
+        return jsonify({"error": "Not found"}), 404
+    return None
+
+
+@app.route("/admin")
+def admin_page():
+    if not cloud.status()["is_admin"]:
+        return redirect(url_for("index"))
+    return render_template("admin.html", app_latest=_update_info().get("latest"))
+
+
+@app.get("/api/admin/overview")
+def api_admin_overview():
+    blocked = _admin_only()
+    if blocked:
+        return blocked
+    try:
+        data = cloud.admin_overview()
+    except cloud.CloudError as exc:
+        return jsonify({"error": str(exc)}), exc.status
+    data["latest"] = _update_info().get("latest")
+    data["this_version"] = __version__
+    return jsonify(data)
+
+
+@app.put("/api/admin/rules")
+def api_admin_rules():
+    blocked = _admin_only()
+    if blocked:
+        return blocked
+    body = request.get_json(silent=True) or {}
+    try:
+        rules = cloud.save_update_rules(str(body.get("minimum_version") or ""), body.get("blocked_versions") or [],
+                                        str(body.get("message") or ""))
+    except cloud.CloudError as exc:
+        return jsonify({"error": str(exc)}), exc.status
+    _update_info(force=True)  # this copy follows the new rules straight away
+    return jsonify(rules)
 
 
 @app.route("/flow")
@@ -562,12 +607,22 @@ def _update_info(force: bool = False) -> dict:
             data["latest"] = str(release.get("tag_name") or "").lstrip("v") or data.get("latest")
         except Exception as exc:
             error = _describe_failure(exc)
+        # The rules set in the Admin tab (Supabase app_config) come first; the
+        # website's update-policy.json is the fallback when that can't be read.
+        rules = None
         try:
-            data["policy"] = _clean_policy(_fetch_json(UPDATE_POLICY_URL))
-        except Exception as exc:
-            # A missing policy file just means no rules; anything else is a failure.
-            if not (isinstance(exc, urllib.error.HTTPError) and exc.code == 404):
-                error = error or _describe_failure(exc)
+            rules = cloud.public_update_rules()
+        except cloud.CloudError:
+            pass
+        if rules is not None:
+            data["policy"] = _clean_policy(rules)
+        else:
+            try:
+                data["policy"] = _clean_policy(_fetch_json(UPDATE_POLICY_URL))
+            except Exception as exc:
+                # A missing policy file just means no rules; anything else is a failure.
+                if not (isinstance(exc, urllib.error.HTTPError) and exc.code == 404):
+                    error = error or _describe_failure(exc)
         now = time.time()
         # When checks started failing, so a check that keeps failing (a
         # network that blocks GitHub, say) is eventually said out loud.

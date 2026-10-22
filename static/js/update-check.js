@@ -51,7 +51,7 @@
   // required screen. `others` are disabled while updating.
   function updateButton(d, msg, others) {
     if (d.how !== "restart") {
-      const link = el("a", "btn btn-primary", "Download the new version");
+      const link = el("a", "btn btn-primary", "Download");
       link.href = d.url;
       link.target = "_blank";
       link.rel = "noopener";
@@ -78,19 +78,27 @@
     return button;
   }
 
+  // A notice: a short title and one quiet line, with its buttons.
+  function notice(title, sub) {
+    const bar = el("div", "update-bar");
+    bar.setAttribute("role", "status");
+    const copy = el("div", "update-bar-copy");
+    const msg = el("p", "update-bar-sub", sub);
+    copy.append(el("p", "update-bar-title", title), msg);
+    const actions = el("div", "update-bar-actions");
+    bar.append(copy, actions);
+    return { bar, msg, actions };
+  }
+
   function showBar(d) {
     if (shown === `bar:${d.latest}` || dismissed(d.latest)) return;
     document.querySelector(".update-bar")?.remove();
     shown = `bar:${d.latest}`;
 
-    const bar = el("div", "update-bar");
-    bar.setAttribute("role", "status");
-    const text = d.message
-      ? `Version ${d.latest} is available. ${d.message}`
-      : `Version ${d.latest} is available. You have ${d.current}.`;
-    const msg = el("span", "update-bar-text", text);
-    const actions = el("span", "update-bar-actions");
-    const later = el("button", "btn btn-quiet", "Later");
+    const { bar, msg, actions } = notice(`Version ${d.latest} is ready`,
+      d.message || `You're on ${d.current}.`);
+    const later = el("button", "btn btn-ghost update-bar-later", "Later");
+    later.setAttribute("aria-label", "Later");
     later.type = "button";
     later.addEventListener("click", () => {
       try {
@@ -99,7 +107,6 @@
       bar.remove();
     });
     actions.append(later, updateButton(d, msg, [later]));
-    bar.append(msg, actions);
     document.body.appendChild(bar);
   }
 
@@ -127,10 +134,10 @@
     screen.setAttribute("aria-labelledby", "updateRequiredTitle");
     const card = el("div", "update-required-card");
     const kicker = el("p", "signin-kicker", "Update required");
-    const title = el("h2", "update-required-title", `Please update to version ${d.latest}`);
+    const title = el("h2", "update-required-title", "Please update");
     title.id = "updateRequiredTitle";
     const body = el("p", "update-required-text",
-      d.message || `Version ${d.current} is no longer supported. Update to keep using Muhurta Pomodoro.`);
+      d.message || `Version ${d.current} is no longer supported. Version ${d.latest} is ready.`);
     const note = el("p", "update-required-note",
       "Your sessions and settings are safe in your account and come back after the update.");
     const button = updateButton(d, body, []);
@@ -152,13 +159,10 @@
     } catch (_) {}
     if (shown || document.querySelector(".update-bar")) return;
     shown = "stale";
-    const bar = el("div", "update-bar");
-    bar.setAttribute("role", "status");
-    const msg = el("span", "update-bar-text",
-      `Couldn't check for updates for ${d.check_failing_days} days (${d.check_error}). ` +
-      "Check your internet connection, or get the latest version from the website.");
-    const actions = el("span", "update-bar-actions");
-    const later = el("button", "btn btn-quiet", "OK");
+    const { bar, actions } = notice("Can't check for updates",
+      `Not for ${d.check_failing_days} days (${d.check_error}). Check your connection, or get the latest version from the website.`);
+    const later = el("button", "btn btn-ghost update-bar-later", "OK");
+    later.setAttribute("aria-label", "OK");
     later.type = "button";
     later.addEventListener("click", () => {
       try {
@@ -166,12 +170,11 @@
       } catch (_) {}
       bar.remove();
     });
-    const link = el("a", "btn btn-primary", "Open website");
+    const link = el("a", "btn btn-primary", "Website");
     link.href = d.url;
     link.target = "_blank";
     link.rel = "noopener";
     actions.append(later, link);
-    bar.append(msg, actions);
     document.body.appendChild(bar);
   }
 

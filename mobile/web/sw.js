@@ -1,6 +1,7 @@
 // The iPhone web app's service worker: keeps every file of the app on the
 // phone, so it opens and works with no connection. Only signing in, syncing
-// and the update check (version.json) use the network.
+// and the update check (version.json) use the network. It also shows the
+// end-of-block notifications that arrive by push (web-alerts.js).
 //
 // mobile/build_web.py --iphone fills in CACHE (changes with any file) and
 // FILES (everything in docs/app). A new build installs as a whole next to the
@@ -58,6 +59,21 @@ self.addEventListener("fetch", (event) => {
       throw err;
     }
   })());
+});
+
+// The end of a block, sent by the push function (supabase/functions/push)
+// while the app was closed: shown even with the phone locked.
+self.addEventListener("push", (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch (_) {}
+  event.waitUntil(self.registration.showNotification(String(data.title || "Muhurta Pomodoro"), {
+    body: String(data.body || ""),
+    tag: String(data.tag || "muhurta"),
+    icon: "icons/icon-192.png",
+    renotify: true,
+  }));
 });
 
 // A tap on a notification brings the app forward.

@@ -18,8 +18,8 @@
   <title>Muhurta Pomodoro</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23040302'/%3E%3Cg fill='none' stroke='%23d8bd79' stroke-width='4' stroke-linecap='round'%3E%3Ccircle cx='32' cy='32' r='22'/%3E%3Ccircle cx='32' cy='32' r='6'/%3E%3Cpath d='M32 6v14M32 44v14M6 32h14M44 32h14M13.6 13.6l10 10M40.4 40.4l10 10M50.4 13.6l-10 10M23.6 40.4l-10 10'/%3E%3C/g%3E%3C/svg%3E" />
   <link href="/muhurta-pomodoro/app/fonts/fonts.css" rel="stylesheet" />
-  <link rel="stylesheet" href="/muhurta-pomodoro/app/static/css/app.css?v=1.10.1" />
-  <link rel="stylesheet" href="/muhurta-pomodoro/app/static/css/mobile.css?v=1.10.1" />
+  <link rel="stylesheet" href="/muhurta-pomodoro/app/static/css/app.css?v=1.11.1" />
+  <link rel="stylesheet" href="/muhurta-pomodoro/app/static/css/mobile.css?v=1.11.1" />
 </head>
 <body class="page-signin is-mobile" data-theme="system">
   <div class="ambient" aria-hidden="true"></div>
@@ -155,15 +155,7 @@
         </div>
         <p class="field-note caps-note" data-caps-for="newPassword" hidden>Caps Lock is on.</p>
         <div class="strength" aria-hidden="true"><span class="strength-bar" id="strengthBar"></span></div>
-        <p class="strength-label" id="strengthLabel" aria-live="polite"></p>
-        <ul class="rules" id="passwordRules">
-          <li data-rule="length">At least 8 characters</li>
-          <li data-rule="lower">A lowercase letter</li>
-          <li data-rule="upper">A capital letter</li>
-          <li data-rule="number">A number</li>
-          <li data-rule="symbol">A symbol, like ! ? # or @</li>
-          <li data-rule="personal">Not your username or email</li>
-        </ul>
+        <p class="field-note pw-guide" id="passwordRules" aria-live="polite">8 or more characters, with a capital letter, a number and a symbol.</p>
       </div>
       <div class="field">
         <label class="signin-label" for="newPassword2">Confirm password</label>
@@ -173,13 +165,17 @@
         </div>
         <p class="field-note" id="matchNote" aria-live="polite"></p>
       </div>
-      <div class="save-hint" id="saveHint">
-        <div class="save-hint-text">
-          <strong>Saving it in Passwords or another password manager?</strong>
-          Use the website <span class="save-site">harsh-0024.github.io/muhurta-pomodoro</span> and your email.
+      <details class="save-hint" id="saveHint">
+        <summary>Saving it in a password manager?</summary>
+        <div class="save-hint-body">
+          <p class="save-hint-text">Use this website and your email:</p>
+          <p class="save-site" id="saveSite">harsh-0024.github.io/muhurta-pomodoro</p>
+          <div class="save-hint-actions">
+            <button type="button" class="signin-link" id="btnCopySite" data-site="harsh-0024.github.io/muhurta-pomodoro">Copy website</button>
+            <button type="button" class="signin-link" id="btnCopyPassword" hidden>Copy password</button>
+          </div>
         </div>
-        <button type="button" class="btn btn-quiet btn-small" id="btnCopyPassword" hidden>Copy password</button>
-      </div>
+      </details>
       <button type="submit" class="btn btn-primary signin-submit" id="btnSavePassword">Create account</button>
       <p class="signin-switch"><button type="button" class="signin-link" id="btnCancelPending">Start over with a different email</button></p>
     </form>
@@ -192,7 +188,7 @@
   
   <footer class="foot">
     <span>1 Muhurat = 48 min · 1 Ghadi = 24 min</span>
-    <span class="foot-version">v1.10.1</span>
+    <span class="foot-version">v1.11.1</span>
   </footer>
   
   <div id="shortcutsModal" class="modal hidden" role="dialog" aria-labelledby="shortcutsTitle" aria-hidden="true">
@@ -217,14 +213,14 @@
   </div>
   <script>window.__PAGE__ = "signin";</script>
   
-  <script src="/muhurta-pomodoro/app/static/js/native.js?v=1.10.1"></script>
-  <script src="/muhurta-pomodoro/app/static/js/menubar.js?v=1.10.1" defer></script>
-  <script src="/muhurta-pomodoro/app/static/js/update-check.js?v=1.10.1" defer></script>
-  <script src="/muhurta-pomodoro/app/static/js/alive.js?v=1.10.1" defer></script>
+  <script src="/muhurta-pomodoro/app/static/js/native.js?v=1.11.1"></script>
+  <script src="/muhurta-pomodoro/app/static/js/menubar.js?v=1.11.1" defer></script>
+  <script src="/muhurta-pomodoro/app/static/js/update-check.js?v=1.11.1" defer></script>
+  <script src="/muhurta-pomodoro/app/static/js/alive.js?v=1.11.1" defer></script>
   
-  <script src="/muhurta-pomodoro/app/static/js/mobile.js?v=1.10.1" defer></script>
+  <script src="/muhurta-pomodoro/app/static/js/mobile.js?v=1.11.1" defer></script>
   
-<script src="/muhurta-pomodoro/app/static/js/sign-in.js?v=1.10.1" defer></script>
+<script src="/muhurta-pomodoro/app/static/js/sign-in.js?v=1.11.1" defer></script>
 
 </body>
 </html>

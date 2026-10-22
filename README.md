@@ -30,9 +30,11 @@ share. It downloads the right file and shows each step.
   **Share → Add to Home Screen**, then open Muhurta from the Home Screen and sign
   in. It's a web app, not an App Store app (so it costs nothing to publish): it
   opens full screen like an app, works fully offline after the first visit, and
-  uses the network only to sign in, sync and update. iPhone pauses web apps that
-  leave the screen, so the screen stays on while a timer runs; there are no
-  end-of-block notifications with the app closed.
+  uses the network only to sign in, sync and update. With notifications allowed
+  (Settings → Notifications, iOS 16.4+), the end of a block arrives as a
+  notification even with the phone locked; without them, the screen stays on
+  while a timer runs. The notifications need a one-time server setup:
+  [`supabase/PUSH.md`](supabase/PUSH.md).
 
 **Updates:** when a new version is out, the app shows a notice. On a Mac,
 **Update now** downloads it, swaps it in and reopens; on Windows, **Download**

@@ -18,8 +18,8 @@
   <title>Muhurta Pomodoro</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23040302'/%3E%3Cg fill='none' stroke='%23d8bd79' stroke-width='4' stroke-linecap='round'%3E%3Ccircle cx='32' cy='32' r='22'/%3E%3Ccircle cx='32' cy='32' r='6'/%3E%3Cpath d='M32 6v14M32 44v14M6 32h14M44 32h14M13.6 13.6l10 10M40.4 40.4l10 10M50.4 13.6l-10 10M23.6 40.4l-10 10'/%3E%3C/g%3E%3C/svg%3E" />
   <link href="/muhurta-pomodoro/app/fonts/fonts.css" rel="stylesheet" />
-  <link rel="stylesheet" href="/muhurta-pomodoro/app/static/css/app.css?v=1.10.1" />
-  <link rel="stylesheet" href="/muhurta-pomodoro/app/static/css/mobile.css?v=1.10.1" />
+  <link rel="stylesheet" href="/muhurta-pomodoro/app/static/css/app.css?v=1.11.1" />
+  <link rel="stylesheet" href="/muhurta-pomodoro/app/static/css/mobile.css?v=1.11.1" />
 </head>
 <body class="page-timer is-mobile" data-theme="system">
   <div class="ambient" aria-hidden="true"></div>
@@ -42,6 +42,7 @@
       <a href="/muhurta-pomodoro/app/flow.html" class="nav-link">Flow</a>
       <a href="/muhurta-pomodoro/app/dashboard.html" class="nav-link">Dashboard</a>
       <a href="/muhurta-pomodoro/app/settings.html" class="nav-link">Settings</a>
+      
       
     </nav>
     
@@ -81,31 +82,19 @@
         </svg>
         <div class="timer-core">
           <p class="phase-label" id="timerPhaseLabel">Timer</p>
-          <div class="countdown-set" id="timerSet" role="group" aria-label="Timer length">
-            <label class="countdown-field">
-              <input type="text" class="countdown-input" id="timerHours" inputmode="numeric" maxlength="2" value="0" aria-label="Hours" autocomplete="off" />
-              <span class="countdown-unit">h</span>
-            </label>
-            <label class="countdown-field">
-              <input type="text" class="countdown-input" id="timerMinutes" inputmode="numeric" maxlength="2" value="25" aria-label="Minutes" autocomplete="off" />
-              <span class="countdown-unit">m</span>
-            </label>
-            <label class="countdown-field">
-              <input type="text" class="countdown-input" id="timerSeconds" inputmode="numeric" maxlength="2" value="00" aria-label="Seconds" autocomplete="off" />
-              <span class="countdown-unit">s</span>
-            </label>
-          </div>
+          <input type="text" class="time-display countdown-entry" id="timerEntry" value="25:00" aria-label="Timer length: minutes, or h:mm:ss" autocomplete="off" spellcheck="false" enterkeyhint="go" />
           <p class="time-display hidden" id="timerTimeDisplay">25:00</p>
-          <p class="cycle-hint" id="timerHint">Set a time and start</p>
+          <p class="cycle-hint" id="timerHint">Tap the time to change it</p>
         </div>
       </div>
-      <div class="countdown-quick" id="timerQuick" role="group" aria-label="Quick lengths">
-        <button type="button" class="countdown-chip" data-min="5">5m</button>
-        <button type="button" class="countdown-chip" data-min="10">10m</button>
-        <button type="button" class="countdown-chip" data-min="15">15m</button>
-        <button type="button" class="countdown-chip" data-min="25">25m</button>
-        <button type="button" class="countdown-chip" data-min="45">45m</button>
-        <button type="button" class="countdown-chip" data-min="60">1h</button>
+      <div class="countdown-quick" id="timerQuick" role="group" aria-label="Quick lengths in minutes">
+        <button type="button" class="countdown-pick" data-min="5">5</button>
+        <button type="button" class="countdown-pick" data-min="10">10</button>
+        <button type="button" class="countdown-pick" data-min="15">15</button>
+        <button type="button" class="countdown-pick" data-min="25">25</button>
+        <button type="button" class="countdown-pick" data-min="45">45</button>
+        <button type="button" class="countdown-pick" data-min="60">60</button>
+        <span class="countdown-pick-unit" aria-hidden="true">min</span>
       </div>
       <div class="controls" id="timerControls">
         <button type="button" class="btn btn-primary" id="btnTimerStart">Start</button>
@@ -117,8 +106,8 @@
       <p class="session-notice hidden" id="timerNotice" role="status" aria-live="polite"></p>
     </div>
     <figure class="focus-quote" id="timerQuote" aria-live="polite">
-      <blockquote id="timerQuoteText">Simplicity is the ultimate sophistication.</blockquote>
-      <figcaption id="timerQuoteAuthor">Leonardo da Vinci</figcaption>
+      <blockquote id="timerQuoteText">We are what we repeatedly do. Excellence is not an act but a habit.</blockquote>
+      <figcaption id="timerQuoteAuthor">Aristotle</figcaption>
     </figure>
   </div>
 </section>
@@ -126,7 +115,7 @@
   
   <footer class="foot">
     <span>1 Muhurat = 48 min · 1 Ghadi = 24 min</span>
-    <span class="foot-version">v1.10.1</span>
+    <span class="foot-version">v1.11.1</span>
   </footer>
   
   
@@ -188,22 +177,22 @@
     })();
   </script>
   
-  <script src="/muhurta-pomodoro/app/static/js/native.js?v=1.10.1"></script>
-  <script src="/muhurta-pomodoro/app/static/js/menubar.js?v=1.10.1" defer></script>
-  <script src="/muhurta-pomodoro/app/static/js/update-check.js?v=1.10.1" defer></script>
-  <script src="/muhurta-pomodoro/app/static/js/alive.js?v=1.10.1" defer></script>
+  <script src="/muhurta-pomodoro/app/static/js/native.js?v=1.11.1"></script>
+  <script src="/muhurta-pomodoro/app/static/js/menubar.js?v=1.11.1" defer></script>
+  <script src="/muhurta-pomodoro/app/static/js/update-check.js?v=1.11.1" defer></script>
+  <script src="/muhurta-pomodoro/app/static/js/alive.js?v=1.11.1" defer></script>
   
-  <script src="/muhurta-pomodoro/app/static/js/whats-new.js?v=1.10.1" defer></script>
-  <script src="/muhurta-pomodoro/app/static/js/sounds.js?v=1.10.1" defer></script>
-  <script src="/muhurta-pomodoro/app/static/js/session-monitor.js?v=1.10.1" defer></script>
-  <script src="/muhurta-pomodoro/app/static/js/one-clock.js?v=1.10.1" defer></script>
-  <script src="/muhurta-pomodoro/app/static/js/timer-core.js?v=1.10.1" defer></script>
-  <script src="/muhurta-pomodoro/app/static/js/dialog.js?v=1.10.1" defer></script>
-  <script src="/muhurta-pomodoro/app/static/js/shortcuts.js?v=1.10.1" defer></script>
+  <script src="/muhurta-pomodoro/app/static/js/whats-new.js?v=1.11.1" defer></script>
+  <script src="/muhurta-pomodoro/app/static/js/sounds.js?v=1.11.1" defer></script>
+  <script src="/muhurta-pomodoro/app/static/js/session-monitor.js?v=1.11.1" defer></script>
+  <script src="/muhurta-pomodoro/app/static/js/one-clock.js?v=1.11.1" defer></script>
+  <script src="/muhurta-pomodoro/app/static/js/timer-core.js?v=1.11.1" defer></script>
+  <script src="/muhurta-pomodoro/app/static/js/dialog.js?v=1.11.1" defer></script>
+  <script src="/muhurta-pomodoro/app/static/js/shortcuts.js?v=1.11.1" defer></script>
   
-  <script src="/muhurta-pomodoro/app/static/js/mobile.js?v=1.10.1" defer></script>
+  <script src="/muhurta-pomodoro/app/static/js/mobile.js?v=1.11.1" defer></script>
   
-<script src="/muhurta-pomodoro/app/static/js/timer.js?v=1.10.1" defer></script>
+<script src="/muhurta-pomodoro/app/static/js/timer.js?v=1.11.1" defer></script>
 
 </body>
 </html>

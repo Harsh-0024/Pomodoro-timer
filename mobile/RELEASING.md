@@ -50,5 +50,8 @@ To try it locally:
     mkdir -p /tmp/site && ln -sfn "$PWD/docs" /tmp/site/muhurta-pomodoro
     python -m http.server -d /tmp/site 8000   # http://localhost:8000/muhurta-pomodoro/app/
 
+End-of-block notifications on the iPhone come from a Supabase function, set
+up once and independent of releases: see `supabase/PUSH.md`.
+
 Service workers need https (or localhost), so to try it on a real iPhone, use
 the website itself after pushing, or a tunnel to your computer.

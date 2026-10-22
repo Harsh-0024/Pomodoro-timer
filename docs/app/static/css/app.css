@@ -373,46 +373,122 @@ body[data-theme="light"] .ambient {
   opacity: 0.6;
 }
 
-/* "A new version is available" (static/js/update-check.js) */
-.update-bar {
+/* Notices that float over the page: "a new version is ready"
+   (static/js/update-check.js) and "time's up" (static/js/timer-core.js).
+   One calm card: a short title, a quiet line, small buttons. */
+.update-bar,
+.timer-alarm {
   position: fixed;
   left: 50%;
-  bottom: 1.25rem;
   transform: translateX(-50%);
-  z-index: 60;
-  width: min(36rem, calc(100vw - 2rem));
+  width: min(30rem, calc(100vw - 2rem));
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.85rem 0.85rem 0.85rem 1.1rem;
-  border: 1px solid var(--gold);
-  border-radius: var(--radius);
+  gap: 1.25rem;
+  padding: 0.95rem 1rem 0.95rem 1.25rem;
+  border: 1px solid color-mix(in srgb, var(--gold) 35%, var(--line));
+  border-radius: calc(var(--radius) + 2px);
   background: var(--menu-bg-strong);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   box-shadow: var(--menu-shadow);
   color: var(--ink);
-  font-size: 0.92rem;
+  animation: notice-in 0.32s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.update-bar {
+  bottom: 1.25rem;
+  z-index: 60;
+}
+
+.update-bar-copy {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.update-bar-title {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 1.15rem;
+  font-weight: 500;
+  line-height: 1.25;
+}
+
+.update-bar-sub {
+  margin: 0.2rem 0 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.45;
 }
 
 .update-bar-actions {
   display: flex;
   flex-shrink: 0;
-  gap: 0.5rem;
+  align-items: center;
+  gap: 0.35rem;
 }
 
-.update-bar .btn {
+.update-bar .btn,
+.timer-alarm .btn {
+  padding: 0.5rem 1rem;
+  font-size: 0.82rem;
+  white-space: nowrap;
   text-decoration: none;
+  box-shadow: none;
 }
 
-@media (max-width: 520px) {
-  .update-bar {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .update-bar-actions {
-    justify-content: flex-end;
+@keyframes notice-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 0.5rem);
   }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .update-bar,
+  .timer-alarm {
+    animation: none;
+  }
+}
+
+/* Narrow windows and phones: one slim row, so it never covers the clock's
+   buttons; "Later" becomes a small cross. */
+@media (max-width: 520px) {
+  .update-bar,
+  .timer-alarm {
+    gap: 0.6rem;
+    padding: 0.7rem 0.55rem 0.7rem 1rem;
+  }
+
+  .update-bar-title {
+    font-size: 1.02rem;
+  }
+
+  .update-bar-sub {
+    margin-top: 0.1rem;
+    font-size: 0.74rem;
+  }
+
+  .update-bar-actions {
+    gap: 0.15rem;
+  }
+
+  .update-bar .update-bar-later {
+    order: 2;
+    width: 2.25rem;
+    height: 2.25rem;
+    padding: 0;
+    font-size: 0;
+    border-radius: 50%;
+  }
+
+  .update-bar .update-bar-later::before {
+    content: "\00d7";
+    font-size: 1.35rem;
+    line-height: 1;
+  }
+}
+
 
 .hero {
   display: flex;
@@ -584,18 +660,62 @@ body[data-theme="light"] .modal-backdrop {
     var(--bg1);
 }
 
+/* "What's new" (static/js/whats-new.js): the title and the button stay put
+   and only the notes scroll, so a long list never runs off the window. */
 .whats-new-sheet {
+  display: flex;
+  flex-direction: column;
   width: min(460px, 100%);
+  max-height: min(560px, calc(100vh - 3rem));
+  /* dvh: the height actually visible, without a phone browser's bars */
+  max-height: min(560px, calc(100dvh - 3rem));
+  padding-bottom: 1rem;
+}
+
+.whats-new-sheet .modal-title {
+  margin-bottom: 0.75rem;
+}
+
+.whats-new-body {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  margin: 0 -1.35rem;
+  padding: 0.25rem 1.35rem 0.5rem;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid transparent;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+
+/* More below: a soft fade and a line above the button say "keep scrolling". */
+.whats-new-body.more {
+  border-bottom-color: var(--line);
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 3rem), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 3rem), transparent);
+}
+
+.whats-new-sheet .modal-actions {
+  flex: 0 0 auto;
+  padding-top: 1rem;
 }
 
 .whats-new-version {
-  margin: 0.25rem 0 0.4rem;
-  font-size: 0.8rem;
+  margin: 1rem 0 0.4rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
   color: var(--muted);
 }
 
+.whats-new-version + .whats-new-list {
+  margin-top: 0;
+}
+
 .whats-new-list {
-  margin: 0 0 1.25rem;
+  margin: 0.75rem 0 0.5rem;
   padding-left: 1.1rem;
   line-height: 1.55;
 }
@@ -605,7 +725,7 @@ body[data-theme="light"] .modal-backdrop {
 }
 
 .whats-new-switch {
-  margin: 0 0 1.25rem;
+  margin: 0.75rem 0 0.5rem;
 }
 
 .modal-actions a.btn {
@@ -655,7 +775,14 @@ body.modal-open {
   overflow: hidden;
 }
 
-.choice-actions .btn:disabled {
+.choice-actions /* Keyboard focus: the app's own soft gold ring, not the browser's default. */
+.btn:focus-visible,
+.modal-close:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--gold) 70%, transparent);
+  outline-offset: 2px;
+}
+
+.btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
@@ -3924,8 +4051,8 @@ body[data-theme="light"] .signin-message[data-tone="error"] {
 
 /* sign-in: password strength */
 .strength {
-  height: 4px;
-  margin-top: 0.25rem;
+  height: 3px;
+  margin-top: 0.15rem;
   border-radius: 4px;
   background: var(--faint);
   overflow: hidden;
@@ -3944,56 +4071,6 @@ body[data-theme="light"] .signin-message[data-tone="error"] {
 .strength-bar[data-level="3"] { background: #b9a24a; }
 .strength-bar[data-level="4"],
 .strength-bar[data-level="5"] { background: #5f9e66; }
-
-.strength-label {
-  margin: 0;
-  min-height: 1em;
-  color: var(--muted);
-  font-size: 0.78rem;
-}
-
-.rules {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.2rem 0.75rem;
-  margin: 0.15rem 0 0;
-  padding: 0;
-  list-style: none;
-  color: var(--muted);
-  font-size: 0.78rem;
-}
-
-.rules li {
-  position: relative;
-  padding-left: 1.1rem;
-}
-
-.rules li::before {
-  content: "";
-  position: absolute;
-  left: 0.15rem;
-  top: 0.42em;
-  width: 0.45rem;
-  height: 0.45rem;
-  border: 1px solid currentColor;
-  border-radius: 50%;
-  opacity: 0.6;
-}
-
-.rules li.is-met {
-  color: var(--ink);
-}
-
-.rules li.is-met::before {
-  content: "✓";
-  top: 0;
-  width: auto;
-  height: auto;
-  border: 0;
-  color: #5f9e66;
-  opacity: 1;
-  font-size: 0.8rem;
-}
 
 /* sign-in: steps */
 .signin-progress {
@@ -4031,8 +4108,7 @@ body[data-theme="light"] .signin-message[data-tone="error"] {
 }
 
 @media (max-width: 520px) {
-  .field-row,
-  .rules {
+  .field-row {
     grid-template-columns: 1fr;
   }
 }
@@ -4118,38 +4194,80 @@ body[data-theme="light"] .signin-message[data-tone="error"] {
   display: none;
 }
 
-/* sign-in: where to save the password */
+/* sign-in: where to save the password (folded until needed) */
 .save-hint {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem 0.85rem;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--surface-strong);
   color: var(--muted);
-  font-size: 0.8rem;
-  line-height: 1.45;
+  font-size: 0.82rem;
 }
 
-.save-hint strong {
-  display: block;
+.save-hint summary {
+  width: fit-content;
+  cursor: pointer;
+  list-style: none;
+  color: var(--muted);
+}
+
+.save-hint summary::-webkit-details-marker {
+  display: none;
+}
+
+.save-hint summary::after {
+  content: "›";
+  display: inline-block;
+  margin-left: 0.4em;
+  transition: transform 0.2s ease;
+}
+
+.save-hint[open] summary::after {
+  transform: rotate(90deg);
+}
+
+.save-hint summary:hover {
   color: var(--ink);
-  font-weight: 500;
+}
+
+.save-hint-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem 0 0;
 }
 
 .save-hint-text {
-  flex: 1;
+  margin: 0;
 }
 
-.save-hint .btn {
-  flex: none;
+.save-hint .save-site {
+  margin: 0;
+  user-select: all; /* one click selects the whole address */
+}
+
+.save-hint-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
 }
 
 .save-site {
   color: var(--ink);
   font-weight: 500;
-  word-break: break-all;
+  overflow-wrap: anywhere;
+}
+
+.save-hint-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.save-hint-actions .btn {
+  flex: 1 1 8rem;
+}
+
+.save-site {
+  color: var(--ink);
+  font-weight: 500;
+  overflow-wrap: anywhere; /* break only if it truly doesn't fit, not mid-word by default */
 }
 
 /* update required: covers the whole app until it updates */
@@ -4200,118 +4318,98 @@ body[data-theme="light"] .signin-message[data-tone="error"] {
 
 /* ---------- Timer (the simple countdown: templates/timer.html) ---------- */
 
-.countdown-set {
-  display: flex;
-  align-items: baseline;
-  justify-content: center;
-  gap: 0.15rem;
+/* The length: one quiet number, the same as Rhythm's, that you can click
+   to retype. No boxes or lines; only the caret shows it is editable. */
+.countdown-entry {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  caret-color: var(--gold);
   pointer-events: auto;
+  cursor: text;
+  transition: color 0.2s ease;
 }
 
-.countdown-set.hidden,
+.countdown-entry:hover {
+  color: var(--gold2);
+}
+
+.countdown-entry:focus {
+  outline: none;
+}
+
+.countdown-entry::selection {
+  background: rgba(201, 169, 98, 0.22);
+}
+
+.countdown-entry.hidden,
 .countdown-quick.hidden {
   display: none;
 }
 
-.countdown-field {
-  display: inline-flex;
-  align-items: baseline;
-  cursor: text;
-}
-
-.countdown-input {
-  width: 2.2ch;
-  padding: 0;
-  border: 0;
-  border-bottom: 1px solid var(--line);
-  background: transparent;
-  color: var(--ink);
-  font-family: var(--font-serif);
-  font-size: clamp(2.3rem, 6vw, 3rem);
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-  text-align: center;
-  caret-color: var(--gold);
-  transition: border-color 0.15s ease;
-}
-
-.countdown-input:hover {
-  border-bottom-color: var(--muted);
-}
-
-.countdown-input:focus {
-  outline: none;
-  border-bottom-color: var(--gold);
-}
-
-.countdown-unit {
-  margin: 0 0.35rem 0 0.1rem;
-  font-size: 0.85rem;
-  color: var(--muted);
-}
-
+/* Quick lengths: plain numbers, like a soft scale under the ring. */
 .countdown-quick {
   display: flex;
   flex-wrap: wrap;
+  align-items: baseline;
   justify-content: center;
-  gap: 0.4rem;
-  margin: 0 auto 1rem;
+  gap: 0.15rem;
+  margin: 0 auto 1.1rem;
 }
 
-.countdown-chip {
-  padding: 0.32rem 0.75rem;
-  border: 1px solid var(--line);
+.countdown-pick {
+  min-width: 2.2rem;
+  padding: 0.3rem 0.45rem;
+  border: 0;
   border-radius: 999px;
-  background: var(--surface);
+  background: transparent;
   color: var(--muted);
-  font: inherit;
-  font-size: 0.8rem;
+  font-family: var(--font-serif);
+  font-size: 1.05rem;
+  font-variant-numeric: tabular-nums;
   cursor: pointer;
-  transition: color 0.15s ease, border-color 0.15s ease;
+  transition: color 0.2s ease;
 }
 
-.countdown-chip:hover {
-  color: var(--ink);
-  border-color: var(--gold);
+.countdown-pick:hover,
+.countdown-pick.is-active {
+  color: var(--gold2);
 }
 
-.countdown-chip:focus-visible {
-  outline: 2px solid var(--gold);
-  outline-offset: 2px;
+.countdown-pick:focus-visible {
+  outline: 1px solid var(--gold);
+  outline-offset: 1px;
+}
+
+.countdown-pick-unit {
+  margin-left: 0.15rem;
+  color: var(--muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
 }
 
 body.timer-ringing .countdown-ring-wrap .ring-progress {
   animation: ring-breathe 1.2s ease-in-out infinite;
 }
 
-/* "Time's up" on pages other than Timer (static/js/timer-core.js) */
+/* "Time's up" on pages other than Timer (static/js/timer-core.js); it looks
+   like the update notice (above), near the top where the clock was. */
 .timer-alarm {
-  position: fixed;
-  left: 50%;
   top: 5rem;
-  transform: translateX(-50%);
   z-index: 70;
-  width: min(30rem, calc(100vw - 2rem));
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 0.75rem 0.75rem 1.1rem;
-  border: 1px solid var(--gold);
-  border-radius: var(--radius);
-  background: var(--menu-bg-strong);
-  box-shadow: var(--menu-shadow);
-  color: var(--ink);
-  font-size: 0.92rem;
 }
 
 .timer-alarm.hidden {
   display: none;
 }
 
-.timer-alarm-text {
-  flex: 1 1 10rem;
-}
 
 /* ---------- window sizes ----------
    The app lives in a window people resize (its own window on Mac and
@@ -4334,12 +4432,8 @@ body.timer-ringing .countdown-ring-wrap .ring-progress {
   font-size: clamp(2.1rem, calc(var(--ring) * 0.18), 3.6rem);
 }
 
-.timer-ring-wrap .countdown-input {
-  font-size: clamp(1.85rem, calc(var(--ring) * 0.15), 3rem);
-}
-
 .page-timer {
-  --ring-room: 380px; /* the quick-length chips under the ring */
+  --ring-room: 370px; /* the quick lengths under the ring */
 }
 
 /* Below the width the name and all the tabs need on one line (about
@@ -4459,5 +4553,206 @@ body.timer-ringing .countdown-ring-wrap .ring-progress {
 
   .countdown-quick {
     margin-bottom: 0.75rem;
+  }
+}
+
+/* sign-in: room to breathe */
+.signin-card {
+  padding: 2.5rem 2.25rem 2.25rem;
+}
+
+.signin-lede {
+  margin-bottom: 2rem;
+}
+
+.signin-step {
+  gap: 1.35rem;
+}
+
+.signin-step .field {
+  gap: 0.45rem;
+}
+
+/* The name fields shown on the password step sit in a wrapper of their own:
+   give it the step's spacing, and keep stacked names (phones) as far apart
+   as every other field. */
+#lateDetails:not([hidden]) {
+  display: flex;
+  flex-direction: column;
+  gap: 1.35rem;
+}
+
+.signin-step .field-row {
+  gap: 1.35rem 0.75rem;
+}
+
+.signin-submit {
+  margin-top: 0.5rem;
+}
+
+.pw-guide {
+  transition: color 0.2s ease;
+}
+
+@media (max-width: 520px) {
+  .signin-card {
+    padding: 2rem 1.35rem 1.75rem;
+  }
+}
+
+/* label + link (e.g. "New password" / "Suggest a strong password"): each
+   stays on one line; on a narrow phone the link drops under the label. */
+.signin-label-row {
+  flex-wrap: wrap;
+  row-gap: 0.25rem;
+}
+
+.signin-label-row > * {
+  white-space: nowrap;
+}
+
+/* ---------- Admin tab ---------- */
+.admin {
+  display: flex;
+  flex-direction: column;
+  gap: 2.5rem;
+  max-width: 52rem;
+}
+
+.admin-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+}
+
+.admin-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 1.1rem 1.2rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.admin-stat-value {
+  font-family: var(--font-serif);
+  font-size: 1.9rem;
+  line-height: 1;
+}
+
+.admin-stat-label {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.admin-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.admin-person,
+.admin-computer {
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.admin-person .pref-text,
+.admin-computer .pref-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-facts {
+  margin-top: 0.3rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.admin-badge {
+  display: inline-block;
+  padding: 0.05rem 0.45rem;
+  border: 1px solid var(--gold);
+  border-radius: 999px;
+  color: var(--gold);
+  font-size: 0.7rem;
+  vertical-align: middle;
+}
+
+.admin-version {
+  flex: none;
+  padding: 0.25rem 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.admin-version[data-tone="ok"] { color: #5f9e66; border-color: rgba(95, 158, 102, 0.4); }
+.admin-version[data-tone="warn"] { color: #c08a3e; border-color: rgba(192, 138, 62, 0.4); }
+.admin-version[data-tone="error"] { color: var(--danger-ink); border-color: var(--danger-line); }
+body[data-theme="light"] .admin-version[data-tone="error"] { color: #a33a3a; }
+
+.admin-empty {
+  margin: 0;
+  padding: 1rem 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.admin-error {
+  margin: 0;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--danger-line);
+  border-radius: 12px;
+  background: var(--danger-bg);
+  color: var(--danger-ink);
+  font-size: 0.9rem;
+}
+
+body[data-theme="light"] .admin-error { color: #a33a3a; }
+
+.admin-rules {
+  display: flex;
+  flex-direction: column;
+  gap: 1.35rem;
+  padding: 1.35rem 1.25rem 1.25rem;
+}
+
+.admin-message {
+  resize: vertical;
+  min-height: 3.2rem;
+}
+
+.admin-rules-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+@media (max-width: 720px) {
+  .admin-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 520px) {
+  .admin-computer {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .admin-head {
+    flex-direction: column;
+  }
+
+  .admin-rules-actions {
+    flex-direction: column;
+    align-items: stretch;
   }
 }

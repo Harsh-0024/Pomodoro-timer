@@ -199,6 +199,8 @@ def write_data(target: Target) -> None:
         # MUHURATA_SUPABASE_URL / _KEY build a copy for a test server.
         "supabase_url": cloud.SUPABASE_URL,
         "supabase_key": cloud.SUPABASE_KEY,
+        # The iPhone app's end-of-block notifications (supabase/functions/push).
+        "push_url": f"{cloud.SUPABASE_URL}/functions/v1/push" if target.web else "",
     }
     (target.out / "mobile-data.js").write_text(
         "// Built by mobile/build_web.py from the Python files. Do not edit.\n"

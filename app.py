@@ -129,7 +129,7 @@ def _ensure_db():
 OPEN_ENDPOINTS = {
     "static", "sign_in_page", "api_cloud_status", "api_cloud_sign_in", "api_cloud_send_code",
     "api_cloud_verify", "api_cloud_set_password", "api_cloud_cancel", "api_cloud_username_available",
-    "api_alive", "api_version", "api_update_restart", "api_window_show",
+    "api_alive", "api_version", "api_update_restart", "api_update_progress", "api_window_show",
 }
 
 
@@ -759,6 +759,15 @@ def _mark_seen():
 def api_whats_new_seen():
     _mark_seen()
     return "", 204
+
+
+@app.get("/api/update/progress")
+def api_update_progress():
+    """How far an update has got, for the notice while it runs. Cheap: no
+    network, so the page can ask a few times a second."""
+    return jsonify({"current": __version__,
+                     "progress": app.config.get("MUHURATA_UPDATE_PROGRESS"),
+                     "error": app.config.get("MUHURATA_UPDATE_ERROR")})
 
 
 @app.post("/api/update/restart")

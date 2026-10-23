@@ -437,6 +437,65 @@ body[data-theme="light"] .ambient {
   box-shadow: none;
 }
 
+/* While "Update now" runs: the buttons step aside and a thin line shows
+   how far along it is (static/js/update-check.js). It slides when the
+   amount isn't known (starting, installing, restarting). */
+.is-updating [hidden] {
+  display: none !important;
+}
+
+.update-progress {
+  position: relative;
+  height: 3px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--gold) 16%, transparent);
+  overflow: hidden;
+}
+
+.update-bar .update-progress {
+  position: absolute;
+  left: 1.25rem;
+  right: 1.25rem;
+  bottom: 0.6rem;
+}
+
+.update-bar.is-updating {
+  padding-bottom: 1.35rem;
+}
+
+.update-required-card .update-progress {
+  margin: 0.25rem 0 0.5rem;
+}
+
+.update-progress-fill {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--gold);
+  transition: width 0.35s ease;
+}
+
+.update-progress.is-indeterminate .update-progress-fill {
+  width: 38%;
+  transition: none;
+  animation: update-slide 1.25s ease-in-out infinite;
+}
+
+@keyframes update-slide {
+  from {
+    transform: translateX(-105%);
+  }
+  to {
+    transform: translateX(270%);
+  }
+}
+
+/* The quiet line ticks with the percentage: keep digits even-width. */
+.update-bar.is-updating .update-bar-sub {
+  font-variant-numeric: tabular-nums;
+}
+
 @keyframes notice-in {
   from {
     opacity: 0;
@@ -448,6 +507,10 @@ body[data-theme="light"] .ambient {
   .update-bar,
   .timer-alarm {
     animation: none;
+  }
+
+  .update-progress.is-indeterminate .update-progress-fill {
+    animation-duration: 3s;
   }
 }
 

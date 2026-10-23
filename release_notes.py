@@ -9,10 +9,6 @@ NOTES = {
         "iPhone: a bell and a notification now tell you when focus or rest ends, even with the phone "
         "locked. Add the app to your Home Screen, then turn it on in Settings > Notifications.",
     ],
-    "1.12.0": [
-        "iPhone: a bell and a notification now tell you when focus or rest ends, even with the phone "
-        "locked. Add the app to your Home Screen, then turn it on in Settings > Notifications.",
-    ],
     "1.11.2": [
         "Updating no longer looks frozen: after \"Update now\" a line fills as the update downloads, "
         "with the percentage, then says when it is installing and reopening.",

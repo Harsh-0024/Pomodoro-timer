@@ -108,14 +108,32 @@
         ["Play Protect warns about it?", "Tap <b>More details</b> → <b>Install anyway</b>. The app isn't on the Play Store, so Google doesn't know it yet. Nothing is wrong with it."],
       ],
     },
+    // Not a file: a web app that installs from Safari and then works offline.
+    iphone: {
+      web: "app/",
+      eyebrow: "iPhone and iPad · in Safari",
+      steps: [
+        ["Open it", "Tap Open Muhurta above, in Safari."],
+        ["Add it", "Tap Share, then Add to Home Screen, then Add."],
+        ["Sign in", "Open Muhurta from your Home Screen and sign in. Your history comes with you."],
+      ],
+      after: "That's it. It opens like an app, works offline, and updates itself.",
+      folds: [
+        ["Does it work with no internet?", "Yes. After the first time, everything works offline; sessions sync to your account the next time you're online."],
+        ["Will it ring with the screen locked?", "Yes, once you allow notifications: in Muhurta, Settings → Notifications → Allow (iOS 16.4 or later). The end of each block then arrives as a notification, even with the phone locked."],
+        ["No \u201cAdd to Home Screen\u201d?", "Open the page in <b>Safari</b> (not inside another app). On iOS 16.4 and later it also works from Chrome's Share menu."],
+      ],
+    },
   };
-  const NAMES = { mac: "Mac", win: "Windows", android: "Android" };
+  const NAMES = { mac: "Mac", win: "Windows", android: "Android", iphone: "iPhone" };
 
   const params = new URLSearchParams(location.search);
   let os = (params.get("os") || "").toLowerCase();
-  if (!BUILDS[os]) os = /Android/i.test(navigator.userAgent) ? "android" : /Win/i.test(navigator.userAgent) ? "win" : "mac";
+  // iPadOS says it is a Mac; a touch screen gives it away.
+  const onIphone = /iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  if (!BUILDS[os]) os = onIphone ? "iphone" : /Android/i.test(navigator.userAgent) ? "android" : /Win/i.test(navigator.userAgent) ? "win" : "mac";
   const build = BUILDS[os];
-  const url = `${REPO}/releases/latest/download/${build.file}`;
+  const url = build.web || `${REPO}/releases/latest/download/${build.file}`;
 
   document.title = `Download Muhurta Pomodoro for ${NAMES[os]}`;
   document.getElementById("eyebrow").textContent = build.eyebrow;
@@ -129,18 +147,24 @@
   const status = document.getElementById("status");
   const statusText = document.getElementById("statusText");
 
-  // Don't fire a download the device can't use: no iPhone app, and a phone
-  // can't run the computer versions (nor a computer the Android one).
-  const ua = navigator.userAgent;
-  const onAndroid = /Android/i.test(ua);
-  const onIphone = /iPhone|iPad|iPod/i.test(ua);
-  const wrongDevice = onIphone || (onAndroid ? os !== "android" : os === "android");
-  if (wrongDevice) {
+  // Don't fire a download the device can't use: a phone can't run the
+  // computer versions, nor a computer or an iPhone the Android one.
+  const onAndroid = /Android/i.test(navigator.userAgent);
+  const wrongDevice = os !== "iphone" && (onIphone || (onAndroid ? os !== "android" : os === "android"));
+  if (build.web) {
+    // Nothing to download: the app opens in Safari and is added from there.
     status.classList.add("done");
-    statusText.textContent = onIphone ? "There's no iPhone app yet. Open this page on an Android phone or a computer."
+    status.querySelector(".spin").remove();
+    statusText.innerHTML = `<a class="btn-download" href="${build.web}">Open Muhurta</a>`;
+    if (!onIphone) statusText.innerHTML += ' <span class="quiet small">Open this page on your iPhone to install it.</span>';
+    document.getElementById("retry").hidden = true;
+  } else if (wrongDevice) {
+    status.classList.add("done");
+    statusText.textContent = onIphone ? "This is for another kind of device. Get the iPhone app instead."
       : onAndroid ? "This is the computer version. Get the Android app instead."
       : "This is the Android app. Open this page on your Android phone to download it.";
     if (onAndroid) statusText.innerHTML += ' <a href="download.html?os=android">Android app</a>';
+    if (onIphone) statusText.innerHTML += ' <a href="download.html?os=iphone">iPhone app</a>';
     document.getElementById("retry").hidden = true;
   } else {
     const go = () => { location.href = url; };

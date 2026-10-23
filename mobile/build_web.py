@@ -1,15 +1,27 @@
-"""Build the Android app's web folder (mobile/www) from the desktop app's screens.
+"""Build the phone apps' web folders from the desktop app's screens.
 
-The desktop app renders templates/ with Flask on every request. The phone has
+The desktop app renders templates/ with Flask on every request. A phone has
 no Python, so this renders each page once, ahead of time, into plain .html
 files, and copies static/ next to them. Anything that changes at run time
 (theme, account chip, quotes) is filled in by the page's own JavaScript.
 
-Run from anywhere:  python mobile/build_web.py
+Two copies come out of the same screens:
+
+- Android (mobile/www): the Capacitor app, served from the app's own root.
+- iPhone (docs/app): an installable web app on the website (GitHub Pages),
+  served from /muhurta-pomodoro/app/. A service worker keeps every file on
+  the phone, so after the first visit it opens and works with no connection;
+  the network is only used to sign in, sync and fetch updates.
+
+Run from anywhere:  python mobile/build_web.py            (Android)
+                    python mobile/build_web.py --iphone   (iPhone web app)
 """
 
 from __future__ import annotations
 
+import argparse
+import hashlib
+import json
 import random
 import re
 import shutil
@@ -21,7 +33,6 @@ from jinja2 import Environment, FileSystemLoader
 
 ROOT = Path(__file__).resolve().parent.parent
 MOBILE = ROOT / "mobile"
-WWW = MOBILE / "www"
 sys.path.insert(0, str(ROOT))
 
 from version import __version__  # noqa: E402
@@ -44,6 +55,21 @@ ROUTES = {"/sign-in": "/sign-in.html", "/timer": "/timer.html", "/flow": "/flow.
 PASSWORD_SITE = "harsh-0024.github.io/muhurta-pomodoro"
 EMAIL_FROM = "muhurata.pomodoro.timer@gmail.com"
 
+
+class Target:
+    """Where one copy is built, and the address it is served from."""
+
+    def __init__(self, name: str, out: Path, base: str, platform: str):
+        self.name, self.out, self.base, self.platform = name, out, base, platform
+
+    @property
+    def web(self) -> bool:
+        return self.name == "iphone"
+
+
+ANDROID = Target("android", MOBILE / "www", "/", "android")
+IPHONE = Target("iphone", ROOT / "docs" / "app", "/muhurta-pomodoro/app/", "ios")
+
 # Runs first on every page: an address like /settings (from the desktop app's
 # JavaScript) lands on index.html, so send it on to the page's own file.
 ROUTER = """<script>
@@ -56,22 +82,48 @@ ROUTER = """<script>
 
 
 LOCAL_API = """
-  <script src="/mobile-data.js"></script>
-  <script src="/local-api.js"></script>
-  <script src="/account.js"></script>
-  <script src="/alerts.js"></script>"""
+  <script src="{base}mobile-data.js"></script>
+  <script src="{base}local-api.js"></script>
+  <script src="{base}account.js"></script>
+  <script src="{base}{alerts}"></script>"""
+
+# The iPhone copy: installable from Safari (Share > Add to Home Screen), opens
+# full screen like an app, and draws under the status bar (the pages already
+# leave room for it: mobile.css --safe-top).
+WEB_HEAD = """
+  <link rel="manifest" href="{base}manifest.webmanifest" />
+  <meta name="theme-color" content="#0d0b08" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="Muhurta" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="apple-touch-icon" href="{base}icons/apple-touch-icon.png" />
+  <script src="{base}pwa.js"></script>"""
 
 
-def url_for(endpoint: str, filename: str | None = None, **_):
-    if endpoint == "static":
-        return f"/static/{filename}"
-    return "/" + PAGES[endpoint][1].replace("index.html", "")
+def page_path(target: Target, endpoint: str) -> str:
+    return target.base + PAGES[endpoint][1].replace("index.html", "")
 
 
-def render_pages() -> None:
-    import json
+def web_paths(text: str, target: Target) -> str:
+    """The desktop app's JavaScript goes to /timer, /sign-in, /static/...: on
+    the website everything lives under target.base, as a file of its own."""
+    base = target.base
+    text = re.sub(r"""(["'])/static/""", lambda m: f"{m.group(1)}{base}static/", text)
+    for route, file in ROUTES.items():
+        text = re.sub(rf"""(["']){re.escape(route)}(["'#?])""", lambda m: f"{m.group(1)}{base}{file[1:]}{m.group(2)}", text)
+    # location.replace("/") after signing in: the app's home page.
+    return text.replace('location.replace("/")', f'location.replace("{base}")')
+
+
+def render_pages(target: Target) -> None:
     import os
     import tempfile
+
+    def url_for(endpoint: str, filename: str | None = None, **_):
+        if endpoint == "static":
+            return f"{target.base}static/{filename}"
+        return page_path(target, endpoint)
 
     # app.py is imported only for its quote list; keep it away from real data.
     os.environ["MUHURATA_DATA_DIR"] = tempfile.mkdtemp(prefix="muhurta-build-")
@@ -99,18 +151,26 @@ def render_pages() -> None:
         # before the page draws, and the same look offline.
         html = re.sub(r'\s*<link rel="preconnect" href="https://fonts\.(googleapis|gstatic)\.com"[^>]*/>', "", html)
         html = re.sub(r'<link href="https://fonts\.googleapis\.com/css2[^"]*" rel="stylesheet" />',
-                      '<link href="/fonts/fonts.css" rel="stylesheet" />', html)
+                      f'<link href="{target.base}fonts/fonts.css" rel="stylesheet" />', html)
         # First in <head>: the router, then the phone's own /api (local-api.js).
-        head = ROUTER % json.dumps(ROUTES) + LOCAL_API
-        html = html.replace("<head>", "<head>\n  " + head, 1)
-        (WWW / out).write_text(html, encoding="utf-8")
+        alerts = "web-alerts.js" if target.web else "alerts.js"
+        head = LOCAL_API.format(base=target.base, alerts=alerts)
+        if target.web:
+            html = web_paths(html, target)
+            head = WEB_HEAD.format(base=target.base) + head
+        else:
+            head = ROUTER % json.dumps(ROUTES) + head
+        if target.web:
+            # After the charset, which must come early; nothing there needs the router.
+            html = html.replace('<meta charset="UTF-8" />', '<meta charset="UTF-8" />' + head, 1)
+        else:
+            html = html.replace("<head>", "<head>\n  " + head, 1)
+        (target.out / out).write_text(html, encoding="utf-8")
 
 
-def write_data() -> None:
+def write_data(target: Target) -> None:
     """mobile-data.js: the fixed data local-api.js needs, taken from the Python
     files so there is only one copy of each."""
-    import json
-
     import cloud
     import db
     import release_notes
@@ -131,29 +191,81 @@ def write_data() -> None:
         # Where the phone hears about updates (app.py), and where it gets them.
         "releases_api": RELEASES_API,
         "update_policy_url": UPDATE_POLICY_URL,
-        "download_page": DOWNLOAD_PAGE + "?os=android",
+        "download_page": DOWNLOAD_PAGE + ("?os=iphone" if target.web else "?os=android"),
+        "platform": target.platform,
+        # The iPhone copy updates itself from the website: version.json there
+        # says which version the website has now.
+        "base": target.base,
         # MUHURATA_SUPABASE_URL / _KEY build a copy for a test server.
         "supabase_url": cloud.SUPABASE_URL,
         "supabase_key": cloud.SUPABASE_KEY,
+        # The iPhone app's end-of-block notifications (supabase/functions/push).
+        "push_url": f"{cloud.SUPABASE_URL}/functions/v1/push" if target.web else "",
     }
-    (WWW / "mobile-data.js").write_text(
+    (target.out / "mobile-data.js").write_text(
         "// Built by mobile/build_web.py from the Python files. Do not edit.\n"
         f"window.__MUHURTA__ = {json.dumps(data, ensure_ascii=False)};\n",
         encoding="utf-8",
     )
-    for name in ("local-api.js", "account.js", "alerts.js"):
-        shutil.copy2(MOBILE / "web" / name, WWW / name)
-    shutil.copytree(MOBILE / "web" / "fonts", WWW / "fonts")
+    names = ["local-api.js", "account.js"] + (["web-alerts.js", "pwa.js"] if target.web else ["alerts.js"])
+    for name in names:
+        shutil.copy2(MOBILE / "web" / name, target.out / name)
+    shutil.copytree(MOBILE / "web" / "fonts", target.out / "fonts")
+
+
+def write_web_app(target: Target) -> None:
+    """The iPhone copy's install details (manifest, icons), the service worker
+    that keeps it working offline, and version.json for updates."""
+    out = target.out
+    for path in (out / "static" / "js").glob("*.js"):
+        path.write_text(web_paths(path.read_text(encoding="utf-8"), target), encoding="utf-8")
+    shutil.copytree(MOBILE / "web" / "icons", out / "icons")
+
+    manifest = {
+        "name": "Muhurta Pomodoro",
+        "short_name": "Muhurta",
+        "description": "A calm focus timer built on the old Indian units of time.",
+        "id": target.base,
+        "start_url": target.base,
+        "scope": target.base,
+        "display": "standalone",
+        "orientation": "portrait",
+        "background_color": "#0d0b08",
+        "theme_color": "#0d0b08",
+        "icons": [
+            {"src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png"},
+            {"src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png"},
+            {"src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
+        ],
+    }
+    (out / "manifest.webmanifest").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    (out / "version.json").write_text(json.dumps({"version": __version__}) + "\n", encoding="utf-8")
+
+    # Everything the app needs, kept on the phone. The cache's name changes
+    # with any file, so a new build replaces the old copy as a whole.
+    files = sorted(p.relative_to(out).as_posix() for p in out.rglob("*") if p.is_file() and p.name != "version.json")
+    digest = hashlib.sha256()
+    for name in files:
+        digest.update(name.encode() + b"\0" + (out / name).read_bytes())
+    sw = (MOBILE / "web" / "sw.js").read_text(encoding="utf-8")
+    sw = sw.replace("__CACHE__", json.dumps(f"muhurta-{__version__}-{digest.hexdigest()[:10]}"))
+    sw = sw.replace("__FILES__", json.dumps(["./"] + files))
+    (out / "sw.js").write_text(sw, encoding="utf-8")
 
 
 def main() -> None:
-    if WWW.exists():
-        shutil.rmtree(WWW)
-    WWW.mkdir(parents=True)
-    shutil.copytree(ROOT / "static", WWW / "static")
-    render_pages()
-    write_data()
-    print(f"Built {WWW.relative_to(ROOT)} (v{__version__}, {len(PAGES)} pages)")
+    parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    parser.add_argument("--iphone", action="store_true", help="build the iPhone web app into docs/app")
+    target = IPHONE if parser.parse_args().iphone else ANDROID
+    if target.out.exists():
+        shutil.rmtree(target.out)
+    target.out.mkdir(parents=True)
+    shutil.copytree(ROOT / "static", target.out / "static")
+    render_pages(target)
+    write_data(target)
+    if target.web:
+        write_web_app(target)
+    print(f"Built {target.out.relative_to(ROOT)} (v{__version__}, {len(PAGES)} pages)")
 
 
 if __name__ == "__main__":

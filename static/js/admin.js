@@ -132,6 +132,159 @@
     $("rulesStatus").textContent = policy.updated_at ? `Last changed ${ago(policy.updated_at)}.` : "";
   }
 
+  /* ---------- feedback ---------- */
+
+  const KINDS = {
+    like: "Something they like",
+    dislike: "Something they don't like",
+    improve: "Could be better",
+    idea: "A feature idea",
+  };
+  let feedback = null;
+  let feedbackFilter = "open";
+
+  function renderFeedback() {
+    const list = $("feedbackList");
+    const items = feedback || [];
+    const fresh = items.filter((f) => f.status === "new").length;
+    const badge = $("feedbackNew");
+    badge.hidden = !fresh;
+    badge.textContent = `${fresh} new`;
+    const count = (k, word) => {
+      const n = items.filter((f) => f.kind === k).length;
+      return word ? `${n} ${word}${n === 1 ? "" : "s"}` : `${n}`;
+    };
+    $("feedbackCounts").textContent = items.length
+      ? `${count("idea", "idea")} · ${count("improve")} to improve · ${count("dislike", "dislike")} · ${count("like", "like")}`
+      : "";
+
+    const shown = items.filter((f) =>
+      feedbackFilter === "all" || (feedbackFilter === "done" ? f.status === "done" : f.status !== "done"));
+    list.replaceChildren();
+    if (!shown.length) {
+      list.append(el("p", "admin-empty", items.length
+        ? (feedbackFilter === "done" ? "Nothing marked done yet." : "All caught up.")
+        : "No feedback yet. People send it from Settings → Feedback."));
+      return;
+    }
+    shown.forEach((f) => {
+      const row = el("div", "pref-row admin-feedback");
+      row.dataset.status = f.status;
+      const name = fullName(f);
+      row.append(el("span", "account-avatar", (f.first_name || f.email || "?").charAt(0).toUpperCase()));
+      const text = el("div", "pref-text");
+      const title = el("span", "pref-name", name || f.email);
+      if (f.status === "new") title.append(" ", el("span", "admin-badge admin-new", "New"));
+      text.append(title);
+      text.append(el("span", "pref-desc", [f.username && `@${f.username}`, name && f.email].filter(Boolean).join(" · ")));
+      const kind = el("span", "admin-feedback-kind", KINDS[f.kind] || f.kind);
+      kind.dataset.kind = f.kind;
+      text.append(kind);
+      text.append(el("p", "admin-feedback-msg", f.message));
+      text.append(el("span", "admin-facts", [
+        ago(f.created_at),
+        f.app_version && `v${f.app_version}`,
+        PLATFORMS[f.platform] || (f.platform === "android" ? "Android" : f.platform),
+      ].filter(Boolean).join(" · ")));
+
+      const actions = el("div", "admin-feedback-actions");
+      if (f.email) {
+        const copy = el("button", "btn btn-quiet btn-small", "Copy email");
+        copy.type = "button";
+        copy.addEventListener("click", async () => {
+          try {
+            await navigator.clipboard.writeText(f.email);
+            copy.textContent = "Copied";
+          } catch (_) {
+            copy.textContent = f.email;
+          }
+          setTimeout(() => { copy.textContent = "Copy email"; }, 1800);
+        });
+        actions.append(copy);
+      }
+      const done = f.status === "done";
+      const toggle = el("button", "btn btn-quiet btn-small", done ? "Reopen" : "Mark done");
+      toggle.type = "button";
+      toggle.addEventListener("click", () => setFeedbackStatus(f, done ? "seen" : "done", toggle));
+      const remove = el("button", "btn btn-ghost btn-small admin-feedback-delete", "Delete");
+      remove.type = "button";
+      remove.addEventListener("click", () => deleteFeedback(f, remove));
+      actions.append(toggle, remove);
+      text.append(actions);
+      row.append(text);
+      list.append(row);
+    });
+  }
+
+  async function feedbackCall(path, method, body) {
+    const r = await fetch(path, {
+      method,
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.error || "Couldn't do that just now. Try again.");
+    return data;
+  }
+
+  async function setFeedbackStatus(f, status, button) {
+    button.disabled = true;
+    try {
+      await feedbackCall(`/api/admin/feedback/${f.id}`, "PATCH", { status });
+      f.status = status;
+      renderFeedback();
+    } catch (e) {
+      showError(e.message);
+      button.disabled = false;
+    }
+  }
+
+  async function deleteFeedback(f, button) {
+    const ask = window.MuhurataDialog?.confirm
+      ? window.MuhurataDialog.confirm({ title: "Delete this feedback?", message: "It can't be brought back.", accept: "Delete" })
+      : Promise.resolve(window.confirm("Delete this feedback?"));
+    if (!(await ask)) return;
+    button.disabled = true;
+    try {
+      await feedbackCall(`/api/admin/feedback/${f.id}`, "DELETE");
+      feedback = feedback.filter((x) => x !== f);
+      renderFeedback();
+    } catch (e) {
+      showError(e.message);
+      button.disabled = false;
+    }
+  }
+
+  async function loadFeedback() {
+    try {
+      const data = await feedbackCall("/api/admin/feedback", "GET");
+      feedback = data.items || [];
+      renderFeedback();
+    } catch (e) {
+      if (!feedback) {
+        $("feedbackList").replaceChildren(el("p", "admin-empty", e.message));
+      }
+    }
+  }
+
+  function showError(message) {
+    const error = $("adminError");
+    error.textContent = message;
+    error.hidden = false;
+  }
+
+  (function wireFeedbackFilter() {
+    const buttons = [...$("feedbackFilter").querySelectorAll(".segment")];
+    buttons.forEach((b) => b.addEventListener("click", () => {
+      feedbackFilter = b.dataset.value;
+      buttons.forEach((x) => {
+        x.classList.toggle("is-active", x === b);
+        x.setAttribute("aria-checked", x === b ? "true" : "false");
+      });
+      if (feedback) renderFeedback();
+    }));
+  })();
+
   /* ---------- data ---------- */
 
   let current = null;
@@ -167,7 +320,7 @@
     const b = ev.currentTarget;
     b.disabled = true;
     b.textContent = "Refreshing…";
-    await load();
+    await Promise.all([load(), loadFeedback()]);
     b.disabled = false;
     b.textContent = "Refresh";
   });
@@ -212,4 +365,5 @@
   });
 
   load();
+  loadFeedback();
 })();

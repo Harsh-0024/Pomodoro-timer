@@ -27,29 +27,80 @@
     return node;
   }
 
-  function waitForNewVersion(from, msg, onError) {
+  // While an update runs, the notice shows what it is doing and how far it
+  // has got (/api/update/progress), so the app never looks frozen. A git
+  // install restarts instead: the server is briefly gone, then the page
+  // reloads on the new version.
+  const STAGES = {
+    download: "Downloading the update",
+    install: "Installing it",
+    reopen: "Reopening. The app closes and opens again in a moment.",
+    restart: "Restarting. Back in a moment.",
+  };
+
+  function followUpdate(from, view, onError) {
     const started = Date.now();
     const poll = () => {
-      fetch("/api/version", { cache: "no-store" })
+      fetch("/api/update/progress", { cache: "no-store" })
         .then((r) => (r.ok ? r.json() : null))
         .then((d) => {
-          if (d && d.update_error) onError(d.update_error);
-          else if (d && d.current !== from) location.reload();
-          else retry();
+          if (!d) return retry();
+          if (d.error) return onError(d.error);
+          if (d.current !== from) return location.reload();
+          if (d.progress) view.show(d.progress.stage, d.progress.percent);
+          retry();
         })
-        .catch(retry);
+        // The server is restarting (git install) or the window is closing.
+        .catch(() => {
+          view.show("restart", null);
+          retry();
+        });
     };
     const retry = () => {
       // An update that also installs components can take a minute or two.
-      if (Date.now() - started < 4 * 60 * 1000) setTimeout(poll, 2000);
-      else msg.textContent = "The update is taking long. Close this window and open Muhurta Pomodoro again.";
+      if (Date.now() - started < 4 * 60 * 1000) setTimeout(poll, 400);
+      else view.slow();
     };
-    setTimeout(poll, 2000);
+    poll();
+  }
+
+  // The moving line and the words under the title, put inside `host`.
+  function progressView(host, msg) {
+    const bar = el("div", "update-progress is-indeterminate");
+    bar.setAttribute("role", "progressbar");
+    bar.setAttribute("aria-label", "Update progress");
+    const fill = el("span", "update-progress-fill");
+    bar.append(fill);
+    host.append(bar);
+    return {
+      bar,
+      show(stage, percent) {
+        const known = typeof percent === "number";
+        bar.classList.toggle("is-indeterminate", !known);
+        if (known) {
+          fill.style.width = `${Math.max(3, percent)}%`;
+          bar.setAttribute("aria-valuenow", String(percent));
+        } else {
+          fill.style.width = "";
+          bar.removeAttribute("aria-valuenow");
+        }
+        const words = STAGES[stage] || "Updating";
+        msg.textContent = stage === "download" && known ? `${words}… ${percent}%` : words.endsWith(".") ? words : `${words}…`;
+      },
+      slow() {
+        bar.classList.add("is-indeterminate");
+        msg.textContent = "The update is taking long. Close this window and open Muhurta Pomodoro again.";
+      },
+      remove() {
+        bar.remove();
+      },
+    };
   }
 
   // The "Update now" (or "Download") button, shared by the notice and the
-  // required screen. `others` are disabled while updating.
-  function updateButton(d, msg, others) {
+  // required screen. While updating, `host` shows the progress line and
+  // `hide` (the buttons) step aside.
+  function updateButton(d, msg, host, hide) {
     if (d.how !== "restart") {
       const link = el("a", "btn btn-primary", "Download");
       link.href = d.url;
@@ -60,18 +111,26 @@
     const button = el("button", "btn btn-primary", "Update now");
     button.type = "button";
     button.addEventListener("click", () => {
-      const all = [button, ...others];
-      all.forEach((b) => (b.disabled = true));
       const before = msg.textContent;
-      msg.textContent = "Updating… the app is back by itself in a few seconds.";
+      const title = host.querySelector(".update-bar-title, .update-required-title");
+      const titleBefore = title && title.textContent;
+      if (title) title.textContent = `Updating to ${d.latest}`;
+      const hidden = [button, ...hide];
+      hidden.forEach((b) => (b.hidden = true));
+      host.classList.add("is-updating");
+      const view = progressView(host, msg);
+      view.show("download", null);
       const failed = (text) => {
+        view.remove();
+        host.classList.remove("is-updating");
+        if (title) title.textContent = titleBefore;
         msg.textContent = text || before;
-        all.forEach((b) => (b.disabled = false));
+        hidden.forEach((b) => (b.hidden = false));
       };
       fetch("/api/update/restart", { method: "POST" })
         .then((r) => {
           if (!r.ok) throw new Error();
-          waitForNewVersion(d.current, msg, failed);
+          followUpdate(d.current, view, failed);
         })
         .catch(() => failed("Could not update just now. Close this window and open Muhurta Pomodoro again."));
     });
@@ -106,7 +165,7 @@
       } catch (_) {}
       bar.remove();
     });
-    actions.append(later, updateButton(d, msg, [later]));
+    actions.append(later, updateButton(d, msg, bar, [actions]));
     document.body.appendChild(bar);
   }
 
@@ -140,7 +199,7 @@
       d.message || `Version ${d.current} is no longer supported. Version ${d.latest} is ready.`);
     const note = el("p", "update-required-note",
       "Your sessions and settings are safe in your account and come back after the update.");
-    const button = updateButton(d, body, []);
+    const button = updateButton(d, body, card, []);
     card.append(kicker, title, body, button, note);
     screen.append(card);
     document.body.appendChild(screen);

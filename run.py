@@ -567,7 +567,7 @@ def _old_app(app: Path) -> Path:
     return app.with_name(f".{app.name}.old")
 
 
-def _install_app_update(app: Path, data_dir: Path):
+def _install_app_update(app: Path, data_dir: Path, progress=lambda stage, percent=None: None):
     """Download the newest .dmg and swap its app in for this one.
 
     The running copy keeps working after the swap (its files stay open), so
@@ -584,8 +584,16 @@ def _install_app_update(app: Path, data_dir: Path):
     work.mkdir(parents=True)
     dmg, mount = work / "update.dmg", work / "disk"
     context = ssl.create_default_context(cafile=certifi.where())
+    progress("download", 0)
     with urllib.request.urlopen(UPDATE_DMG_URL, timeout=60, context=context) as res, open(dmg, "wb") as out:
-        shutil.copyfileobj(res, out)
+        # In pieces, so the window can show how far along it is.
+        total = int(res.headers.get("Content-Length") or 0)
+        done = 0
+        while chunk := res.read(256 * 1024):
+            out.write(chunk)
+            done += len(chunk)
+            progress("download", min(99, done * 100 // total) if total else None)
+    progress("install")
     mount.mkdir()
     attach = _run(["hdiutil", "attach", "-nobrowse", "-readonly", "-noautoopen", "-mountpoint", str(mount), str(dmg)])
     if attach.returncode != 0:
@@ -1061,17 +1069,24 @@ def main(argv: list[str]) -> int:
                 updating.set()
                 app.config.pop("MUHURATA_UPDATE_ERROR", None)
 
+                def progress(stage, percent=None):
+                    # Read by /api/update/progress: the notice shows it as it goes.
+                    app.config["MUHURATA_UPDATE_PROGRESS"] = {"stage": stage, "percent": percent}
+
                 def work():
                     import webview
 
                     log.info("Updating the app...")
                     try:
-                        _install_app_update(this_app, data_dir)
+                        _install_app_update(this_app, data_dir, progress)
                     except Exception as exc:
                         log.warning("Update failed: %s", exc, exc_info=True)
+                        app.config.pop("MUHURATA_UPDATE_PROGRESS", None)
                         app.config["MUHURATA_UPDATE_ERROR"] = "Could not download the update just now. Try again later."
                         updating.clear()
                         return
+                    progress("reopen")
+                    time.sleep(1.2)  # long enough to read "Reopening" before the window closes
                     _final_sync()
                     # Reopen once this copy has quit (open would only bring
                     # a still-running copy to the front). A test copy keeps
@@ -1110,6 +1125,7 @@ def main(argv: list[str]) -> int:
         if restarting.is_set():
             return
         restarting.set()
+        app.config["MUHURATA_UPDATE_PROGRESS"] = {"stage": "restart", "percent": None}
 
         def stop():
             time.sleep(0.5)  # let the answer reach the page first

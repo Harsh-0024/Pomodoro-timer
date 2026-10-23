@@ -5,6 +5,12 @@ a few short lines per version, about what they will notice. Versions with
 nothing worth telling can be left out.
 """
 NOTES = {
+    "1.11.2": [
+        "Updating no longer looks frozen: after \"Update now\" a line fills as the update downloads, "
+        "with the percentage, then says when it is installing and reopening.",
+        "New in Settings: Feedback. Tell the maker what you like, what you don't, what could be better "
+        "or what you'd like next, and see whether it was read.",
+    ],
     "1.11.1": [
         "The \"new version\" notice is calmer: a short title, a small Download button, and on a phone "
         "one slim line that stays clear of the clock.",
